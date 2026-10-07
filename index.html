@@ -66,6 +66,9 @@ dialog::backdrop{background:rgba(0,0,0,.4)}
 .player{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:12px}.player .bar{height:10px;border-radius:99px}
 .player .lcard{font-size:18px;line-height:1.5;margin:14px 0}.metaphor{font-style:italic;color:var(--muted);margin:10px 0 0}
 .ldiagram{margin-bottom:12px}.player>.btn{align-self:flex-start}
+.welcome{border-color:var(--accent);background:linear-gradient(180deg,var(--soft),var(--card) 70%)}
+.behind{margin-top:10px;font-size:14px}
+.nextstep{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
 .todo{margin:8px 0 0;padding-left:18px}.todo li{margin:4px 0}
 .linkbtn{background:none;border:0;padding:0;font:inherit;color:var(--accent);text-align:left;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
 .badge{display:inline-block;min-width:18px;padding:0 5px;border-radius:99px;background:var(--warn);color:#fff;font-size:11px;line-height:18px;text-align:center;font-weight:700}
@@ -262,6 +265,7 @@ sb.auth.onAuthStateChange((event, session) => {
 async function signedIn(session) {
   if (!session) { me = null; return authView(); }
   const { data } = await sb.from("profiles").select("*").eq("id", session.user.id).single();
+  if (me?.id !== data?.id) view = "home";  // every sign-in opens on Home
   me = data;
   await loadRef();
   boot();
@@ -313,12 +317,12 @@ function boot() {
   if (lvl() >= 3) tabs.push(["upsells","Upsells"]);
   if (lvl() >= 2 && me?.role !== "admin") tabs.push(["money","Money"]);
   if (reviewer()) tabs.push(["approvals","Approvals"]);
-  if (me?.role === "admin") tabs.push(["admin","Farmers"],["payouts","Payouts"],["trades","Trades"]);
+  if (me?.role === "admin") tabs.push(["admin","Farmers"],["payouts","Payouts"],["trades","Trades"],["welcome","Welcome"]);
   if (!tabs.some(([k]) => k === view)) view = "home";
   $("#nav").innerHTML = tabs.map(([k,l]) => `<button data-v="${k}" class="${k===view?"on":""}">${l}</button>`).join("");
   $("#nav").onclick = (e) => { const b = e.target.closest("button"); if (b?.dataset.v) { view = b.dataset.v; boot(); } };
   approvalsBadge();
-  ({ home, learn, program, pipeline, contractors, leads, upsells, money: moneyView, approvals, admin, payouts, tradesView: tradesView })[view === "trades" ? "tradesView" : view]();
+  ({ home, learn, program, pipeline, contractors, leads, upsells, money: moneyView, welcome: welcomeLines, approvals, admin, payouts, tradesView: tradesView })[view === "trades" ? "tradesView" : view]();
 }
 
 // ---------- farmer: home (level ladder + next step) ----------
@@ -356,7 +360,7 @@ async function home() {
       <div class="row"><input id="reflink" readonly value="${esc(refLink)}" style="flex:1"><button class="btn ghost sm" id="copyref">Copy</button></div></div>` : ""}</div>`;
   if ($("#copyref")) $("#copyref").onclick = () => { $("#reflink").select(); navigator.clipboard?.writeText($("#reflink").value).catch(() => {}); $("#copyref").textContent = "Copied"; };
   if ($("#askup")) $("#askup").onclick = () => requestForm(L + 1);
-  if (me.role !== "admin") await homeExtras(cs);
+  if (me.role !== "admin") await homeExtras(cs, { L, aced, ready, pending });
   if ($("#toquiz")) $("#toquiz").onclick = (e) => { e.preventDefault(); learnQuiz = "l" + L; view = "learn"; boot(); };
 }
 
@@ -662,17 +666,58 @@ async function todayList(cs) {
   if (pr?.enrolled && pr.day >= 7 && pr.day <= 90 && pr.comments_today < 50) items.push({ go: "program", text: `Post your neighbor comments. ${pr.comments_today} of 50 logged today.` });
   for (const s of pr?.steps || []) if (!s.met && s.deadline - pr.day >= 0 && s.deadline - pr.day <= 3)
     items.push({ go: "program", text: `${s.name} is due ${s.deadline === pr.day ? "today" : "in " + (s.deadline - pr.day) + " day" + (s.deadline - pr.day > 1 ? "s" : "")}: ${s.progress}.` });
-  return { items, ls: ls || [] };
+  return { items, ls: ls || [], pr };
 }
 
-async function homeExtras(cs) {
-  const [{ items, ls }, { data: notes }, { data: refs }] = await Promise.all([
+// One greeting per visit, in turn, from the lines Alex keeps in the Welcome tab
+const greetingFrom = (lines) => {
+  if (!lines?.length) return `Welcome back, ${firstName()}.`;
+  const key = "lf-greet-" + me.id;
+  let i = 0;
+  try { i = (+(localStorage.getItem(key) ?? -1) + 1) % lines.length; localStorage.setItem(key, i); } catch { i = Math.floor(Math.random() * lines.length); }
+  return lines[i].body.replaceAll("{name}", firstName());
+};
+const firstName = () => (me.full_name || "").trim().split(/\s+/)[0] || "farmer";
+
+// What to do right now, in order of what unblocks the most
+function nextStep({ L, aced, ready, pending }, pr, items) {
+  const s0 = pr?.enrolled && pr.steps[0];
+  if (s0 && !s0.met && pr.day <= 3 && !["Approved", "Waiting for review"].includes(s0.progress))
+    return { text: "Send in your 15 business models. They're due on day 3.", go: "program", btn: "Open 90 days" };
+  if (L < 3 && !aced) return { text: `Go through your Level ${L} lessons and ace the quiz. It shows you exactly what to do next.`, go: "learn", btn: "Open lessons" };
+  if (L < 3 && ready && !pending) return { text: `You've reached the Level ${L + 1} goal. Send your proof and ask to move up.`, go: "next", btn: "Request it" };
+  if (pending) return { text: `Your Level ${L + 1} request is with Alex. Keep logging your work while you wait.`, go: items[0] ? "todo" : "program", btn: items[0] ? "Start" : "Open 90 days" };
+  const open = pr?.enrolled && pr.steps.find((x) => !x.met && x.deadline >= pr.day);
+  if (items[0]) return { text: items[0].text, go: "todo", btn: "Do it" };
+  if (open) return { text: `Keep working on step ${open.n}, ${open.name}: ${open.quota}. You're at ${open.progress}.`, go: "program", btn: "Open 90 days" };
+  return { text: "Log today's calls and comments so your streak stays alive.", go: "program", btn: "Open 90 days" };
+}
+
+async function homeExtras(cs, ctx) {
+  const [{ items, ls, pr }, { data: notes }, { data: refs }, { data: lines }] = await Promise.all([
     todayList(cs),
     sb.from("notifications").select("*").eq("farmer_id", me.id).order("created_at", { ascending: false }),
     sb.rpc("my_referrals"),
+    sb.from("welcome_lines").select("*").order("id"),
   ]);
   const unread = (notes || []).filter((n) => !n.read_at);
+  const missed = pr?.enrolled ? pr.steps.filter((x) => !x.met && x.deadline < pr.day) : [];
+  const soon = pr?.enrolled ? pr.steps.filter((x) => !x.met && x.deadline >= pr.day && x.deadline - pr.day <= 7) : [];
+  const nx = nextStep(ctx, pr, items);
+  const behind = [...missed.map((x) => `Step ${x.n}, ${x.name}, was due on day ${x.deadline} and wasn't met (${x.progress}).`),
+    ...soon.map((x) => `Step ${x.n}, ${x.name}, is due ${x.deadline === pr.day ? "today" : "in " + (x.deadline - pr.day) + " day" + (x.deadline - pr.day > 1 ? "s" : "")}. You're at ${x.progress}.`)];
+  const greeting = greetingFrom(lines);
+  const summary = [greeting,
+    unread.length ? `You have ${unread.length} new alert${unread.length > 1 ? "s" : ""}. ${unread.map((n) => n.body).join(" ")}` : "No new alerts.",
+    behind.length ? behind.join(" ") : pr?.enrolled ? `You're on day ${Math.min(pr.day, 90)} of 90 and nothing is overdue.` : "",
+    `Your next step: ${nx.text}`].filter(Boolean).join(" ");
   app.firstElementChild.insertAdjacentHTML("afterbegin", `
+    <div class="card lvl welcome" id="welcome"><div class="row"><h2 style="margin:0;flex:1;font-size:20px" id="greeting">${esc(greeting)}</h2>
+      ${"speechSynthesis" in window ? `<button class="btn ghost sm" id="readout" title="Read this to me">🔊 Read it to me</button>` : ""}</div>
+      ${behind.length ? `<div class="behind"><b>${missed.length ? "You're behind" : "Coming up"}</b><ul class="todo">${behind.map((b) => `<li>${esc(b)}</li>`).join("")}</ul></div>`
+        : pr?.enrolled ? `<p class="muted" style="margin:8px 0 0">Day ${Math.min(pr.day, 90)} of 90. Nothing is overdue right now.</p>` : ""}
+      <div class="nextstep"><span><small class="muted">Your next step</small><br><b id="nexttext">${esc(nx.text)}</b></span>
+        <button class="btn" id="nextgo">${esc(nx.btn)}</button></div></div>
     ${unread.map((n) => `<div class="card lvl alert" style="border-color:var(--warn)"><div class="row"><span style="flex:1">${esc(n.body)}</span>
       <button class="btn ghost sm" data-seen="${n.id}">Got it</button></div></div>`).join("")}
     <div class="card lvl" id="today"><b>Today</b>${items.length
@@ -680,6 +725,17 @@ async function homeExtras(cs) {
       : `<p class="muted" style="margin:6px 0 0">You're caught up. Nothing needs a follow-up right now.</p>`}</div>`);
   if (refs?.length) $("#refcard").insertAdjacentHTML("beforeend", `<div class="tablewrap" style="margin-top:12px" id="myrefs"><table><thead><tr><th>Your referrals</th><th>Status</th></tr></thead><tbody>
     ${refs.map((r) => `<tr><td>${esc(r.full_name)}<br><small class="muted">${new Date(r.created_at).toLocaleDateString()}</small></td><td>${esc(payoutLabel(r))}</td></tr>`).join("")}</tbody></table></div>`);
+  $("#nextgo").onclick = () => {
+    if (nx.go === "todo") return app.querySelector("[data-todo]")?.click();
+    if (nx.go === "next") return $("#askup")?.click();
+    if (nx.go === "learn") learnQuiz = "l" + ctx.L;
+    view = nx.go; boot();
+  };
+  if ($("#readout")) $("#readout").onclick = () => {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(summary); u.rate = 1.02;
+    speechSynthesis.speak(u);
+  };
   app.querySelectorAll("[data-seen]").forEach((b) => b.onclick = async () => {
     await sb.from("notifications").update({ read_at: new Date().toISOString() }).eq("id", b.dataset.seen);
     b.closest(".alert").remove();
@@ -1115,6 +1171,25 @@ async function payouts() {
   });
   app.querySelectorAll("[data-paid]").forEach((b) => b.onclick = async () => {
     await sb.from("recruiter_payouts").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", b.dataset.paid); boot();
+  });
+}
+
+// ---------- admin: the welcome-back greetings ----------
+async function welcomeLines() {
+  const { data: lines } = await sb.from("welcome_lines").select("*").order("id");
+  app.innerHTML = `<div class="card" style="max-width:720px"><h2 style="margin-top:0;font-size:18px">Welcome-back greetings</h2>
+    <p class="muted">Farmers see the next one each time they open Home. Write {name} where their first name goes.</p>
+    <table><tbody>${(lines || []).map((l) => `<tr><td>${esc(l.body)}</td><td style="text-align:right;white-space:nowrap">
+      <button class="btn ghost sm" data-wedit="${l.id}">Edit</button> <button class="btn ghost sm" data-wdel="${l.id}">Remove</button></td></tr>`).join("")
+      || `<tr><td class="muted">No greetings yet. Farmers will see "Welcome back".</td></tr>`}</tbody></table>
+    <form id="wf" class="row" style="margin-top:12px"><input name="body" placeholder="Welcome back, {name}. …" required maxlength="300" style="flex:1"><button class="btn">Add</button></form>
+    <div class="err" id="werr"></div></div>`;
+  const done = ({ error }) => error ? ($("#werr").textContent = error.message) : welcomeLines();
+  $("#wf").onsubmit = async (e) => { e.preventDefault(); done(await sb.from("welcome_lines").insert({ body: new FormData(e.target).get("body").trim() })); };
+  app.querySelectorAll("[data-wdel]").forEach((b) => b.onclick = async () => done(await sb.from("welcome_lines").delete().eq("id", +b.dataset.wdel)));
+  app.querySelectorAll("[data-wedit]").forEach((b) => b.onclick = async () => {
+    const l = lines.find((x) => x.id === +b.dataset.wedit), body = prompt("Edit the greeting ({name} = their first name)", l.body);
+    if (body && body.trim() !== l.body) done(await sb.from("welcome_lines").update({ body: body.trim() }).eq("id", l.id));
   });
 }
 
