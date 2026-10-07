@@ -13,6 +13,8 @@
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 Inter,system-ui,sans-serif}
 header{display:flex;align-items:center;gap:16px;padding:12px 20px;border-bottom:1px solid var(--line);background:var(--card);position:sticky;top:0;z-index:5;flex-wrap:wrap}
+header[hidden]{display:none}
+a{color:var(--accent)}
 header h1{font-size:16px;margin:0;margin-right:auto}
 nav button{background:none;border:0;color:var(--muted);font:inherit;padding:6px 10px;border-radius:6px;cursor:pointer}
 nav button.on{background:var(--soft);color:var(--accent);font-weight:600}
@@ -66,6 +68,8 @@ dialog::backdrop{background:rgba(0,0,0,.4)}
 <script type="module">
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 const C = window.CRM_CONFIG;
+let recovering = /type=recovery/.test(location.hash + location.search);
+let linkError = new URLSearchParams(location.hash.slice(1)).get("error_description");
 const sb = createClient(C.SUPABASE_URL, C.SUPABASE_KEY);
 const $ = (s) => document.querySelector(s);
 const app = $("#app"), dlg = $("#dlg");
@@ -78,6 +82,8 @@ $("#brand").textContent = C.PROGRAM_NAME;
 // ---------- auth ----------
 function authView(mode = "in") {
   $("#top").hidden = true;
+  if (linkError) history.replaceState(null, "", location.pathname);
+  if (mode === "forgot") return forgotView();
   app.innerHTML = `<div class="auth card">
     <h2 style="margin-top:0">${mode === "in" ? "Sign in" : "Create your account"}</h2>
     <form id="af">
@@ -86,13 +92,16 @@ function authView(mode = "in") {
       <label>Who referred you? (their email, optional)</label><input name="recruiter_email" type="email">` : ""}
       <label>Email</label><input name="email" type="email" required>
       <label>Password</label><input name="password" type="password" minlength="8" required>
-      <div class="err" id="aerr"></div>
+      ${mode === "in" ? `<p style="margin:6px 0 0;font-size:13px;text-align:right"><a href="#" id="fg">Forgot password?</a></p>` : ""}
+      <div class="err" id="aerr">${linkError ? esc(linkError) + ". Use Forgot password? to get a new link." : ""}</div>
       <button class="btn" style="width:100%;margin-top:8px">${mode === "in" ? "Sign in" : "Sign up"}</button>
     </form>
     <p class="muted" style="font-size:14px">${mode === "in"
       ? `New farmer? <a href="#" id="sw">Create an account</a>`
       : `Already have an account? <a href="#" id="sw">Sign in</a>`}</p></div>`;
   $("#sw").onclick = (e) => { e.preventDefault(); authView(mode === "in" ? "up" : "in"); };
+  linkError = null;
+  if ($("#fg")) $("#fg").onclick = (e) => { e.preventDefault(); authView("forgot"); };
   $("#af").onsubmit = async (e) => {
     e.preventDefault();
     const f = Object.fromEntries(new FormData(e.target));
@@ -105,15 +114,61 @@ function authView(mode = "in") {
     if (mode === "up") $("#aerr").textContent = "Check your email to confirm your account, then sign in.";
   };
 }
+function forgotView() {
+  app.innerHTML = `<div class="auth card">
+    <h2 style="margin-top:0">Reset your password</h2>
+    <p class="muted" style="font-size:14px;margin-top:0">Enter your account email and we'll send you a link to set a new password.</p>
+    <form id="ff"><label>Email</label><input name="email" type="email" required>
+      <div class="err" id="ferr"></div>
+      <button class="btn" style="width:100%;margin-top:8px">Send reset link</button></form>
+    <p class="muted" style="font-size:14px"><a href="#" id="sw">Back to sign in</a></p></div>`;
+  $("#sw").onclick = (e) => { e.preventDefault(); authView("in"); };
+  $("#ff").onsubmit = async (e) => {
+    e.preventDefault();
+    const email = new FormData(e.target).get("email");
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+    $("#ferr").textContent = error ? error.message : "If that email has an account, a reset link is on its way. Check your inbox.";
+  };
+}
+
+function newPasswordView() {
+  $("#top").hidden = true;
+  app.innerHTML = `<div class="auth card">
+    <h2 style="margin-top:0">Set a new password</h2>
+    <form id="nf"><label>New password</label><input name="password" type="password" minlength="8" required>
+      <label>Confirm new password</label><input name="confirm" type="password" minlength="8" required>
+      <div class="err" id="nerr"></div>
+      <button class="btn" style="width:100%;margin-top:8px">Save new password</button></form></div>`;
+  $("#nf").onsubmit = async (e) => {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(e.target));
+    if (f.password !== f.confirm) return ($("#nerr").textContent = "Passwords don't match.");
+    const { error } = await sb.auth.updateUser({ password: f.password });
+    if (error) return ($("#nerr").textContent = error.message);
+    recovering = false;
+    history.replaceState(null, "", location.pathname);
+    const { data } = await sb.auth.getSession();
+    signedIn(data.session);
+  };
+}
+
 $("#logout").onclick = () => { view = "pipeline"; sb.auth.signOut().then(() => ($("#banner").innerHTML = "")); };
 
-sb.auth.onAuthStateChange(async (_e, session) => {
+sb.auth.onAuthStateChange((event, session) => {
+  if (event === "USER_UPDATED") return; // new password saved; the form handles what's next
+  if (event === "PASSWORD_RECOVERY") recovering = true;
+  if (recovering && session) return newPasswordView();
+  // supabase-js warns against awaiting its own calls inside this callback
+  setTimeout(() => signedIn(session));
+});
+
+async function signedIn(session) {
   if (!session) { me = null; return authView(); }
   const { data } = await sb.from("profiles").select("*").eq("id", session.user.id).single();
   me = data;
   await loadRef();
   boot();
-});
+}
 
 async function loadRef() {
   [stages, trades] = await Promise.all([
