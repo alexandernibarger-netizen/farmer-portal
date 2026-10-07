@@ -105,7 +105,7 @@ function authView(mode = "in") {
     if (mode === "up") $("#aerr").textContent = "Check your email to confirm your account, then sign in.";
   };
 }
-$("#logout").onclick = () => sb.auth.signOut().then(() => ($("#banner").innerHTML = ""));
+$("#logout").onclick = () => { view = "pipeline"; sb.auth.signOut().then(() => ($("#banner").innerHTML = "")); };
 
 sb.auth.onAuthStateChange(async (_e, session) => {
   if (!session) { me = null; return authView(); }
@@ -129,6 +129,7 @@ function boot() {
   $("#who").textContent = me?.full_name || me?.email || "";
   const tabs = [["pipeline","Pipeline"],["contractors","Contractors"],["leads","Leads"]];
   if (me?.role === "admin") tabs.push(["admin","Farmers"],["payouts","Payouts"],["trades","Trades"]);
+  if (!tabs.some(([k]) => k === view)) view = "pipeline";
   $("#nav").innerHTML = tabs.map(([k,l]) => `<button data-v="${k}" class="${k===view?"on":""}">${l}</button>`).join("");
   const unpaid = me?.role !== "admin" && !me?.enrollment_paid && (C.PAYMENT_LINK || C.ZELLE_TO);
   $("#banner").innerHTML = unpaid
