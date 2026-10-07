@@ -110,6 +110,14 @@ language sql stable security definer set search_path = public as $$
   select exists (select 1 from public.profiles where id = auth.uid() and role = 'admin');
 $$;
 
+-- paid farmers (and admins) get the program; unpaid accounts only see their own profile + the Pay screen
+create or replace function public.has_access() returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.profiles where id = auth.uid() and (enrollment_paid or role = 'admin'));
+$$;
+revoke execute on function public.has_access() from public, anon;
+grant execute on function public.has_access() to authenticated;
+
 create or replace function public.log_stage_change() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
@@ -166,8 +174,8 @@ alter table public.contractor_stage_history enable row level security;
 alter table public.leads enable row level security;
 alter table public.upsells enable row level security;
 
-create policy "read stages" on public.stages for select to authenticated using (true);
-create policy "read trades" on public.trades for select to authenticated using (true);
+create policy "read stages" on public.stages for select to authenticated using (public.has_access());
+create policy "read trades" on public.trades for select to authenticated using (public.has_access());
 create policy "admin trades" on public.trades for all to authenticated using (public.is_admin()) with check (public.is_admin());
 
 create policy "own profile read" on public.profiles for select to authenticated using (id = auth.uid() or public.is_admin());
@@ -177,17 +185,20 @@ create policy "own profile update" on public.profiles for update to authenticate
 revoke update on public.profiles from authenticated;
 grant update (full_name, phone) on public.profiles to authenticated;
 
-create policy "payouts read" on public.recruiter_payouts for select to authenticated using (recruiter_id = auth.uid() or public.is_admin());
+create policy "payouts read" on public.recruiter_payouts for select to authenticated using ((recruiter_id = auth.uid() and public.has_access()) or public.is_admin());
 create policy "payouts admin" on public.recruiter_payouts for all to authenticated using (public.is_admin()) with check (public.is_admin());
 
 create policy "own contractors" on public.contractors for all to authenticated
-  using (farmer_id = auth.uid() or public.is_admin()) with check (farmer_id = auth.uid() or public.is_admin());
+  using ((farmer_id = auth.uid() and public.has_access()) or public.is_admin())
+  with check ((farmer_id = auth.uid() and public.has_access()) or public.is_admin());
 create policy "own history" on public.contractor_stage_history for select to authenticated
-  using (exists (select 1 from public.contractors c where c.id = contractor_id and (c.farmer_id = auth.uid() or public.is_admin())));
+  using (exists (select 1 from public.contractors c where c.id = contractor_id and ((c.farmer_id = auth.uid() and public.has_access()) or public.is_admin())));
 create policy "own leads" on public.leads for all to authenticated
-  using (farmer_id = auth.uid() or public.is_admin()) with check (farmer_id = auth.uid() or public.is_admin());
+  using ((farmer_id = auth.uid() and public.has_access()) or public.is_admin())
+  with check ((farmer_id = auth.uid() and public.has_access()) or public.is_admin());
 create policy "own upsells" on public.upsells for all to authenticated
-  using (farmer_id = auth.uid() or public.is_admin()) with check (farmer_id = auth.uid() or public.is_admin());
+  using ((farmer_id = auth.uid() and public.has_access()) or public.is_admin())
+  with check ((farmer_id = auth.uid() and public.has_access()) or public.is_admin());
 
 -- admin-only action (farmers can't touch payment columns directly)
 create or replace function public.mark_enrollment_paid(farmer uuid) returns void
