@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-template="farm">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Farmer CRM</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
 <script src="config.js"></script>
 <script src="curriculum/diagrams.js"></script>
 <style>
@@ -152,7 +152,7 @@ dialog::backdrop{background:rgba(0,0,0,.4)}
 .dg .awnl{stroke:var(--paper);stroke-width:4}
 @media (max-width:640px){main{padding:16px}.lessonbtn{grid-template-columns:90px 1fr}.grid2{grid-template-columns:1fr}}
 
-/* ---------- playful restyle (Duolingo-inspired: chunky buttons, rounded type, trail) ---------- */
+/* ---------- Dashboard template "farm" (the default; Duolingo-inspired: chunky buttons, rounded type, trail). Other templates are at the end of this stylesheet and override these rules under :root[data-template="..."]. ---------- */
 body{font-family:Nunito,system-ui,sans-serif;font-weight:600;background:var(--bg)}
 h1,h2,h3,b,th{font-weight:900}
 .card{border:2px solid var(--line);border-radius:18px}
@@ -226,6 +226,115 @@ nav button:hover:not(.on){background:var(--soft2)}
 #refcard{background:var(--skysoft);border-color:transparent}
 #refcard .btn.ghost{background:var(--sky3);color:#fff;border:0;box-shadow:0 4px 0 var(--sky3-d)}
 @media (max-width:640px){.welcome .mascot{width:66px}.welcome #greeting{font-size:17px}.nextcard .btn{width:100%;margin-left:0}.node .dot{width:50px;height:46px}.node.now .dot{width:58px;height:54px}}
+
+/* ---------- other dashboard templates (picked in Settings) ---------- */
+.tiles,#clock{display:none}
+.tiles{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;gap:4px}
+.tile small{color:var(--muted);font-size:13px;font-weight:500}.tile b{font-size:24px;line-height:1.2}.tile span{font-size:13px;color:var(--muted)}
+:root:not([data-template="farm"]) body{font-family:Inter,system-ui,sans-serif;font-weight:400}
+:root:not([data-template="farm"]) :is(h1,h2,h3,b,th){font-weight:700}
+:root:not([data-template="farm"]) .tiles{display:grid}
+:root:not([data-template="farm"]) .card{border-width:1px;border-radius:10px}
+:root:not([data-template="farm"]) .btn{text-transform:none;letter-spacing:0;font-weight:600;font-size:14px;border-radius:8px;box-shadow:none}
+:root:not([data-template="farm"]) .btn:active{transform:none}
+:root:not([data-template="farm"]) .btn.ghost{box-shadow:none;border-width:1px}
+:root:not([data-template="farm"]) :is(input,select,textarea){border-width:1px;border-radius:8px;font-weight:400}
+:root:not([data-template="farm"]) label{font-weight:600}
+:root:not([data-template="farm"]) header{border-width:1px}
+:root:not([data-template="farm"]) header h1{font-weight:700}
+:root:not([data-template="farm"]) nav button{text-transform:none;letter-spacing:0;font-weight:500;font-size:15px;border:0;border-radius:8px}
+:root:not([data-template="farm"]) nav button.on{background:var(--soft);color:var(--accent)}
+:root:not([data-template="farm"]) .welcome .mascot{display:none}
+:root:not([data-template="farm"]) .welcome .bubble{margin-bottom:0;border-width:1px;border-radius:10px}
+:root:not([data-template="farm"]) .welcome #greeting{font-weight:600}
+:root:not([data-template="farm"]) .nextcard{border-radius:12px;box-shadow:none}
+:root:not([data-template="farm"]) .nextcard .btn{box-shadow:none}
+:root:not([data-template="farm"]) .node .dot{box-shadow:none}
+:root:not([data-template="farm"]) .node.now .dot{box-shadow:0 0 0 6px var(--soft)}
+:root:not([data-template="farm"]) :is(.homemain){max-width:none}
+:root:not([data-template="farm"]) .bar i{box-shadow:none}
+:root:not([data-template="farm"]) #refcard .btn.ghost{box-shadow:none}
+:is([data-template="nightbarn"],[data-template="sunrise"],[data-template="almanac"]) #refcard .btn.ghost{color:#0A0A0B}
+:root:not([data-template="farm"]) .behind{border-width:1px;border-radius:10px}
+:root:not([data-template="farm"]) .stat .v{font-weight:700}
+@media (min-width:900px){:root:not([data-template="farm"]) header:not([hidden]){border-right-width:1px}}
+/* Clean: light page, dark navy menu, blue accents */
+:root[data-template="clean"]{--bg:#F1F5F9;--card:#fff;--ink:#1C2434;--muted:#5B6B82;--line:#E2E8F0;--accent:#3C50E0;--accent-ink:#fff;--accent-d:#2F3FB8;--soft:#EFF4FB;--soft2:#F7F9FC;--brand:#3C50E0;--sky3:#3C50E0;--sky3-d:#2F3FB8;--skysoft:#EFF4FB;--lock:#E2E8F0;--lock-d:#CBD5E1;--warn:#C2410C;color-scheme:light}
+[data-template="clean"] header{background:#1C2434;border-color:#1C2434}
+[data-template="clean"] header h1,[data-template="clean"] header #who{color:#fff}
+[data-template="clean"] nav button{color:#DEE4EE}
+[data-template="clean"] nav button.on{background:#333A48;color:#fff}
+[data-template="clean"] nav button:hover:not(.on){background:#2A3241}
+[data-template="clean"] header nav{background:#1C2434;border-color:#1C2434}
+[data-template="clean"] header .btn.ghost{background:none;color:#DEE4EE;border-color:#3A4458}
+[data-template="clean"] .nextcard{background:#1C2434}
+[data-template="clean"] .nextcard .btn{background:#3C50E0;color:#fff}
+[data-template="clean"] .tile{box-shadow:0 1px 3px rgba(0,0,0,.05)}
+/* Night barn: dark navy with colored stat tiles */
+:root[data-template="nightbarn"]{--bg:#1E2235;--card:#272C44;--ink:#E4E8F5;--muted:#A3ABC8;--line:#363D5C;--accent:#5AAEF5;--accent-ink:#0B1A33;--accent-d:#3D8FE0;--soft:#2D3655;--soft2:#232842;--brand:#3D9BF0;--sun:#F7CF4B;--sun-d:#C9A22A;--sky3:#4FB0F5;--sky3-d:#2D7FD6;--skysoft:#23324F;--lock:#343B5A;--lock-d:#2A3049;--warn:#F0A35A;--flame:#F0453A;color-scheme:dark}
+[data-template="nightbarn"] header,[data-template="nightbarn"] header nav{background:#1E2235}
+[data-template="nightbarn"] a,[data-template="nightbarn"] .linkbtn{color:#7CC4FA}
+[data-template="nightbarn"] nav button.on{background:none;color:#4FB0F5}
+[data-template="nightbarn"] nav button.on svg{background:#2570C2;border-radius:50%;padding:4px;box-sizing:content-box;margin:-4px;stroke:#fff}
+[data-template="nightbarn"] .tile{border:0;border-radius:4px;color:#fff}
+[data-template="nightbarn"] .tile small,[data-template="nightbarn"] .tile span{color:rgba(255,255,255,.9)}
+[data-template="nightbarn"] .tile:nth-child(1){background:#2570C2}
+[data-template="nightbarn"] .tile:nth-child(2){background:#127A70}
+[data-template="nightbarn"] .tile:nth-child(3){background:#566080}
+[data-template="nightbarn"] .tile:nth-child(4){background:#F7CF4B;color:#1E2235}
+[data-template="nightbarn"] .tile:nth-child(4) :is(small,span){color:#1E2235}
+[data-template="nightbarn"] .nextcard{background:#127A70}
+[data-template="nightbarn"] .nextcard .btn{background:#fff;color:#0E5F57}
+[data-template="nightbarn"] .behind{background:#3A2E0E;border-color:#6B5414;color:#FDE68A}
+[data-template="nightbarn"] .node.miss .dot{background:#5A2A2A}
+[data-template="nightbarn"] .node.miss .dot b{color:#FCA5A5 !important}
+/* Sunrise: near-black, big clock greeting */
+:root[data-template="sunrise"]{--bg:#0A0A0B;--card:#141416;--ink:#EDEDED;--muted:#A1A1AA;--line:#26262A;--accent:#F4F4F5;--accent-ink:#0A0A0B;--accent-d:#D4D4D8;--soft:#1F1F23;--soft2:#18181B;--brand:#4ADE80;--sun:#FACC15;--sun-d:#CA8A04;--sky3:#60A5FA;--sky3-d:#3B82F6;--skysoft:#16202E;--lock:#26262A;--lock-d:#1C1C20;--warn:#FBBF24;--flame:#4ADE80;color-scheme:dark}
+[data-template="sunrise"] .card,[data-template="sunrise"] .tile,[data-template="sunrise"] .welcome .bubble{border-radius:18px}
+[data-template="sunrise"] header,[data-template="sunrise"] header nav{background:#0A0A0B}
+[data-template="sunrise"] nav button.on{background:#26262A;color:#fff}
+[data-template="sunrise"] #clock{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;background:linear-gradient(135deg,#1C1C20,#121214);border:1px solid var(--line);border-radius:18px;padding:22px 24px}
+[data-template="sunrise"] #clock .time{font-size:56px;font-weight:600;letter-spacing:-.03em;line-height:1.1}
+[data-template="sunrise"] .nextcard{background:#13261A;border:1px solid #1F3D29}
+[data-template="sunrise"] .nextcard small{color:#86EFAC}
+[data-template="sunrise"] .nextcard .btn{background:#fff;color:#0A0A0B}
+[data-template="sunrise"] .behind{background:#2A220A;border-color:#4A3B0E;color:#FDE68A}
+[data-template="sunrise"] .node.done .dot b,[data-template="sunrise"] .node.now .dot b{color:#0A0A0B !important}
+[data-template="sunrise"] .node.miss .dot{background:#4A2525}
+[data-template="sunrise"] .node.miss .dot b{color:#FCA5A5 !important}
+@media (max-width:640px){[data-template="sunrise"] #clock .time{font-size:40px}}
+/* Almanac: deep navy grid of tiles, menu across the top */
+:root[data-template="almanac"]{--bg:#021B2E;--card:#0B2B44;--ink:#fff;--muted:#B5CFE6;--line:#1B3A52;--accent:#CFE8FF;--accent-ink:#021B2E;--accent-d:#9CC9EE;--soft:#123A57;--soft2:#0E3350;--brand:#7FBDF0;--sun:#FCD34D;--sun-d:#D4A82A;--sky3:#7FBDF0;--sky3-d:#4F9AD8;--skysoft:#123A57;--lock:#123A57;--lock-d:#0E3350;--warn:#FCD34D;--flame:#7FBDF0;color-scheme:dark}
+[data-template="almanac"] :is(h1,h2,h3){font-family:Outfit,Inter,sans-serif}
+[data-template="almanac"] header,[data-template="almanac"] header nav{background:#021B2E}
+[data-template="almanac"] nav button{color:#B5CFE6}
+[data-template="almanac"] nav button.on{background:#123A57;color:#fff}
+[data-template="almanac"] .card,[data-template="almanac"] .tile,[data-template="almanac"] .welcome .bubble{border:0;border-radius:4px}
+[data-template="almanac"] .tile{text-align:center;padding:0 0 16px;overflow:hidden}
+[data-template="almanac"] .tile small{display:block;background:#1B3A52;color:#fff;font-weight:700;font-size:14px;letter-spacing:.06em;text-transform:uppercase;padding:8px;margin-bottom:10px}
+[data-template="almanac"] .tile b{font-size:28px}
+[data-template="almanac"] .nextcard{background:#123A57}
+[data-template="almanac"] .nextcard small{color:#B5CFE6}
+[data-template="almanac"] .nextcard .btn{background:#CFE8FF;color:#021B2E}
+[data-template="almanac"] .behind{background:#2A2A10;border-color:#5A4E12;color:#FDE68A}
+[data-template="almanac"] .node.done .dot b,[data-template="almanac"] .node.now .dot b{color:#021B2E !important}
+[data-template="almanac"] .node.miss .dot{background:#4A2525}
+[data-template="almanac"] .node.miss .dot b{color:#FCA5A5 !important}
+@media (min-width:900px){
+  [data-template="almanac"] header:not([hidden]){position:sticky;top:0;bottom:auto;width:auto;flex-direction:row;align-items:center;padding:14px 36px;border-right:0;border-bottom:1px solid var(--line);overflow:visible}
+  [data-template="almanac"] header h1{margin:0 12px 0 0}
+  [data-template="almanac"] header nav{flex-direction:row;flex-wrap:wrap;flex:1}
+  [data-template="almanac"] nav button svg{display:none}
+  [data-template="almanac"] header:not([hidden]) ~ main,[data-template="almanac"] header:not([hidden]) ~ #banner{margin-left:0}
+}
+/* Settings: template picker */
+.tpls{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-top:12px}
+.tpl{display:flex;flex-direction:column;gap:8px;text-align:left;background:var(--card);color:var(--ink);border:2px solid var(--line);border-radius:12px;padding:10px;cursor:pointer;font:inherit}
+.tpl[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.tpl .pv{height:96px;border-radius:8px;display:flex;overflow:hidden;border:1px solid rgba(127,127,127,.25)}
+.tpl .pv i{display:block}
+.tpl b{font-size:15px}.tpl small{color:var(--muted);font-size:13px}
 </style>
 </head>
 <body>
@@ -247,6 +356,20 @@ let linkError = new URLSearchParams(location.hash.slice(1)).get("error_descripti
 const sb = createClient(C.SUPABASE_URL, C.SUPABASE_KEY);
 const $ = (s) => document.querySelector(s);
 const app = $("#app"), dlg = $("#dlg");
+// dashboard templates (Settings). The last pick is cached so the page opens in it before sign-in finishes.
+const TEMPLATES = [
+  ["farm", "Farm", "Rounded and playful, with the 90-day trail and the mascot.", ["#fff", "#5BB82E", "#F5B700"]],
+  ["clean", "Clean", "Light page with a dark navy menu and blue accents.", ["#1C2434", "#F1F5F9", "#3C50E0"]],
+  ["nightbarn", "Night barn", "Dark navy with colored stat tiles.", ["#1E2235", "#2570C2", "#127A70"]],
+  ["sunrise", "Sunrise", "Near-black with a big clock greeting.", ["#0A0A0B", "#141416", "#4ADE80"]],
+  ["almanac", "Almanac", "Deep navy grid of tiles, menu across the top.", ["#021B2E", "#0B2B44", "#CFE8FF"]],
+];
+function applyTemplate(t) {
+  if (!TEMPLATES.some(([k]) => k === t)) t = "farm";
+  document.documentElement.dataset.template = t;
+  try { localStorage.setItem("lf_template", t); } catch {}
+}
+try { applyTemplate(localStorage.getItem("lf_template")); } catch { applyTemplate("farm"); }
 const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const money = (n) => "$" + Number(n || 0).toLocaleString(undefined, {maximumFractionDigits: 2});
 const PER_TRADE = 10;
@@ -269,6 +392,7 @@ const NAV_ICONS = {
   payouts: ico("#3A8A1C", '<path d="M12 3v18"/><path d="M17 7H9.5a3 3 0 0 0 0 6h5a3 3 0 0 1 0 6H6"/>'),
   trades: ico("#8B5E3C", '<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.5-2.5z"/>'),
   welcome: ico("#D14F8A", '<path d="M4 5h16v11H9l-5 4z"/>'),
+  settings: ico("#5F6B63", '<circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6a7 7 0 0 0 0 2.4l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z"/>'),
 };
 const REF = new URLSearchParams(location.search).get("ref") || ""; // referral links: leadfarminghq.com/?ref=friend@email
 
@@ -360,6 +484,7 @@ async function signedIn(session) {
   const { data } = await sb.from("profiles").select("*").eq("id", session.user.id).single();
   if (me?.id !== data?.id) view = "home";  // every sign-in opens on Home
   me = data;
+  applyTemplate(me?.dashboard_template);
   await loadRef();
   boot();
 }
@@ -411,11 +536,12 @@ function boot() {
   if (lvl() >= 2 && me?.role !== "admin") tabs.push(["money","Money"]);
   if (reviewer()) tabs.push(["approvals","Approvals"]);
   if (me?.role === "admin") tabs.push(["admin","Farmers"],["payouts","Payouts"],["trades","Trades"],["welcome","Welcome"]);
+  tabs.push(["settings","Settings"]);
   if (!tabs.some(([k]) => k === view)) view = "home";
   $("#nav").innerHTML = tabs.map(([k,l]) => `<button data-v="${k}" class="${k===view?"on":""}">${NAV_ICONS[k] || ""}<span>${l}</span></button>`).join("");
   $("#nav").onclick = (e) => { const b = e.target.closest("button"); if (b?.dataset.v) { view = b.dataset.v; boot(); } };
   approvalsBadge();
-  ({ home, learn, program, pipeline, contractors, leads, upsells, money: moneyView, welcome: welcomeLines, approvals, admin, payouts, tradesView: tradesView })[view === "trades" ? "tradesView" : view]();
+  ({ home, learn, program, pipeline, contractors, leads, upsells, money: moneyView, welcome: welcomeLines, settings: settingsView, approvals, admin, payouts, tradesView: tradesView })[view === "trades" ? "tradesView" : view]();
 }
 
 // ---------- farmer: home (level ladder + next step) ----------
@@ -850,6 +976,21 @@ async function homeExtras(cs, ctx) {
   const week = [...Array(7)].map((_, k) => { const d = new Date(); d.setDate(d.getDate() - 6 + k); return { on: active.has(dayKey(d)), today: k === 6, l: d.toLocaleDateString(undefined, { weekday: "narrow" }) }; });
   const fees = ls.filter((l) => l.status === "closed" && l.fee_paid).reduce((t, l) => t + Number(l.fee_amount || 0), 0);
   const pct = pr?.enrolled ? Math.min(100, (pr.day / 90) * 100) : 0;
+  // stat tiles and clock: shown by the non-farm templates (CSS hides them in Farm)
+  const mineN = cs.filter((c) => c.farmer_id === me.id).length;
+  const owedSum = ls.filter((l) => l.status === "closed" && !l.fee_paid).reduce((t, l) => t + Number(l.fee_amount || 0), 0);
+  const tiles = [["Fees collected", money(fees), owedSum ? money(owedSum) + " still owed" : "Nothing owed"],
+    ["Contractors", String(mineN), pr?.enrolled ? "Goal: 300" : "On your list"],
+    ["Leads", String(ls.length), "Logged so far"],
+    pr?.enrolled ? ["90 days", `Day ${Math.min(pr.day, 90)}`, missed.length ? missed.length + " missed" : soon.length ? soon.length + " due this week" : "Nothing overdue"]
+      : ["Streak", `${streak} day${streak === 1 ? "" : "s"}`, "Days in a row"]];
+  const first = (me.full_name || "").trim().split(/\s+/)[0];
+  $("#welcome").insertAdjacentHTML("beforebegin", `<section id="clock" aria-label="Today"><div><b style="font-size:22px">Good ${new Date().getHours() < 12 ? "morning" : new Date().getHours() < 18 ? "afternoon" : "evening"}${first ? ", " + esc(first) : ""}</b>
+      <div class="time" id="clocktime"></div><div class="muted">${new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}${pr?.enrolled ? ` · Day ${Math.min(pr.day, 90)} of 90` : ""}</div></div>
+      <div style="text-align:right"><b style="font-size:28px" id="clockstreak">${streak}</b><div class="muted">day streak</div></div></section>
+    <div class="tiles" id="tiles">${tiles.map(([k, v, sub]) => `<div class="tile"><small>${esc(k)}</small><b>${esc(v)}</b><span>${esc(sub)}</span></div>`).join("")}</div>`);
+  const tick = () => { const el = $("#clocktime"); if (!el) return clearInterval(clockTimer); el.textContent = new Date().toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }); };
+  clearInterval(clockTimer); clockTimer = setInterval(tick, 15000); tick();
   $("#homeside").innerHTML = `
     <div class="statrow"><span title="Days in a row with work logged" style="color:#D97A00"><svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c1 4 6 6 6 12a6 6 0 0 1-12 0c0-3 1.5-5 3-6 0 2 1 3 2 3 0-4-1-6 1-9z" fill="#FF9F1C"/><path d="M12 13c1 2 3 2.5 3 5a3 3 0 0 1-6 0c0-1.5.8-2.4 1.5-3 .2 1 .8 1.5 1.5 1.5 0-1.5-.5-2.3 0-3.5z" fill="#FFD166"/></svg><span id="streak">${streak}</span></span>
       <span title="Fees collected" style="color:var(--accent)"><svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="3" fill="#5BB82E"/><circle cx="12" cy="12" r="3" fill="#E2F3D6"/></svg>${money(fees)}</span>
@@ -885,6 +1026,27 @@ async function homeExtras(cs, ctx) {
     if (x.c) contractorForm(x.c);
     else if (x.l) leadForm(x.l, cs);
     else { view = x.go; boot(); }
+  });
+}
+
+let clockTimer = 0;
+
+// ---------- everyone: settings (dashboard template) ----------
+function settingsView() {
+  const cur = document.documentElement.dataset.template;
+  app.innerHTML = `<div style="max-width:1000px" id="settings"><h2 style="margin:0 0 4px">Settings</h2>
+    <div class="card"><b style="font-size:17px">Dashboard look</b><p class="muted" style="margin:4px 0 0">Pick how your portal looks. Only you see your choice, and you can switch any time.</p>
+    <div class="tpls" role="group" aria-label="Dashboard look">${TEMPLATES.map(([k, name, about, c]) => `<button class="tpl" data-tpl="${k}" aria-pressed="${k === cur}">
+      <span class="pv" aria-hidden="true"><i style="width:28%;background:${c[0]}"></i><i style="flex:1;background:${c[1]};padding:10px;display:flex;flex-direction:column;gap:6px"><i style="height:14px;width:60%;border-radius:4px;background:${c[2]}"></i><i style="height:28px;border-radius:4px;background:${c[0]};opacity:.55"></i><i style="height:14px;width:80%;border-radius:4px;background:${c[2]};opacity:.6"></i></i></span>
+      <b>${esc(name)}${k === "farm" ? ` <span class="tag">Default</span>` : ""}</b><small>${esc(about)}</small></button>`).join("")}</div>
+    <div class="err" id="tplerr"></div></div></div>`;
+  app.querySelectorAll("[data-tpl]").forEach((b) => b.onclick = async () => {
+    const t = b.dataset.tpl, prev = document.documentElement.dataset.template;
+    applyTemplate(t);
+    app.querySelectorAll("[data-tpl]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    const { error } = await sb.from("profiles").update({ dashboard_template: t }).eq("id", me.id);
+    if (error) { applyTemplate(prev); settingsView(); return ($("#tplerr").textContent = "Couldn't save your choice: " + error.message); }
+    me.dashboard_template = t;
   });
 }
 
