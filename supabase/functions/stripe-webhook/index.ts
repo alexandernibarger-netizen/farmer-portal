@@ -36,6 +36,8 @@ Deno.serve(async (req) => {
   const farmerId = ref && /^[0-9a-f-]{36}$/i.test(ref) ? ref : null;
   const email: string | null = session.customer_details?.email ?? null;
   if (session.payment_status !== "paid") return new Response("not paid", { status: 200 });
+  // Only the $500 enrollment counts (amount_total is in cents)
+  if ((session.amount_total ?? 0) < 50000) return new Response("not an enrollment payment", { status: 200 });
 
   const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
   let q = db.from("profiles").update({ enrollment_paid: true });
