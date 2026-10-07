@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Farmer CRM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="config.js"></script>
+<style>
+:root{--bg:#f6f7f4;--card:#fff;--ink:#1d2420;--muted:#66706a;--line:#e2e5df;--accent:#2f6b3f;--accent-ink:#fff;--warn:#a5521b;--soft:#eaf2ec}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121512;--card:#1b201c;--ink:#e7ebe7;--muted:#9aa49d;--line:#2c332d;--accent:#5fae73;--accent-ink:#0d130f;--warn:#e19a62;--soft:#1f2a22}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 Inter,system-ui,sans-serif}
+header{display:flex;align-items:center;gap:16px;padding:12px 20px;border-bottom:1px solid var(--line);background:var(--card);position:sticky;top:0;z-index:5;flex-wrap:wrap}
+header h1{font-size:16px;margin:0;margin-right:auto}
+nav button{background:none;border:0;color:var(--muted);font:inherit;padding:6px 10px;border-radius:6px;cursor:pointer}
+nav button.on{background:var(--soft);color:var(--accent);font-weight:600}
+main{padding:20px;max-width:1400px;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px}
+.btn{background:var(--accent);color:var(--accent-ink);border:0;border-radius:7px;padding:8px 14px;font:inherit;font-weight:600;cursor:pointer}
+.btn.ghost{background:none;color:var(--ink);border:1px solid var(--line)}
+.btn.sm{padding:4px 9px;font-size:13px}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:8px 10px;width:100%}
+label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+.muted{color:var(--muted)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:500;font-size:12px;text-transform:uppercase;letter-spacing:.03em}
+.tablewrap{overflow-x:auto}
+.board{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(210px,1fr);gap:10px;overflow-x:auto;padding-bottom:8px}
+.col{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;min-height:200px}
+.col h3{font-size:13px;margin:0 0 2px}
+.col .n{font-size:12px;color:var(--muted);margin-bottom:8px}
+.chip{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;margin-bottom:8px;cursor:pointer}
+.chip b{display:block;font-size:14px}
+.chip small{color:var(--muted)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px}
+.stat .v{font-size:24px;font-weight:700}
+.stat .k{font-size:12px;color:var(--muted)}
+.tag{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12px;background:var(--soft);color:var(--accent)}
+.tag.warn{background:transparent;border:1px solid var(--warn);color:var(--warn)}
+dialog{border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);width:min(560px,94vw);padding:20px}
+dialog::backdrop{background:rgba(0,0,0,.4)}
+.auth{max-width:380px;margin:8vh auto}
+.err{color:var(--warn);font-size:14px;min-height:1.2em;margin-top:8px}
+.trades{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:16px}
+.bar{height:6px;background:var(--line);border-radius:3px;margin-top:6px;overflow:hidden}.bar i{display:block;height:100%;background:var(--accent)}
+@media (max-width:640px){main{padding:16px}.grid2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header id="top" hidden>
+  <h1 id="brand"></h1>
+  <nav id="nav"></nav>
+  <span class="muted" id="who"></span>
+  <button class="btn ghost sm" id="logout">Sign out</button>
+</header>
+<main id="app"></main>
+<dialog id="dlg"></dialog>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+const C = window.CRM_CONFIG;
+const sb = createClient(C.SUPABASE_URL, C.SUPABASE_KEY);
+const $ = (s) => document.querySelector(s);
+const app = $("#app"), dlg = $("#dlg");
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const money = (n) => "$" + Number(n || 0).toLocaleString(undefined, {maximumFractionDigits: 2});
+const PER_TRADE = 10;
+let me = null, stages = [], trades = [], view = "pipeline";
+$("#brand").textContent = C.PROGRAM_NAME;
+
+// ---------- auth ----------
+function authView(mode = "in") {
+  $("#top").hidden = true;
+  app.innerHTML = `<div class="auth card">
+    <h2 style="margin-top:0">${mode === "in" ? "Sign in" : "Create your account"}</h2>
+    <form id="af">
+      ${mode === "up" ? `<label>Full name</label><input name="full_name" required>
+      <label>Phone</label><input name="phone">
+      <label>Who referred you? (their email, optional)</label><input name="recruiter_email" type="email">` : ""}
+      <label>Email</label><input name="email" type="email" required>
+      <label>Password</label><input name="password" type="password" minlength="8" required>
+      <div class="err" id="aerr"></div>
+      <button class="btn" style="width:100%;margin-top:8px">${mode === "in" ? "Sign in" : "Sign up"}</button>
+    </form>
+    <p class="muted" style="font-size:14px">${mode === "in"
+      ? `New farmer? <a href="#" id="sw">Create an account</a>`
+      : `Already have an account? <a href="#" id="sw">Sign in</a>`}</p></div>`;
+  $("#sw").onclick = (e) => { e.preventDefault(); authView(mode === "in" ? "up" : "in"); };
+  $("#af").onsubmit = async (e) => {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(e.target));
+    const { error } = mode === "in"
+      ? await sb.auth.signInWithPassword({ email: f.email, password: f.password })
+      : await sb.auth.signUp({ email: f.email, password: f.password,
+          options: { data: { full_name: f.full_name, phone: f.phone, recruiter_email: f.recruiter_email } } });
+    if (error) return ($("#aerr").textContent = error.message);
+    if (mode === "up") $("#aerr").textContent = "Check your email to confirm your account, then sign in.";
+  };
+}
+$("#logout").onclick = () => sb.auth.signOut();
+
+sb.auth.onAuthStateChange(async (_e, session) => {
+  if (!session) { me = null; return authView(); }
+  const { data } = await sb.from("profiles").select("*").eq("id", session.user.id).single();
+  me = data;
+  await loadRef();
+  boot();
+});
+
+async function loadRef() {
+  [stages, trades] = await Promise.all([
+    sb.from("stages").select("*").order("id").then((r) => r.data || []),
+    sb.from("trades").select("*").order("sort_order").order("name").then((r) => r.data || []),
+  ]);
+}
+const stageName = (id) => stages.find((s) => s.id === id)?.name || id;
+const tradeName = (id) => trades.find((t) => t.id === id)?.name || "—";
+
+function boot() {
+  $("#top").hidden = false;
+  $("#who").textContent = me?.full_name || me?.email || "";
+  const tabs = [["pipeline","Pipeline"],["contractors","Contractors"],["leads","Leads"]];
+  if (me?.role === "admin") tabs.push(["admin","Farmers"],["payouts","Payouts"],["trades","Trades"]);
+  $("#nav").innerHTML = tabs.map(([k,l]) => `<button data-v="${k}" class="${k===view?"on":""}">${l}</button>`).join("");
+  $("#nav").onclick = (e) => { if (e.target.dataset.v) { view = e.target.dataset.v; boot(); } };
+  ({ pipeline, contractors, leads, admin, payouts, tradesView: tradesView })[view === "trades" ? "tradesView" : view]();
+}
+
+// ---------- farmer: pipeline ----------
+async function myContractors() {
+  let q = sb.from("contractors").select("*").order("updated_at", { ascending: false });
+  if (me.role !== "admin") q = q.eq("farmer_id", me.id);
+  return (await q).data || [];
+}
+
+async function pipeline() {
+  const cs = await myContractors();
+  const active = cs.filter((c) => c.stage >= 3).length;
+  const { data: ls } = await sb.from("leads").select("status,fee_amount,fee_paid").eq("farmer_id", me.id);
+  const closed = (ls || []).filter((l) => l.status === "closed");
+  const earned = closed.reduce((a, l) => a + Number(l.fee_amount || 0), 0);
+  const unpaid = closed.filter((l) => !l.fee_paid).reduce((a, l) => a + Number(l.fee_amount || 0), 0);
+  const goal = trades.length * PER_TRADE;
+  app.innerHTML = `
+    <div class="stats">
+      <div class="card stat"><div class="v">${active}<span class="muted" style="font-size:14px"> / ${goal || 150}</span></div><div class="k">Contractors in network (stage 3+)</div></div>
+      <div class="card stat"><div class="v">${(ls||[]).length}</div><div class="k">Leads sent</div></div>
+      <div class="card stat"><div class="v">${closed.length}</div><div class="k">Leads closed</div></div>
+      <div class="card stat"><div class="v">${money(earned)}</div><div class="k">Referral fees earned</div></div>
+      <div class="card stat"><div class="v">${money(unpaid)}</div><div class="k">Fees still owed to you</div></div>
+    </div>
+    <div class="row" style="margin-bottom:12px"><h2 style="margin:0;margin-right:auto;font-size:18px">Pipeline</h2>
+      <button class="btn" id="add">Add contractor</button></div>
+    <div class="board">${stages.map((s) => {
+      const list = cs.filter((c) => c.stage === s.id);
+      return `<div class="col"><h3>${s.id}. ${esc(s.name)}</h3><div class="n">${list.length} · ${esc(s.description)}</div>
+        ${list.map((c) => `<div class="chip" data-id="${c.id}"><b>${esc(c.business_name)}</b><small>${esc(tradeName(c.trade_id))}${c.city ? " · " + esc(c.city) : ""}</small></div>`).join("")}</div>`;
+    }).join("")}</div>`;
+  $("#add").onclick = () => contractorForm();
+  app.querySelectorAll(".chip").forEach((el) => el.onclick = () => contractorForm(cs.find((c) => c.id === el.dataset.id)));
+}
+
+// ---------- farmer: contractors ----------
+async function contractors() {
+  const cs = await myContractors();
+  app.innerHTML = `
+    <div class="row" style="margin-bottom:12px"><h2 style="margin:0;margin-right:auto;font-size:18px">Contractors by trade</h2>
+      <button class="btn" id="add">Add contractor</button></div>
+    <div class="trades">${trades.map((t) => {
+      const n = cs.filter((c) => c.trade_id === t.id && c.stage >= 3).length;
+      return `<div class="card" style="padding:10px"><b style="font-size:14px">${esc(t.name)}</b>
+        <div class="muted" style="font-size:12px">${n} / ${PER_TRADE} in network</div><div class="bar"><i style="width:${Math.min(100, n / PER_TRADE * 100)}%"></i></div></div>`;
+    }).join("") || `<p class="muted">No trades set up yet.</p>`}</div>
+    <div class="card tablewrap"><table><thead><tr><th>Business</th><th>Trade</th><th>Contact</th><th>Stage</th><th>Fee %</th></tr></thead><tbody>
+    ${cs.map((c) => `<tr data-id="${c.id}" style="cursor:pointer"><td><b>${esc(c.business_name)}</b><br><small class="muted">${esc(c.city)}</small></td>
+      <td>${esc(tradeName(c.trade_id))}</td><td>${esc(c.contact_name)}<br><small class="muted">${esc(c.phone)} ${esc(c.email)}</small></td>
+      <td><span class="tag">${c.stage}. ${esc(stageName(c.stage))}</span></td><td>${c.fee_pct ?? ""}</td></tr>`).join("") || `<tr><td colspan="5" class="muted">No contractors yet.</td></tr>`}
+    </tbody></table></div>`;
+  $("#add").onclick = () => contractorForm();
+  app.querySelectorAll("tr[data-id]").forEach((el) => el.onclick = () => contractorForm(cs.find((c) => c.id === el.dataset.id)));
+}
+
+function contractorForm(c = {}) {
+  dlg.innerHTML = `<form method="dialog" id="cf">
+    <h3 style="margin-top:0">${c.id ? "Edit contractor" : "Add contractor"}</h3>
+    <label>Business name</label><input name="business_name" required value="${esc(c.business_name)}">
+    <div class="grid2">
+      <div><label>Trade</label><select name="trade_id"><option value="">—</option>${trades.map((t) => `<option value="${t.id}" ${t.id === c.trade_id ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</select></div>
+      <div><label>Stage</label><select name="stage">${stages.map((s) => `<option value="${s.id}" ${s.id === (c.stage || 1) ? "selected" : ""}>${s.id}. ${esc(s.name)}</option>`).join("")}</select></div>
+      <div><label>Contact name</label><input name="contact_name" value="${esc(c.contact_name)}"></div>
+      <div><label>Phone</label><input name="phone" value="${esc(c.phone)}"></div>
+      <div><label>Email</label><input name="email" type="email" value="${esc(c.email)}"></div>
+      <div><label>City</label><input name="city" value="${esc(c.city)}"></div>
+      <div><label>Found via</label><select name="found_via">${["","Facebook","Nextdoor","Local forum","Referral","Other"].map((o) => `<option ${o === c.found_via ? "selected" : ""}>${o}</option>`).join("")}</select></div>
+      <div><label>Referral fee %</label><input name="fee_pct" type="number" min="0" max="100" step="0.5" value="${c.fee_pct ?? 20}"></div>
+    </div>
+    <label>Notes</label><textarea name="notes" rows="3">${esc(c.notes)}</textarea>
+    <div class="err" id="cerr"></div>
+    <div class="row" style="margin-top:12px;justify-content:flex-end">
+      ${c.id ? `<button type="button" class="btn ghost" id="del" style="margin-right:auto">Delete</button>` : ""}
+      <button type="button" class="btn ghost" id="cx">Cancel</button><button class="btn">Save</button></div></form>`;
+  dlg.showModal();
+  $("#cx").onclick = () => dlg.close();
+  if (c.id) $("#del").onclick = async () => {
+    if (!confirm("Delete this contractor and its history?")) return;
+    await sb.from("contractors").delete().eq("id", c.id); dlg.close(); boot();
+  };
+  $("#cf").onsubmit = async (e) => {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(e.target));
+    const row = { ...f, trade_id: f.trade_id ? +f.trade_id : null, stage: +f.stage, fee_pct: f.fee_pct === "" ? null : +f.fee_pct };
+    const { error } = c.id
+      ? await sb.from("contractors").update(row).eq("id", c.id)
+      : await sb.from("contractors").insert({ ...row, farmer_id: me.id });
+    if (error) return ($("#cerr").textContent = error.message);
+    dlg.close(); boot();
+  };
+}
+
+// ---------- farmer: leads ----------
+async function leads() {
+  const cs = await myContractors();
+  let q = sb.from("leads").select("*").order("created_at", { ascending: false });
+  if (me.role !== "admin") q = q.eq("farmer_id", me.id);
+  const ls = (await q).data || [];
+  const cname = (id) => cs.find((c) => c.id === id)?.business_name || "—";
+  app.innerHTML = `
+    <div class="row" style="margin-bottom:12px"><h2 style="margin:0;margin-right:auto;font-size:18px">Leads</h2>
+      <button class="btn" id="add">Log a lead</button></div>
+    <div class="card tablewrap"><table><thead><tr><th>Date</th><th>Direction</th><th>Customer / job</th><th>Contractor</th><th>Status</th><th>Job value</th><th>Fee</th></tr></thead><tbody>
+    ${ls.map((l) => `<tr data-id="${l.id}" style="cursor:pointer"><td>${new Date(l.created_at).toLocaleDateString()}</td>
+      <td>${l.direction === "inbound" ? "From contractor" : "To contractor"}<br><small class="muted">${esc(l.source)}</small></td>
+      <td>${esc(l.customer_name)}<br><small class="muted">${esc(l.job_description)}</small></td>
+      <td>${esc(cname(l.contractor_id))}</td><td><span class="tag">${esc(l.status)}</span></td>
+      <td>${l.job_value != null ? money(l.job_value) : ""}</td>
+      <td>${l.fee_amount != null ? money(l.fee_amount) + (l.status === "closed" ? (l.fee_paid ? ' <span class="tag">paid</span>' : ' <span class="tag warn">owed</span>') : "") : ""}</td></tr>`).join("")
+      || `<tr><td colspan="7" class="muted">No leads yet.</td></tr>`}
+    </tbody></table></div>`;
+  $("#add").onclick = () => leadForm({}, cs);
+  app.querySelectorAll("tr[data-id]").forEach((el) => el.onclick = () => leadForm(ls.find((l) => l.id === el.dataset.id), cs));
+}
+
+function leadForm(l = {}, cs) {
+  dlg.innerHTML = `<form id="lf">
+    <h3 style="margin-top:0">${l.id ? "Edit lead" : "Log a lead"}</h3>
+    <div class="grid2">
+      <div><label>Direction</label><select name="direction"><option value="outbound" ${l.direction !== "inbound" ? "selected" : ""}>I sent it to a contractor</option><option value="inbound" ${l.direction === "inbound" ? "selected" : ""}>A contractor sent it to me</option></select></div>
+      <div><label>Source</label><select name="source">${["Nextdoor","Facebook","Local forum","Contractor referral","Other"].map((o) => `<option ${o === l.source ? "selected" : ""}>${o}</option>`).join("")}</select></div>
+    </div>
+    <label>Contractor</label><select name="contractor_id"><option value="">—</option>${cs.map((c) => `<option value="${c.id}" ${c.id === l.contractor_id ? "selected" : ""}>${esc(c.business_name)} (${esc(tradeName(c.trade_id))})</option>`).join("")}</select>
+    <label>Customer name</label><input name="customer_name" value="${esc(l.customer_name)}">
+    <label>Job description</label><textarea name="job_description" rows="2">${esc(l.job_description)}</textarea>
+    <div class="grid2">
+      <div><label>Status</label><select name="status">${["new","sent","closed","lost"].map((o) => `<option ${o === (l.status || "sent") ? "selected" : ""}>${o}</option>`).join("")}</select></div>
+      <div><label>Job value ($)</label><input name="job_value" type="number" step="0.01" value="${l.job_value ?? ""}"></div>
+      <div><label>Fee %</label><input name="fee_pct" type="number" step="0.5" value="${l.fee_pct ?? ""}" placeholder="defaults to contractor's %"></div>
+      <div><label>Fee paid?</label><select name="fee_paid"><option value="false">No</option><option value="true" ${l.fee_paid ? "selected" : ""}>Yes</option></select></div>
+    </div>
+    <div class="err" id="lerr"></div>
+    <div class="row" style="margin-top:12px;justify-content:flex-end"><button type="button" class="btn ghost" id="cx">Cancel</button><button class="btn">Save</button></div></form>`;
+  dlg.showModal();
+  $("#cx").onclick = () => dlg.close();
+  $("#lf").onsubmit = async (e) => {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(e.target));
+    const con = cs.find((c) => c.id === f.contractor_id);
+    const row = { ...f, contractor_id: f.contractor_id || null,
+      job_value: f.job_value === "" ? null : +f.job_value,
+      fee_pct: f.fee_pct === "" ? (con?.fee_pct ?? null) : +f.fee_pct,
+      fee_paid: f.fee_paid === "true",
+      closed_at: f.status === "closed" ? (l.closed_at || new Date().toISOString()) : null };
+    const { error } = l.id
+      ? await sb.from("leads").update(row).eq("id", l.id)
+      : await sb.from("leads").insert({ ...row, farmer_id: me.id });
+    if (error) return ($("#lerr").textContent = error.message);
+    // First outbound lead / first close nudges the contractor's stage forward
+    if (con && row.direction === "outbound") {
+      const target = row.status === "closed" && row.fee_paid ? 5 : 4;
+      if (con.stage < target && con.stage >= 3) await sb.from("contractors").update({ stage: target }).eq("id", con.id);
+    }
+    if (con && row.direction === "inbound" && con.stage >= 5 && con.stage < 6) await sb.from("contractors").update({ stage: 6 }).eq("id", con.id);
+    dlg.close(); boot();
+  };
+}
+
+// ---------- admin ----------
+async function admin() {
+  const { data: fs } = await sb.from("farmer_summary").select("*").order("full_name");
+  const byId = Object.fromEntries((fs || []).map((f) => [f.id, f]));
+  const paid = (fs || []).filter((f) => f.enrollment_paid).length;
+  app.innerHTML = `
+    <div class="stats">
+      <div class="card stat"><div class="v">${(fs||[]).length}</div><div class="k">Farmers</div></div>
+      <div class="card stat"><div class="v">${paid}</div><div class="k">Paid enrollment</div></div>
+      <div class="card stat"><div class="v">${money(paid * 500)}</div><div class="k">Enrollment revenue</div></div>
+      <div class="card stat"><div class="v">${(fs||[]).reduce((a,f)=>a+Number(f.active_network),0)}</div><div class="k">Contractors in all networks</div></div>
+    </div>
+    <div class="card tablewrap"><table><thead><tr><th>Farmer</th><th>Recruited by</th><th>Enrollment</th><th>Network</th><th>Leads (closed)</th><th>Fees earned</th><th>Recruits</th></tr></thead><tbody>
+    ${(fs || []).map((f) => `<tr><td><b>${esc(f.full_name)}</b><br><small class="muted">${esc(f.email)}</small></td>
+      <td>${esc(byId[f.recruited_by]?.full_name || "")}</td>
+      <td>${f.enrollment_paid ? '<span class="tag">paid</span>' : `<button class="btn sm" data-pay="${f.id}">Mark $500 paid</button>`}</td>
+      <td>${f.active_network} / ${f.contractors}</td><td>${f.leads} (${f.leads_closed})</td><td>${money(f.fees_earned)}</td><td>${f.recruits}</td></tr>`).join("")
+      || `<tr><td colspan="7" class="muted">No farmers yet.</td></tr>`}
+    </tbody></table></div>`;
+  app.querySelectorAll("[data-pay]").forEach((b) => b.onclick = async () => {
+    const { error } = await sb.rpc("mark_enrollment_paid", { farmer: b.dataset.pay }); if (error) alert(error.message); boot();
+  });
+}
+
+async function payouts() {
+  const [{ data: ps }, { data: pr }] = await Promise.all([
+    sb.from("recruiter_payouts").select("*").order("created_at", { ascending: false }),
+    sb.from("profiles").select("id,full_name,email"),
+  ]);
+  const nm = (id) => (pr || []).find((p) => p.id === id)?.full_name || "—";
+  const owed = (ps || []).filter((p) => p.status === "owed").reduce((a, p) => a + Number(p.amount), 0);
+  app.innerHTML = `<div class="stats"><div class="card stat"><div class="v">${money(owed)}</div><div class="k">Recruiter payouts owed</div></div></div>
+    <div class="card tablewrap"><table><thead><tr><th>Recruiter</th><th>New farmer</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody>
+    ${(ps || []).map((p) => `<tr><td>${esc(nm(p.recruiter_id))}</td><td>${esc(nm(p.recruit_id))}</td><td>${money(p.amount)}</td>
+      <td><span class="tag ${p.status === "owed" ? "warn" : ""}">${p.status === "pending" ? "waiting on their $500" : esc(p.status)}</span></td>
+      <td>${p.status === "owed" ? `<button class="btn sm" data-paid="${p.id}">Mark paid</button>` : ""}</td></tr>`).join("")
+      || `<tr><td colspan="5" class="muted">No recruiter payouts yet.</td></tr>`}
+    </tbody></table></div>`;
+  app.querySelectorAll("[data-paid]").forEach((b) => b.onclick = async () => {
+    await sb.from("recruiter_payouts").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", b.dataset.paid); boot();
+  });
+}
+
+async function tradesView() {
+  app.innerHTML = `<div class="card" style="max-width:560px"><h2 style="margin-top:0;font-size:18px">Trades in the niche</h2>
+    <p class="muted">Every farmer works toward ${PER_TRADE} contractors per trade.</p>
+    <table><tbody>${trades.map((t) => `<tr><td>${esc(t.name)}</td><td style="text-align:right"><button class="btn ghost sm" data-del="${t.id}">Remove</button></td></tr>`).join("")}</tbody></table>
+    <form id="tf" class="row" style="margin-top:12px"><input name="name" placeholder="Add a trade, e.g. Roofing" required style="flex:1"><button class="btn">Add</button></form>
+    <div class="err" id="terr"></div></div>`;
+  $("#tf").onsubmit = async (e) => {
+    e.preventDefault();
+    const name = new FormData(e.target).get("name").trim();
+    const { error } = await sb.from("trades").insert({ name, sort_order: trades.length });
+    if (error) return ($("#terr").textContent = error.message);
+    await loadRef(); boot();
+  };
+  app.querySelectorAll("[data-del]").forEach((b) => b.onclick = async () => {
+    const { error } = await sb.from("trades").delete().eq("id", +b.dataset.del);
+    if (error) return ($("#terr").textContent = "Can't remove a trade that contractors are filed under.");
+    await loadRef(); boot();
+  });
+}
+</script>
+</body>
+</html>
