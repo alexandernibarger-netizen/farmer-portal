@@ -97,7 +97,8 @@ function authView(mode = "in") {
     const { error } = mode === "in"
       ? await sb.auth.signInWithPassword({ email: f.email, password: f.password })
       : await sb.auth.signUp({ email: f.email, password: f.password,
-          options: { data: { full_name: f.full_name, phone: f.phone, recruiter_email: f.recruiter_email } } });
+          options: { emailRedirectTo: location.origin + location.pathname,
+            data: { full_name: f.full_name, phone: f.phone, recruiter_email: f.recruiter_email } } });
     if (error) return ($("#aerr").textContent = error.message);
     if (mode === "up") $("#aerr").textContent = "Check your email to confirm your account, then sign in.";
   };
