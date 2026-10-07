@@ -50,6 +50,8 @@ dialog::backdrop{background:rgba(0,0,0,.4)}
 .banner{max-width:1400px;margin:16px auto 0;padding:0 20px}.banner .card{display:flex;gap:12px;align-items:center;flex-wrap:wrap;border-color:var(--accent)}
 .err{color:var(--warn);font-size:14px;min-height:1.2em;margin-top:8px}
 .trades{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:16px}
+.lockedcol,.lvl.locked{opacity:.55;border-style:dashed}
+.lvl{margin-bottom:10px}.lvl .num{display:inline-block;width:26px;height:26px;border-radius:50%;background:var(--soft);color:var(--accent);text-align:center;line-height:26px;font-weight:700;margin-right:8px}
 .bar{height:6px;background:var(--line);border-radius:3px;margin-top:6px;overflow:hidden}.bar i{display:block;height:100%;background:var(--accent)}
 @media (max-width:640px){main{padding:16px}.grid2{grid-template-columns:1fr}}
 </style>
@@ -76,8 +78,9 @@ const app = $("#app"), dlg = $("#dlg");
 const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const money = (n) => "$" + Number(n || 0).toLocaleString(undefined, {maximumFractionDigits: 2});
 const PER_TRADE = 10;
-let me = null, stages = [], trades = [], view = "pipeline";
+let me = null, stages = [], trades = [], view = "home";
 $("#brand").textContent = C.PROGRAM_NAME;
+const REF = new URLSearchParams(location.search).get("ref") || ""; // referral links: leadfarminghq.com/?ref=friend@email
 
 // ---------- auth ----------
 function authView(mode = "in") {
@@ -89,7 +92,7 @@ function authView(mode = "in") {
     <form id="af">
       ${mode === "up" ? `<label>Full name</label><input name="full_name" required>
       <label>Phone</label><input name="phone">
-      <label>Who referred you? (their email, optional)</label><input name="recruiter_email" type="email">` : ""}
+      <label>Who referred you? (their email, optional)</label><input name="recruiter_email" type="email" value="${esc(REF)}">` : ""}
       <label>Email</label><input name="email" type="email" required>
       <label>Password</label><input name="password" type="password" minlength="8" required>
       ${mode === "in" ? `<p style="margin:6px 0 0;font-size:13px;text-align:right"><a href="#" id="fg">Forgot password?</a></p>` : ""}
@@ -152,7 +155,7 @@ function newPasswordView() {
   };
 }
 
-$("#logout").onclick = () => { view = "pipeline"; sb.auth.signOut().then(() => ($("#banner").innerHTML = "")); };
+$("#logout").onclick = () => { view = "home"; sb.auth.signOut().then(() => ($("#banner").innerHTML = "")); };
 
 sb.auth.onAuthStateChange((event, session) => {
   if (event === "USER_UPDATED") return; // new password saved; the form handles what's next
@@ -179,7 +182,9 @@ async function loadRef() {
 const stageName = (id) => stages.find((s) => s.id === id)?.name || id;
 const tradeName = (id) => trades.find((t) => t.id === id)?.name || "—";
 
-const locked = () => me?.role !== "admin" && !me?.enrollment_paid;
+const locked = () => me?.role !== "admin" && !me?.verifier && !me?.enrollment_paid;
+const lvl = () => (me?.role === "admin" ? 3 : me?.level || 0);
+const reviewer = () => me?.role === "admin" || me?.verifier;
 
 // Unpaid accounts get only this screen; the database also refuses them any program data.
 function payView() {
@@ -207,12 +212,99 @@ function boot() {
   $("#top").hidden = false;
   $("#who").textContent = me?.full_name || me?.email || "";
   if (locked()) return payView();
-  const tabs = [["pipeline","Pipeline"],["contractors","Contractors"],["leads","Leads"]];
+  const tabs = [["home","Home"],["pipeline","Pipeline"],["contractors","Contractors"]];
+  if (lvl() >= 2) tabs.push(["leads","Leads"]);
+  if (reviewer()) tabs.push(["approvals","Approvals"]);
   if (me?.role === "admin") tabs.push(["admin","Farmers"],["payouts","Payouts"],["trades","Trades"]);
-  if (!tabs.some(([k]) => k === view)) view = "pipeline";
+  if (!tabs.some(([k]) => k === view)) view = "home";
   $("#nav").innerHTML = tabs.map(([k,l]) => `<button data-v="${k}" class="${k===view?"on":""}">${l}</button>`).join("");
   $("#nav").onclick = (e) => { if (e.target.dataset.v) { view = e.target.dataset.v; boot(); } };
-  ({ pipeline, contractors, leads, admin, payouts, tradesView: tradesView })[view === "trades" ? "tradesView" : view]();
+  ({ home, pipeline, contractors, leads, approvals, admin, payouts, tradesView: tradesView })[view === "trades" ? "tradesView" : view]();
+}
+
+// ---------- farmer: home (level ladder + next step) ----------
+async function home() {
+  // pick up an approval that happened since sign-in
+  const { data: fresh } = await sb.from("profiles").select("*").eq("id", me.id).single();
+  if (fresh && fresh.level !== me.level) { me = fresh; await loadRef(); return boot(); }
+  const [{ data: ladder }, { data: reqs }, cs] = await Promise.all([
+    sb.rpc("level_ladder"),
+    sb.from("level_requests").select("*").eq("farmer_id", me.id).order("created_at", { ascending: false }),
+    myContractors(),
+  ]);
+  const L = lvl(), last = (reqs || [])[0], pending = last?.status === "pending";
+  const top = Math.max(0, ...cs.filter((c) => c.farmer_id === me.id).map((c) => c.stage));
+  const ready = (L === 1 && top >= 3) || (L === 2 && top >= 6);
+  const refLink = `${location.origin}${location.pathname}?ref=${encodeURIComponent(me.email || "")}`;
+  const card = (l) => {
+    if (l.level === 0) return "";
+    if (l.level <= L) return `<div class="card lvl"><span class="num">${l.level}</span><b>${esc(l.name)}</b> <span class="tag">unlocked</span></div>`;
+    if (l.level === L + 1) return `<div class="card lvl" id="next"><span class="num">${l.level}</span><b>${esc(l.name)}</b>
+      <p style="margin:8px 0">${esc(l.requirement || "")}</p>
+      ${pending ? `<span class="tag">Request sent, waiting for review</span>`
+        : `${last?.status === "rejected" && last.to_level === l.level ? `<p class="err">Sent back${last.review_note ? ": " + esc(last.review_note) : ""}. Add more proof and ask again.</p>` : ""}
+           ${ready ? `<button class="btn" id="askup">Request level ${l.level}</button>` : `<span class="muted" style="font-size:14px">The request button appears once you've reached this goal.</span>`}`}</div>`;
+    return `<div class="card lvl locked"><span class="num">${l.level}</span><span class="muted">${esc(l.teaser)}</span></div>`;
+  };
+  app.innerHTML = `<div style="max-width:720px">
+    <h2 style="font-size:18px;margin-top:0">Your progress</h2>
+    ${me.role === "admin" ? `<p class="muted">Admins see every level.</p>` : (ladder || []).map(card).join("")}
+    ${me.role !== "admin" ? `<div class="card lvl" id="refcard" style="margin-top:20px"><b>Know someone who'd be good at this?</b>
+      <p style="margin:6px 0">Introduce them and earn $250 when they enroll. Share your link:</p>
+      <div class="row"><input id="reflink" readonly value="${esc(refLink)}" style="flex:1"><button class="btn ghost sm" id="copyref">Copy</button></div></div>` : ""}</div>`;
+  if ($("#copyref")) $("#copyref").onclick = () => { $("#reflink").select(); navigator.clipboard?.writeText($("#reflink").value).catch(() => {}); $("#copyref").textContent = "Copied"; };
+  if ($("#askup")) $("#askup").onclick = () => requestForm(L + 1);
+}
+
+function requestForm(to) {
+  dlg.innerHTML = `<form id="rf"><h3 style="margin-top:0">Request level ${to}</h3>
+    <p class="muted" style="font-size:14px;margin-top:0">Show what you did to reach this level's goal. Screenshots, photos or PDFs work (10 MB each).</p>
+    <label>What did you do?</label><textarea name="note" rows="4"></textarea>
+    <label>Proof files</label><input name="files" type="file" multiple accept="image/*,.pdf">
+    <div class="err" id="rerr"></div>
+    <div class="row" style="margin-top:12px;justify-content:flex-end"><button type="button" class="btn ghost" id="cx">Cancel</button><button class="btn" id="rsend">Send for review</button></div></form>`;
+  dlg.showModal();
+  $("#cx").onclick = () => dlg.close();
+  $("#rf").onsubmit = async (e) => {
+    e.preventDefault();
+    $("#rsend").disabled = true;
+    const note = new FormData(e.target).get("note");
+    const paths = [];
+    for (const f of e.target.files.files) {
+      const path = `${me.id}/${Date.now()}-${f.name.replace(/[^\w.-]+/g, "_")}`;
+      const { error } = await sb.storage.from("proof").upload(path, f);
+      if (error) { $("#rsend").disabled = false; return ($("#rerr").textContent = `Couldn't upload ${f.name}: ${error.message}`); }
+      paths.push(path);
+    }
+    const { error } = await sb.rpc("request_level_up", { p_note: note, p_files: paths });
+    if (error) { $("#rsend").disabled = false; return ($("#rerr").textContent = error.message); }
+    dlg.close(); boot();
+  };
+}
+
+// ---------- reviewers: level-up approvals ----------
+async function approvals() {
+  const { data: q, error } = await sb.rpc("review_queue");
+  const rows = q || [];
+  const links = await Promise.all(rows.map((r) => Promise.all((r.files || []).map((f) =>
+    sb.storage.from("proof").createSignedUrl(f, 3600).then(({ data }) => `<a href="${esc(data?.signedUrl || "#")}" target="_blank" rel="noopener">${esc(f.split("/").pop().replace(/^\d+-/, ""))}</a>`))))) ;
+  app.innerHTML = `<h2 style="font-size:18px;margin-top:0">Level-up requests</h2>
+    ${error ? `<p class="err">${esc(error.message)}</p>` : ""}
+    <div class="card tablewrap"><table><thead><tr><th>Farmer</th><th>Asking for</th><th>Their proof</th><th></th></tr></thead><tbody>
+    ${rows.map((r, i) => `<tr><td><b>${esc(r.full_name)}</b><br><small class="muted">${esc(r.email)}</small><br><small class="muted">${new Date(r.created_at).toLocaleDateString()}</small></td>
+      <td>Level ${r.to_level}</td><td>${esc(r.note)}${links[i].length ? "<br>" + links[i].join("<br>") : ""}</td>
+      <td style="white-space:nowrap"><button class="btn sm" data-ok="${r.id}">Approve</button> <button class="btn ghost sm" data-no="${r.id}">Send back</button></td></tr>`).join("")
+      || `<tr><td colspan="4" class="muted">No requests waiting.</td></tr>`}
+    </tbody></table></div><div class="err" id="aperr"></div>`;
+  const act = async (id, ok) => {
+    const note = ok ? null : prompt("What should they fix or add? (they'll see this)");
+    if (!ok && note === null) return;
+    const { error } = await sb.rpc("review_level_request", { p_id: id, p_approve: ok, p_note: note });
+    if (error) return ($("#aperr").textContent = error.message);
+    boot();
+  };
+  app.querySelectorAll("[data-ok]").forEach((b) => b.onclick = () => act(b.dataset.ok, true));
+  app.querySelectorAll("[data-no]").forEach((b) => b.onclick = () => act(b.dataset.no, false));
 }
 
 // ---------- farmer: pipeline ----------
@@ -244,7 +336,7 @@ async function pipeline() {
       const list = cs.filter((c) => c.stage === s.id);
       return `<div class="col"><h3>${s.id}. ${esc(s.name)}</h3><div class="n">${list.length} · ${esc(s.description)}</div>
         ${list.map((c) => `<div class="chip" data-id="${c.id}"><b>${esc(c.business_name)}</b><small>${esc(tradeName(c.trade_id))}${c.city ? " · " + esc(c.city) : ""}</small></div>`).join("")}</div>`;
-    }).join("")}</div>`;
+    }).join("")}${lvl() < 3 ? `<div class="col lockedcol"><h3>More stages</h3><div class="n">Open as you move up a level. See Home for your next step.</div></div>` : ""}</div>`;
   $("#add").onclick = () => contractorForm();
   app.querySelectorAll(".chip").forEach((el) => el.onclick = () => contractorForm(cs.find((c) => c.id === el.dataset.id)));
 }
@@ -384,15 +476,23 @@ async function admin() {
       <div class="card stat"><div class="v">${money(paid * 500)}</div><div class="k">Enrollment revenue</div></div>
       <div class="card stat"><div class="v">${(fs||[]).reduce((a,f)=>a+Number(f.active_network),0)}</div><div class="k">Contractors in all networks</div></div>
     </div>
-    <div class="card tablewrap"><table><thead><tr><th>Farmer</th><th>Recruited by</th><th>Enrollment</th><th>Network</th><th>Leads (closed)</th><th>Fees earned</th><th>Recruits</th></tr></thead><tbody>
+    <div class="card tablewrap"><table><thead><tr><th>Farmer</th><th>Recruited by</th><th>Enrollment</th><th>Level</th><th>Verifier</th><th>Network</th><th>Leads (closed)</th><th>Fees earned</th><th>Recruits</th></tr></thead><tbody>
     ${(fs || []).map((f) => `<tr><td><b>${esc(f.full_name)}</b><br><small class="muted">${esc(f.email)}</small></td>
       <td>${esc(byId[f.recruited_by]?.full_name || "")}</td>
       <td>${f.enrollment_paid ? '<span class="tag">paid</span>' : `<button class="btn sm" data-pay="${f.id}">Mark $500 paid</button>`}</td>
+      <td><select data-lvl="${f.id}" style="width:auto">${[0,1,2,3].map((n) => `<option ${n === f.level ? "selected" : ""}>${n}</option>`).join("")}</select></td>
+      <td><input type="checkbox" data-ver="${f.id}" ${f.verifier ? "checked" : ""} style="width:auto"></td>
       <td>${f.active_network} / ${f.contractors}</td><td>${f.leads} (${f.leads_closed})</td><td>${money(f.fees_earned)}</td><td>${f.recruits}</td></tr>`).join("")
-      || `<tr><td colspan="7" class="muted">No farmers yet.</td></tr>`}
+      || `<tr><td colspan="9" class="muted">No farmers yet.</td></tr>`}
     </tbody></table></div>`;
   app.querySelectorAll("[data-pay]").forEach((b) => b.onclick = async () => {
     const { error } = await sb.rpc("mark_enrollment_paid", { farmer: b.dataset.pay }); if (error) alert(error.message); boot();
+  });
+  app.querySelectorAll("[data-lvl]").forEach((el) => el.onchange = async () => {
+    const { error } = await sb.rpc("set_level", { farmer: el.dataset.lvl, lvl: +el.value }); if (error) alert(error.message); boot();
+  });
+  app.querySelectorAll("[data-ver]").forEach((el) => el.onchange = async () => {
+    const { error } = await sb.rpc("set_verifier", { farmer: el.dataset.ver, on_off: el.checked }); if (error) alert(error.message); boot();
   });
 }
 
