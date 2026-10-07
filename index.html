@@ -7,9 +7,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="config.js"></script>
+<script src="curriculum/diagrams.js"></script>
 <style>
-:root{--bg:#f6f7f4;--card:#fff;--ink:#1d2420;--muted:#66706a;--line:#e2e5df;--accent:#2f6b3f;--accent-ink:#fff;--warn:#a5521b;--soft:#eaf2ec}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121512;--card:#1b201c;--ink:#e7ebe7;--muted:#9aa49d;--line:#2c332d;--accent:#5fae73;--accent-ink:#0d130f;--warn:#e19a62;--soft:#1f2a22}}
+:root{--leaf:#3E7B3A;--leaf2:#72AA5C;--soil:#7E5A3B;--soil2:#B48A5E;--trunk:#6A4A2E;--onsoil:#FFF5E4;--sky:#DDEBF1;--sky2:#4F8AB0;--meadow:#DCEBC8;--gold:#F0B93A;--gold-d:#A9760F;--bloom:#D3648A;--apple:#C9473B;--bad:#B83E33;--good:#2C7F45;--skin:#E5B68C;--paper:#FFFFFF;--rock:#9AA095;--bg:#f6f7f4;--card:#fff;--ink:#1d2420;--muted:#66706a;--line:#e2e5df;--accent:#2f6b3f;--accent-ink:#fff;--warn:#a5521b;--soft:#eaf2ec}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--leaf:#5FA552;--leaf2:#3F7A36;--soil:#4E3824;--soil2:#7A5B3B;--trunk:#8C6A47;--onsoil:#F3E7D3;--sky:#1C2D35;--sky2:#6EA8CC;--meadow:#1F2E1B;--gold:#F2C24E;--gold-d:#E6AE3A;--bloom:#E07FA0;--apple:#E06A5C;--bad:#E46B5E;--good:#5DC27B;--skin:#D2A07A;--paper:#263027;--rock:#5E655A;--bg:#121512;--card:#1b201c;--ink:#e7ebe7;--muted:#9aa49d;--line:#2c332d;--accent:#5fae73;--accent-ink:#0d130f;--warn:#e19a62;--soft:#1f2a22}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 Inter,system-ui,sans-serif}
 header{display:flex;align-items:center;gap:16px;padding:12px 20px;border-bottom:1px solid var(--line);background:var(--card);position:sticky;top:0;z-index:5;flex-wrap:wrap}
@@ -53,7 +54,96 @@ dialog::backdrop{background:rgba(0,0,0,.4)}
 .lockedcol,.lvl.locked{opacity:.55;border-style:dashed}
 .lvl{margin-bottom:10px}.lvl .num{display:inline-block;width:26px;height:26px;border-radius:50%;background:var(--soft);color:var(--accent);text-align:center;line-height:26px;font-weight:700;margin-right:8px}
 .bar{height:6px;background:var(--line);border-radius:3px;margin-top:6px;overflow:hidden}.bar i{display:block;height:100%;background:var(--accent)}
-@media (max-width:640px){main{padding:16px}.grid2{grid-template-columns:1fr}}
+/* learn: lessons, quizzes */
+.chipbtn{background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:99px;padding:6px 12px;font:inherit;font-size:14px;cursor:pointer}
+.chipbtn.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.lessons{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin-bottom:16px}
+.lessonbtn{display:grid;grid-template-columns:110px 1fr;gap:12px;text-align:left;font:inherit;color:var(--ink);cursor:pointer;padding:10px;align-items:center}
+.lessonbtn b{display:block;margin:2px 0}.lessonbtn small{display:block}.lessonbtn .tag{margin-top:4px}
+.lthumb svg,.ldiagram svg{display:block;width:100%;height:auto;border-radius:6px}
+.quizcard{max-width:720px;margin-bottom:12px}.quizcard textarea{margin:6px 0}
+.qa{border-top:1px solid var(--line);margin-top:10px;padding-top:10px;font-size:14px}
+.player{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:12px}.player .bar{height:10px;border-radius:99px}
+.player .lcard{font-size:18px;line-height:1.5;margin:14px 0}.metaphor{font-style:italic;color:var(--muted);margin:10px 0 0}
+.ldiagram{margin-bottom:12px}.player>.btn{align-self:flex-start}
+.opts{display:flex;flex-direction:column;gap:8px}
+.opt{text-align:left;background:var(--bg);color:var(--ink);border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit;cursor:pointer}
+.opt.right{border-color:var(--good)}.opt.wrong{border-color:var(--bad)}
+.result.pass{border-color:var(--good)}.result.fail{border-color:var(--bad)}
+.dg .sky{fill:var(--sky)}
+.dg .meadow{fill:var(--meadow)}
+.dg .soil{fill:var(--soil)}
+.dg .soil2{fill:var(--soil2)}
+.dg .rocky{fill:var(--soil2)}
+.dg .rock{fill:var(--rock)}
+.dg .leaf{fill:var(--leaf)}
+.dg .leaf2{fill:var(--leaf2)}
+.dg .stem{stroke:var(--leaf);stroke-width:2.5;fill:none;stroke-linecap:round}
+.dg .bloom{fill:var(--bloom)}
+.dg .gold{fill:var(--gold)}
+.dg .apple{fill:var(--apple)}
+.dg .sky2{fill:var(--sky2)}
+.dg .wilt{fill:var(--rock)}
+.dg .trunk{fill:var(--trunk)}
+.dg .trunkl{stroke:var(--trunk);stroke-width:2.5;fill:none;stroke-linecap:round}
+.dg .root{stroke:var(--soil2);fill:none;stroke-linecap:round}
+.dg .skin{fill:var(--skin)}
+.dg .shirt1{fill:var(--accent)}
+.dg .shirt2{fill:var(--sky2)}
+.dg .shirt3{fill:var(--bloom)}
+.dg .ink{fill:var(--ink)}
+.dg .paper{fill:var(--paper);stroke:var(--line);stroke-width:1.2}
+.dg .pbad{stroke:var(--bad);stroke-width:1.8}
+.dg .pgood{stroke:var(--good);stroke-width:1.8}
+.dg .t{fill:var(--ink);font-family:Inter,system-ui,sans-serif;font-weight:600}
+.dg .tm{fill:var(--muted)}
+.dg .onsoil{fill:var(--onsoil)}
+.dg .bad{fill:var(--bad)}
+.dg .good{fill:var(--good)}
+.dg .ar{stroke:var(--ink);stroke-width:1.8;fill:none}
+.dg .arh{fill:var(--ink)}
+.dg .ag{stroke:var(--gold-d);stroke-width:2.2;fill:none}
+.dg .agh{fill:var(--gold-d)}
+.dg .ab{stroke:var(--sky2);stroke-width:1.6;fill:none}
+.dg .abh{fill:var(--sky2)}
+.dg .xbad{stroke:var(--bad);stroke-width:3.5;stroke-linecap:round;fill:none}
+.dg .okbg{fill:var(--good)}
+.dg .okl{stroke:var(--card);stroke-width:2.5;fill:none;stroke-linecap:round}
+.dg .weave{stroke:var(--trunk);stroke-width:1;fill:none;opacity:.6}
+.dg .ray{stroke:var(--gold);stroke-width:2.2;stroke-linecap:round}
+.dg .rail{stroke:var(--trunk);stroke-width:3;fill:none}
+.dg .trail{stroke:var(--soil2);stroke-width:14;fill:none;stroke-linecap:round}
+.dg .trail2{stroke:var(--soil2);stroke-width:10;fill:none}
+.dg .barn{fill:var(--apple)}
+.dg .roofl{stroke:var(--ink);stroke-width:3;fill:none}
+.dg .beak{fill:var(--gold-d)}
+.dg .bird{fill:var(--sky2)}
+.dg .puff{fill:var(--paper);stroke:var(--line)}
+.dg .seedl{stroke:var(--muted);stroke-width:1;fill:none}
+.dg .cloudf{fill:var(--paper);stroke:var(--line)}
+.dg .breeze{stroke:var(--sky2);stroke-width:2;fill:none;stroke-linecap:round}
+.dg .phone{fill:var(--ink)}
+.dg .axis{stroke:var(--muted);stroke-width:1}
+.dg .axisl{stroke:none}
+.dg .owl{fill:var(--soil2)}
+.dg .arm{stroke:var(--skin);stroke-width:4;stroke-linecap:round;fill:none}
+.dg .lead{stroke:var(--muted);stroke-width:1;fill:none}
+.dg .stripe{stroke:var(--ink);stroke-width:2.5}
+.dg .wing{fill:var(--paper);opacity:.85;stroke:var(--line)}
+.dg .wasp{fill:var(--gold-d)}
+.dg .web{stroke:var(--muted);stroke-width:.8;fill:none;opacity:.7}
+.dg .node{fill:var(--paper);stroke:var(--leaf);stroke-width:2}
+.dg .ladderl{stroke:var(--trunk);stroke-width:4;stroke-linecap:round;fill:none}
+.dg .motion{stroke:var(--muted);stroke-width:1.5;stroke-linecap:round}
+.dg .water{stroke:var(--sky2);stroke-width:3;fill:none;opacity:.6}
+.dg .ghost{fill:none;stroke:var(--muted);stroke-dasharray:3 3}
+.dg .shear{stroke:var(--muted);stroke-width:3;stroke-linecap:round}
+.dg .shearo{fill:none;stroke:var(--muted);stroke-width:2}
+.dg .tag{stroke:var(--muted);stroke-width:1.2}
+.dg .pot{fill:var(--apple)}
+.dg .awning{fill:var(--apple)}
+.dg .awnl{stroke:var(--paper);stroke-width:4}
+@media (max-width:640px){main{padding:16px}.lessonbtn{grid-template-columns:90px 1fr}.grid2{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -212,14 +302,14 @@ function boot() {
   $("#top").hidden = false;
   $("#who").textContent = me?.full_name || me?.email || "";
   if (locked()) return payView();
-  const tabs = [["home","Home"],["pipeline","Pipeline"],["contractors","Contractors"]];
+  const tabs = [["home","Home"],["learn","Learn"],["pipeline","Pipeline"],["contractors","Contractors"]];
   if (lvl() >= 2) tabs.push(["leads","Leads"]);
   if (reviewer()) tabs.push(["approvals","Approvals"]);
   if (me?.role === "admin") tabs.push(["admin","Farmers"],["payouts","Payouts"],["trades","Trades"]);
   if (!tabs.some(([k]) => k === view)) view = "home";
   $("#nav").innerHTML = tabs.map(([k,l]) => `<button data-v="${k}" class="${k===view?"on":""}">${l}</button>`).join("");
   $("#nav").onclick = (e) => { if (e.target.dataset.v) { view = e.target.dataset.v; boot(); } };
-  ({ home, pipeline, contractors, leads, approvals, admin, payouts, tradesView: tradesView })[view === "trades" ? "tradesView" : view]();
+  ({ home, learn, pipeline, contractors, leads, approvals, admin, payouts, tradesView: tradesView })[view === "trades" ? "tradesView" : view]();
 }
 
 // ---------- farmer: home (level ladder + next step) ----------
@@ -227,14 +317,16 @@ async function home() {
   // pick up an approval that happened since sign-in
   const { data: fresh } = await sb.from("profiles").select("*").eq("id", me.id).single();
   if (fresh && fresh.level !== me.level) { me = fresh; await loadRef(); return boot(); }
-  const [{ data: ladder }, { data: reqs }, cs] = await Promise.all([
+  const [{ data: ladder }, { data: reqs }, cs, { data: passes }] = await Promise.all([
     sb.rpc("level_ladder"),
     sb.from("level_requests").select("*").eq("farmer_id", me.id).order("created_at", { ascending: false }),
     myContractors(),
+    sb.from("quiz_passes").select("quiz").eq("farmer_id", me.id),
   ]);
   const L = lvl(), last = (reqs || [])[0], pending = last?.status === "pending";
   const top = Math.max(0, ...cs.filter((c) => c.farmer_id === me.id).map((c) => c.stage));
   const ready = (L === 1 && top >= 3) || (L === 2 && top >= 6);
+  const aced = (passes || []).some((p) => p.quiz === "l" + L);
   const refLink = `${location.origin}${location.pathname}?ref=${encodeURIComponent(me.email || "")}`;
   const card = (l) => {
     if (l.level === 0) return "";
@@ -243,7 +335,8 @@ async function home() {
       <p style="margin:8px 0">${esc(l.requirement || "")}</p>
       ${pending ? `<span class="tag">Request sent, waiting for review</span>`
         : `${last?.status === "rejected" && last.to_level === l.level ? `<p class="err">Sent back${last.review_note ? ": " + esc(last.review_note) : ""}. Add more proof and ask again.</p>` : ""}
-           ${ready ? `<button class="btn" id="askup">Request level ${l.level}</button>` : `<span class="muted" style="font-size:14px">The request button appears once you've reached this goal.</span>`}`}</div>`;
+           <p style="margin:8px 0;font-size:14px">${aced ? "✓ Level " + L + " quiz aced" : `<b>Also ace the Level ${L} quiz.</b> <a href="#" id="toquiz">Go to your lessons</a>`}</p>
+           ${ready && aced ? `<button class="btn" id="askup">Request level ${l.level}</button>` : `<span class="muted" style="font-size:14px">The request button appears once you've reached this goal and aced the quiz.</span>`}`}</div>`;
     return `<div class="card lvl locked"><span class="num">${l.level}</span><span class="muted">${esc(l.teaser)}</span></div>`;
   };
   app.innerHTML = `<div style="max-width:720px">
@@ -254,6 +347,7 @@ async function home() {
       <div class="row"><input id="reflink" readonly value="${esc(refLink)}" style="flex:1"><button class="btn ghost sm" id="copyref">Copy</button></div></div>` : ""}</div>`;
   if ($("#copyref")) $("#copyref").onclick = () => { $("#reflink").select(); navigator.clipboard?.writeText($("#reflink").value).catch(() => {}); $("#copyref").textContent = "Copied"; };
   if ($("#askup")) $("#askup").onclick = () => requestForm(L + 1);
+  if ($("#toquiz")) $("#toquiz").onclick = (e) => { e.preventDefault(); learnQuiz = "l" + L; view = "learn"; boot(); };
 }
 
 function requestForm(to) {
@@ -289,13 +383,14 @@ async function approvals() {
   const links = await Promise.all(rows.map((r) => Promise.all((r.files || []).map((f) =>
     sb.storage.from("proof").createSignedUrl(f, 3600).then(({ data }) => `<a href="${esc(data?.signedUrl || "#")}" target="_blank" rel="noopener">${esc(f.split("/").pop().replace(/^\d+-/, ""))}</a>`))))) ;
   app.innerHTML = `<h2 style="font-size:18px;margin-top:0">Level-up requests</h2>
+    <div class="err" id="aperr"></div>
     ${error ? `<p class="err">${esc(error.message)}</p>` : ""}
     <div class="card tablewrap"><table><thead><tr><th>Farmer</th><th>Asking for</th><th>Their proof</th><th></th></tr></thead><tbody>
     ${rows.map((r, i) => `<tr><td><b>${esc(r.full_name)}</b><br><small class="muted">${esc(r.email)}</small><br><small class="muted">${new Date(r.created_at).toLocaleDateString()}</small></td>
       <td>Level ${r.to_level}</td><td>${esc(r.note)}${links[i].length ? "<br>" + links[i].join("<br>") : ""}</td>
       <td style="white-space:nowrap"><button class="btn sm" data-ok="${r.id}">Approve</button> <button class="btn ghost sm" data-no="${r.id}">Send back</button></td></tr>`).join("")
       || `<tr><td colspan="4" class="muted">No requests waiting.</td></tr>`}
-    </tbody></table></div><div class="err" id="aperr"></div>`;
+    </tbody></table></div>`;
   const act = async (id, ok) => {
     const note = ok ? null : prompt("What should they fix or add? (they'll see this)");
     if (!ok && note === null) return;
@@ -303,8 +398,141 @@ async function approvals() {
     if (error) return ($("#aperr").textContent = error.message);
     boot();
   };
+  const { data: qs } = await sb.rpc("question_queue");
+  app.insertAdjacentHTML("beforeend", `<h2 style="font-size:18px;margin-top:28px">Questions from farmers</h2>
+    <p class="muted" style="font-size:14px;margin-top:-6px">Farmers can only ask after acing that level's quiz.</p>
+    ${(qs || []).map((t) => `<div class="card" style="margin-bottom:10px"><b>${esc(t.full_name)}</b> <span class="tag">${esc(t.quiz === "rec" ? "Recruiting" : "Level " + t.quiz.slice(1))}</span>
+      <small class="muted">${new Date(t.created_at).toLocaleDateString()}</small><p style="white-space:pre-wrap">${esc(t.body)}</p>
+      <textarea rows="3" data-ansbox="${t.id}" placeholder="Your answer (they'll see it in Learn)"></textarea>
+      <div class="row" style="justify-content:flex-end;margin-top:8px"><button class="btn sm" data-ans="${t.id}">Send answer</button></div></div>`).join("")
+      || `<div class="card muted">No questions waiting.</div>`}`);
+  app.querySelectorAll("[data-ans]").forEach((b) => b.onclick = async () => {
+    const { error } = await sb.rpc("answer_question", { p_id: b.dataset.ans, p_answer: app.querySelector(`[data-ansbox="${b.dataset.ans}"]`).value });
+    if (error) return ($("#aperr").textContent = error.message);
+    boot();
+  });
   app.querySelectorAll("[data-ok]").forEach((b) => b.onclick = () => act(b.dataset.ok, true));
   app.querySelectorAll("[data-no]").forEach((b) => b.onclick = () => act(b.dataset.no, false));
+}
+
+// ---------- farmer: learn (lessons, must-ace quizzes, ask a teacher) ----------
+let learnQuiz = null;
+const shuffle = (a) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const doneKey = () => "lf-done-" + me.id;
+const doneSet = () => { try { return new Set(JSON.parse(localStorage.getItem(doneKey()) || "[]")); } catch { return new Set(); } };
+const markDone = (id) => { try { const d = doneSet(); d.add(id); localStorage.setItem(doneKey(), JSON.stringify([...d])); } catch {} };
+// lesson pictures are drawn by curriculum/diagrams.js (plain script, global DIAGRAMS)
+const svgOf = (d) => { try { return DIAGRAMS[d.diagram](); } catch { return ""; } };
+const quizLabel = (z) => z.key === "rec" ? "Recruiting" : z.name;
+
+async function learn() {
+  const [{ data: qz }, { data: ls }, { data: passes }, { data: asks }] = await Promise.all([
+    sb.from("quizzes").select("*").order("sort"),
+    sb.from("lessons").select("*").order("sort"),
+    sb.from("quiz_passes").select("*").eq("farmer_id", me.id),
+    sb.from("teacher_questions").select("*").eq("farmer_id", me.id).order("created_at", { ascending: false }),
+  ]);
+  const quizzes = qz || [];
+  if (!quizzes.length) return (app.innerHTML = `<div class="card muted">Lessons aren't available yet.</div>`);
+  if (!quizzes.some((z) => z.key === learnQuiz)) learnQuiz = (quizzes.find((z) => z.key === "l" + lvl()) || quizzes[0]).key;
+  const Z = quizzes.find((z) => z.key === learnQuiz);
+  const mine = (ls || []).filter((l) => l.quiz === Z.key);
+  const pass = (passes || []).find((p) => p.quiz === Z.key);
+  const { data: qq } = await sb.rpc("get_quiz", { p_quiz: Z.key });
+  const done = doneSet();
+  const myAsks = (asks || []).filter((t) => t.quiz === Z.key);
+  app.innerHTML = `<div class="learn">
+    <div class="row" id="qzchips">${quizzes.map((z) => `<button class="chipbtn ${z.key === Z.key ? "on" : ""}" data-q="${z.key}">${esc(quizLabel(z))} · ${esc(z.title)}${(passes || []).some((p) => p.quiz === z.key) ? " ✓" : ""}</button>`).join("")}</div>
+    <h2 style="font-size:20px;margin:18px 0 4px">${esc(quizLabel(Z))}: ${esc(Z.title)}</h2>
+    <p class="muted" style="margin:0 0 14px">${mine.filter((l) => done.has(l.id)).length} of ${mine.length} lessons done</p>
+    <div class="lessons">${mine.map((l) => `<button class="lessonbtn card" data-l="${l.id}">
+      <span class="lthumb">${svgOf(l.data)}</span><span><small class="muted">${esc(l.data.step)}</small><b>${esc(l.data.title)}</b>
+      <small class="muted">${esc(l.data.metaphor)}</small>${done.has(l.id) ? `<span class="tag">done</span>` : ""}</span></button>`).join("")}</div>
+    <div class="card quizcard" id="quizcard"><b>${esc(quizLabel(Z))} quiz</b>
+      <p style="margin:6px 0">${(qq || []).length} questions. You need every one right${Z.key === "rec" ? "" : " before you can request the next level"}.</p>
+      ${pass ? `<p><span class="tag">Aced ${new Date(pass.passed_at).toLocaleDateString()}</span></p>` : ""}
+      <button class="btn" id="startquiz">${pass ? "Take it again" : "Take the quiz"}</button></div>
+    <div class="card quizcard" id="askcard"><b>Ask a teacher</b>
+      ${pass ? `<p class="muted" style="margin:6px 0">Stuck on something the lessons don't cover? Alex, Vincent or Julian will answer here.</p>
+        <textarea id="askbody" rows="3" placeholder="Your question"></textarea><div class="err" id="askerr"></div>
+        <div class="row" style="justify-content:flex-end"><button class="btn" id="asksend">Send question</button></div>`
+      : `<p class="muted" style="margin:6px 0">🔒 Ace the ${esc(quizLabel(Z))} quiz to ask about it. Everything on the quiz is in these lessons.</p>`}
+      ${myAsks.map((t) => `<div class="qa"><p style="margin:0;white-space:pre-wrap"><b>You:</b> ${esc(t.body)}</p>
+        <p style="margin:4px 0 0;white-space:pre-wrap">${t.answer ? `<b>Answer:</b> ${esc(t.answer)}` : `<span class="muted">Waiting for an answer</span>`}</p></div>`).join("")}</div></div>`;
+  app.querySelectorAll("[data-q]").forEach((b) => b.onclick = () => { learnQuiz = b.dataset.q; learn(); });
+  app.querySelectorAll("[data-l]").forEach((b) => b.onclick = () => lessonView(mine, mine.findIndex((l) => l.id === b.dataset.l)));
+  $("#startquiz").onclick = () => quizView(Z, qq || [], mine);
+  if ($("#asksend")) $("#asksend").onclick = async () => {
+    const { error } = await sb.rpc("ask_teacher", { p_quiz: Z.key, p_body: $("#askbody").value });
+    if (error) return ($("#askerr").textContent = error.message);
+    learn();
+  };
+}
+
+// One card at a time, then a practice question
+function lessonView(list, li, step = 0) {
+  const l = list[li], d = l.data, n = d.cards.length;
+  const back = `<button class="btn ghost sm" id="lback">← All lessons</button>`;
+  if (step < n) {
+    app.innerHTML = `<div class="player">${back}<div class="bar"><i style="width:${(step / (n + 1)) * 100}%"></i></div>
+      <div class="card"><div class="ldiagram">${svgOf(d)}</div><small class="muted">${esc(d.step)} · ${esc(d.title)}</small>
+      ${step === 0 ? `<p class="metaphor">${esc(d.metaphor)}</p>` : ""}<p class="lcard">${esc(d.cards[step])}</p>
+      <div class="row" style="justify-content:space-between"><span class="muted" style="font-size:13px">${step + 1} of ${n}</span>
+      <span class="row">${step ? `<button class="btn ghost" id="lprev">Back</button>` : ""}<button class="btn" id="lnext">Next</button></span></div></div></div>`;
+    $("#lnext").onclick = () => lessonView(list, li, step + 1);
+    if ($("#lprev")) $("#lprev").onclick = () => lessonView(list, li, step - 1);
+  } else {
+    const c = d.check;
+    app.innerHTML = `<div class="player">${back}<div class="bar"><i style="width:${(n / (n + 1)) * 100}%"></i></div>
+      <div class="card"><small class="muted">Practice</small><p class="lcard"><b>${esc(c.q)}</b></p>
+      <div class="opts">${c.o.map((o, i) => `<button class="opt" data-i="${i}">${esc(o)}</button>`).join("")}</div>
+      <p id="fb" class="muted" style="min-height:1.4em"></p>
+      <div class="row" style="justify-content:flex-end"><button class="btn ghost" id="lprev">Back</button><button class="btn" id="lfin" hidden>${li + 1 < list.length ? "Next lesson" : "Finish"}</button></div></div></div>`;
+    app.querySelectorAll(".opt").forEach((b) => b.onclick = () => {
+      app.querySelectorAll(".opt").forEach((x) => x.classList.remove("right", "wrong"));
+      const ok = +b.dataset.i === c.a;
+      b.classList.add(ok ? "right" : "wrong");
+      $("#fb").textContent = ok ? "Nice. That's it." : "Not quite. Try again.";
+      if (ok) { markDone(l.id); $("#lfin").hidden = false; }
+    });
+    $("#lprev").onclick = () => lessonView(list, li, n - 1);
+    $("#lfin").onclick = () => li + 1 < list.length ? lessonView(list, li + 1) : learn();
+  }
+  $("#lback").onclick = () => learn();
+  window.scrollTo(0, 0);
+}
+
+// The quiz: shuffled questions and answers; graded by the database; misses point back to lessons
+function quizView(Z, qq, mine) {
+  const qs = shuffle(qq).map((x) => ({ ...x, order: shuffle(x.options.map((_, i) => i)) }));
+  const answers = [];
+  const show = (i) => {
+    if (i >= qs.length) return submit();
+    const x = qs[i];
+    app.innerHTML = `<div class="player"><button class="btn ghost sm" id="qquit">Quit</button>
+      <div class="bar"><i style="width:${(i / qs.length) * 100}%"></i></div>
+      <div class="card"><small class="muted">${esc(quizLabel(Z))} quiz · question ${i + 1} of ${qs.length}</small>
+      <p class="lcard"><b>${esc(x.q)}</b></p>
+      <div class="opts">${x.order.map((oi) => `<button class="opt" data-i="${oi}">${esc(x.options[oi])}</button>`).join("")}</div></div></div>`;
+    app.querySelectorAll(".opt").forEach((b) => b.onclick = () => { answers[x.idx] = +b.dataset.i; show(i + 1); });
+    $("#qquit").onclick = () => learn();
+  };
+  const submit = async () => {
+    app.innerHTML = `<div class="player"><div class="card muted">Checking your answers…</div></div>`;
+    const full = qq.map((x) => answers[x.idx] ?? -1);
+    const { data: r, error } = await sb.rpc("submit_quiz", { p_quiz: Z.key, p_answers: full });
+    if (error) return (app.innerHTML = `<div class="player"><div class="card"><p class="err">${esc(error.message)}</p><button class="btn" id="qback">Back</button></div></div>`, $("#qback").onclick = () => learn());
+    const review = mine.filter((l) => (r.review || []).includes(l.id));
+    app.innerHTML = `<div class="player"><div class="card result ${r.passed ? "pass" : "fail"}">
+      <h2 style="margin:0 0 6px">${r.passed ? `🎉 Aced it: ${r.total} of ${r.total}` : `${r.score} of ${r.total}. You need every one.`}</h2>
+      <p>${r.passed ? (Z.key === "rec" ? "You can ask a teacher about recruiting now." : "You can ask a teacher about this level now, and request the next level once you've reached its goal and have your proof.")
+        : "Review these lessons, then try again:"}</p>
+      ${review.map((l) => `<button class="btn ghost sm" data-rl="${l.id}" style="margin:0 6px 6px 0">${esc(l.data.title)}</button>`).join("")}
+      <div class="row" style="margin-top:10px"><button class="btn" id="qagain">${r.passed ? "Back to lessons" : "Try again"}</button></div></div></div>`;
+    app.querySelectorAll("[data-rl]").forEach((b) => b.onclick = () => lessonView(mine, mine.findIndex((l) => l.id === b.dataset.rl)));
+    $("#qagain").onclick = () => r.passed ? learn() : quizView(Z, qq, mine);
+  };
+  show(0);
 }
 
 // ---------- farmer: pipeline ----------
