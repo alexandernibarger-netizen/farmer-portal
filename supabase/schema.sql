@@ -953,3 +953,36 @@ $$;
 
 revoke execute on function public.my_referrals(), public.waiting_count() from public, anon;
 grant execute on function public.my_referrals(), public.waiting_count() to authenticated;
+
+-- ---------- welcome-back greetings (migration 20261007_welcome.sql; starter lines below) ----------
+create table public.welcome_lines (
+  id serial primary key,
+  body text not null check (length(btrim(body)) between 1 and 300),
+  created_at timestamptz not null default now()
+);
+alter table public.welcome_lines enable row level security;
+create policy "read welcome lines" on public.welcome_lines for select to authenticated using (public.has_access());
+create policy "admin welcome lines" on public.welcome_lines for all to authenticated using (public.is_admin()) with check (public.is_admin());
+insert into public.welcome_lines (body) values
+ ('Welcome back, {name}. The crops didn''t plant themselves while you were gone.'),
+ ('Look who''s back in the field! {name}, the contractors have been asking about you.'),
+ ('Howdy, {name}. Grab your boots, it''s planting season.'),
+ ('{name}! The early bird gets the worm, but the farmer gets the referral fee.'),
+ ('Back again, {name}? Your pipeline missed you. It told us.'),
+ ('Good to see you, {name}. Your network won''t water itself.'),
+ ('Hey {name}, the scarecrow''s been holding down the fort. Your turn.'),
+ ('{name} has entered the barn. Cows, look busy.'),
+ ('Welcome back, {name}. Let''s turn some seeds into paychecks.'),
+ ('Hey {name}! Somewhere out there a plumber is waiting for your call.'),
+ ('Back in the saddle, {name}. Giddy up.'),
+ ('{name}, you''re back! We kept the tractor warm for you.'),
+ ('Welcome back, {name}. Fun fact: every harvest in history started with someone showing up.'),
+ ('Rise and grind, {name}. Or just rise. We''ll take it.'),
+ ('Well, well, well. If it isn''t {name}, finest farmer in the county.'),
+ ('Welcome back, {name}. The chickens have been gossiping about your progress.'),
+ ('{name}! Every contractor you call is a seed. Let''s plant a few.'),
+ ('Hey {name}, the weeds didn''t pull themselves. Neither will those follow-ups.'),
+ ('Welcome back, {name}. Today''s forecast: 100% chance of hustle.'),
+ ('Look alive, {name}. Your 90-day clock is ticking like a rooster with a schedule.'),
+ ('Hey {name}, ready to make it rain? The crops would appreciate it.'),
+ ('Welcome back, {name}. The barn door was open, so we assumed you''d wander in.');
