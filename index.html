@@ -302,14 +302,17 @@ function boot() {
   $("#top").hidden = false;
   $("#who").textContent = me?.full_name || me?.email || "";
   if (locked()) return payView();
-  const tabs = [["home","Home"],["learn","Learn"],["pipeline","Pipeline"],["contractors","Contractors"]];
+  const tabs = [["home","Home"],["learn","Learn"]];
+  if (me?.role !== "admin" && me?.enrollment_paid) tabs.push(["program","90 days"]);
+  tabs.push(["pipeline","Pipeline"],["contractors","Contractors"]);
   if (lvl() >= 2) tabs.push(["leads","Leads"]);
+  if (lvl() >= 3) tabs.push(["upsells","Upsells"]);
   if (reviewer()) tabs.push(["approvals","Approvals"]);
   if (me?.role === "admin") tabs.push(["admin","Farmers"],["payouts","Payouts"],["trades","Trades"]);
   if (!tabs.some(([k]) => k === view)) view = "home";
   $("#nav").innerHTML = tabs.map(([k,l]) => `<button data-v="${k}" class="${k===view?"on":""}">${l}</button>`).join("");
   $("#nav").onclick = (e) => { if (e.target.dataset.v) { view = e.target.dataset.v; boot(); } };
-  ({ home, learn, pipeline, contractors, leads, approvals, admin, payouts, tradesView: tradesView })[view === "trades" ? "tradesView" : view]();
+  ({ home, learn, program, pipeline, contractors, leads, upsells, approvals, admin, payouts, tradesView: tradesView })[view === "trades" ? "tradesView" : view]();
 }
 
 // ---------- farmer: home (level ladder + next step) ----------
@@ -413,6 +416,211 @@ async function approvals() {
   });
   app.querySelectorAll("[data-ok]").forEach((b) => b.onclick = () => act(b.dataset.ok, true));
   app.querySelectorAll("[data-no]").forEach((b) => b.onclick = () => act(b.dataset.no, false));
+  await programReviews();
+}
+
+// ---------- farmer: the 90-day refund program ----------
+const DAY = 864e5;
+const onDay = (t0, n) => new Date(new Date(t0).getTime() + n * DAY).toLocaleDateString();
+const csvOf = (rows) => {
+  const cols = [...new Set(rows.flatMap((r) => Object.keys(r)))];
+  const cell = (v) => { const s = v == null ? "" : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  return [cols.join(","), ...rows.map((r) => cols.map((c) => cell(r[c])).join(","))].join("\n");
+};
+const download = (name, text) => {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type: "text/csv" })); a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+// CRM records as CSV files, straight from the database (the reviewer checks the package against these)
+const evidenceButtons = (key) => ["contractors", "calls", "comments", "leads", "upsells"]
+  .map((k) => `<button class="btn ghost sm" data-ev="${k}" data-evf="${key}">${k[0].toUpperCase() + k.slice(1)} CSV</button>`).join(" ");
+const wireEvidence = (farmer, who) => app.querySelectorAll(`[data-evf="${farmer || "me"}"]`).forEach((b) => b.onclick = async () => {
+  const { data, error } = await sb.rpc("refund_evidence", farmer ? { p_farmer: farmer } : {});
+  if (error) return alert(error.message);
+  download(`${who}-${b.dataset.ev}.csv`.replace(/[^\w.-]+/g, "_"), csvOf(data[b.dataset.ev] || []));
+});
+const progressTable = (pr) => `<div class="tablewrap"><table><thead><tr><th>Step</th><th>Goal</th><th>Due</th><th>Where you are</th><th></th></tr></thead><tbody>
+  ${pr.steps.map((s) => `<tr data-step="${s.n}"><td><b>${s.n}. ${esc(s.name)}</b></td><td>${esc(s.quota)}</td>
+    <td style="white-space:nowrap">Day ${s.deadline}<br><small class="muted">${onDay(pr.paid_at, s.deadline)}</small></td>
+    <td>${esc(s.progress)}</td><td>${s.met ? `<span class="tag">Met</span>` : pr.day > s.deadline ? `<span class="tag warn">Missed</span>` : `<span class="muted">Open</span>`}</td></tr>`).join("")}
+  ${pr.rules.map((r) => `<tr><td colspan="3"><b>${esc(r.name)}</b></td><td>${esc(r.progress)}</td><td>${r.met ? `<span class="tag">Met</span>` : `<span class="muted">Open</span>`}</td></tr>`).join("")}
+  </tbody></table></div>`;
+
+async function program() {
+  const [{ data: pr, error }, { data: reqs }] = await Promise.all([
+    sb.rpc("refund_progress"),
+    sb.from("refund_requests").select("*").eq("farmer_id", me.id).order("created_at", { ascending: false }),
+  ]);
+  if (error) return (app.innerHTML = `<div class="card err">${esc(error.message)}</div>`);
+  if (!pr?.enrolled) return (app.innerHTML = `<div class="card muted">Your 90 days start the day your enrollment is paid.</div>`);
+  const last = (reqs || [])[0], s0 = pr.steps[0], open = last && last.status !== "denied";
+  const day = Math.min(pr.day, 90), late = new Date() > new Date(pr.submit_by);
+  const packageCard = () => {
+    if (last?.status === "approved") return `<p><span class="tag">Approved</span> Your refund was approved ${new Date(last.reviewed_at).toLocaleDateString()}. It goes back to the card you paid with.</p>`;
+    if (last?.status === "pending") return `<p><span class="tag">Sent ${new Date(last.created_at).toLocaleDateString()}</span> Alex or a verifier is checking it and may call a few of your contractors or customers.</p>`;
+    const denied = last?.status === "denied" ? `<p class="err">Your last package was turned down${last.review_note ? ": " + esc(last.review_note) : ""}.</p>` : "";
+    if (late) return denied + `<p class="muted">The refund window closed on day 97 (${new Date(pr.submit_by).toLocaleDateString()}).</p>`;
+    if (!pr.all_met) return denied + `<p class="muted">The button opens once every goal and rule above says Met. You have until ${new Date(pr.submit_by).toLocaleDateString()} (day 97) to send it.</p>`;
+    return denied + `<form id="pkf"><p style="margin:6px 0">Every goal is met. Attach your proof: call-history screenshots, signed agreements or 20% texts, weekly comment screenshots, handoff texts, fee payments, leads sent back, pitches, and the upsell invoice. Each screenshot can prove only one thing.</p>
+      <label>Anything the reviewer should know?</label><textarea name="note" rows="3"></textarea>
+      <label>Evidence files</label><input name="files" type="file" multiple accept="image/*,.pdf">
+      <div class="err" id="pkerr"></div>
+      <div class="row" style="justify-content:flex-end"><button class="btn" id="pksend">Submit refund package</button></div></form>`;
+  };
+  app.innerHTML = `<div style="max-width:980px">
+    <div class="card" style="margin-bottom:12px"><div class="row"><h2 style="font-size:20px;margin:0;margin-right:auto">Day ${day} of 90</h2>
+      <span class="muted">Started ${new Date(pr.paid_at).toLocaleDateString()} · refund package due by ${new Date(pr.submit_by).toLocaleDateString()}</span></div>
+      <div class="bar"><i style="width:${(day / 90) * 100}%"></i></div>
+      <p style="margin:10px 0 0;font-size:14px">Hit every goal below by its day and you can send one package for your $500 back. Only what you log here on the day you do it counts, so log each contractor, call and lead as it happens. Bringing in friends is not part of it.</p></div>
+    ${s0.progress !== "Approved" ? `<div class="card" id="nichecard" style="margin-bottom:12px"><b>Step 0: your 15 business models</b>
+      ${s0.progress === "Waiting for review" ? `<p class="muted" style="margin:6px 0 0">Sent. Waiting for Alex or a verifier to approve it.</p>`
+      : `<p style="margin:6px 0">List 15 different, non-overlapping business models in your niche, one per line. Due day 3 (${onDay(pr.paid_at, 3)}).</p>
+        ${pr.niche_note ? `<p class="err">Sent back: ${esc(pr.niche_note)}</p>` : ""}
+        <textarea id="niche" rows="8" placeholder="Kitchen remodels&#10;Roof repair&#10;…">${esc(pr.niche || "")}</textarea><div class="err" id="nerr"></div>
+        <div class="row" style="justify-content:flex-end"><button class="btn" id="nsend">Send my 15</button></div>`}</div>` : ""}
+    <div class="card row" id="comcard" style="margin-bottom:12px"><span style="margin-right:auto"><b>Neighbor comments today: ${pr.comments_today}</b> / 50
+      <br><small class="muted">50 a day on 5 days of every week, from day 7 to day 90. Log them the same day.</small></span>
+      <input id="comn" type="number" min="1" max="1000" placeholder="How many" style="width:120px"><button class="btn" id="comadd">Log comments</button>
+      <div class="err" id="comerr" style="width:100%"></div></div>
+    <div class="card" style="margin-bottom:12px">${progressTable(pr)}</div>
+    <div class="card" id="pkcard"><b>Refund package</b>${packageCard()}
+      <p class="muted" style="font-size:13px;margin:10px 0 6px">Your CRM records, as the reviewer will see them:</p><div class="row">${evidenceButtons("me")}</div>
+      <p class="muted" style="font-size:13px;margin:10px 0 0">One fake or edited item voids the refund for good.</p></div></div>`;
+  wireEvidence(null, "my");
+  if ($("#nsend")) $("#nsend").onclick = async () => {
+    const { error } = await sb.rpc("submit_niche", { p_list: $("#niche").value });
+    if (error) return ($("#nerr").textContent = error.message);
+    program();
+  };
+  $("#comadd").onclick = async () => {
+    const n = +$("#comn").value;
+    if (!(n >= 1)) return ($("#comerr").textContent = "Enter how many comments you posted today.");
+    const { error } = await sb.from("activities").insert({ farmer_id: me.id, kind: "comments", count: n });
+    if (error) return ($("#comerr").textContent = error.message);
+    program();
+  };
+  if ($("#pkf")) $("#pkf").onsubmit = async (e) => {
+    e.preventDefault();
+    $("#pksend").disabled = true;
+    const paths = [];
+    for (const f of e.target.files.files) {
+      const path = `${me.id}/refund-${Date.now()}-${f.name.replace(/[^\w.-]+/g, "_")}`;
+      const { error } = await sb.storage.from("proof").upload(path, f);
+      if (error) { $("#pksend").disabled = false; return ($("#pkerr").textContent = `Couldn't upload ${f.name}: ${error.message}`); }
+      paths.push(path);
+    }
+    const { error } = await sb.rpc("submit_refund_package", { p_note: new FormData(e.target).get("note"), p_files: paths });
+    if (error) { $("#pksend").disabled = false; return ($("#pkerr").textContent = error.message); }
+    program();
+  };
+}
+
+// Calls logged on a contractor (opened from the contractor dialog)
+async function callLog(c) {
+  const box = $("#calls");
+  if (!box) return;
+  const { data: calls } = await sb.from("activities").select("*").eq("contractor_id", c.id).eq("kind", "call").order("created_at", { ascending: false });
+  box.innerHTML = `<h4 style="margin:16px 0 4px">Calls</h4>
+    ${(calls || []).map((a) => `<div class="row" style="font-size:14px;gap:8px"><span class="muted">${new Date(a.created_at).toLocaleString()}</span><span>${esc(a.outcome || "")}</span>
+      ${a.outcome === "agreed" ? (a.text_sent ? `<span class="tag">20% text sent</span>` : `<button type="button" class="btn ghost sm" data-txt="${a.id}">I sent the 20% text</button>`) : ""}</div>`).join("")
+      || `<p class="muted" style="font-size:14px;margin:0">No calls logged yet.</p>`}
+    <div class="row" style="margin-top:8px"><select id="cout" style="width:auto">${["no answer", "call back", "not interested", "agreed"].map((o) => `<option>${o}</option>`).join("")}</select>
+      <label style="margin:0;display:flex;gap:6px;align-items:center"><input type="checkbox" id="ctxt" style="width:auto"> Sent the 20% text</label>
+      <button type="button" class="btn sm" id="clog">Log a call</button></div><div class="err" id="callerr"></div>`;
+  box.querySelectorAll("[data-txt]").forEach((b) => b.onclick = async () => {
+    const { error } = await sb.from("activities").update({ text_sent: true }).eq("id", b.dataset.txt);
+    if (error) return ($("#callerr").textContent = error.message);
+    callLog(c);
+  });
+  $("#clog").onclick = async () => {
+    const outcome = $("#cout").value;
+    const { error } = await sb.from("activities").insert({ farmer_id: me.id, contractor_id: c.id, kind: "call", outcome, text_sent: $("#ctxt").checked });
+    if (error) return ($("#callerr").textContent = error.message);
+    // a call moves the contractor to Outreach Made; a yes moves them to Terms Agreed
+    const target = outcome === "agreed" ? 3 : 2;
+    if (c.stage < target) { await sb.from("contractors").update({ stage: target }).eq("id", c.id); c.stage = target; }
+    callLog(c);
+  };
+}
+
+// ---------- farmer: upsells (level 3) ----------
+async function upsells() {
+  const cs = await myContractors();
+  let q = sb.from("upsells").select("*").order("created_at", { ascending: false });
+  if (me.role !== "admin") q = q.eq("farmer_id", me.id);
+  const us = (await q).data || [];
+  const cname = (id) => cs.find((c) => c.id === id)?.business_name || "—";
+  app.innerHTML = `<div class="row" style="margin-bottom:12px"><h2 style="margin:0;margin-right:auto;font-size:18px">Upsells</h2>
+      <button class="btn" id="add">Log a pitch</button></div>
+    <div class="card tablewrap"><table><thead><tr><th>Date</th><th>Contractor</th><th>Product</th><th>Status</th><th>Amount</th></tr></thead><tbody>
+    ${us.map((u) => `<tr data-id="${u.id}" style="cursor:pointer"><td>${new Date(u.created_at).toLocaleDateString()}</td><td>${esc(cname(u.contractor_id))}</td>
+      <td>${esc(u.product)}</td><td><span class="tag">${esc(u.status)}</span></td><td>${u.amount != null ? money(u.amount) : ""}</td></tr>`).join("")
+      || `<tr><td colspan="5" class="muted">No pitches yet.</td></tr>`}</tbody></table></div>`;
+  $("#add").onclick = () => upsellForm({}, cs);
+  app.querySelectorAll("tr[data-id]").forEach((el) => el.onclick = () => upsellForm(us.find((u) => u.id === el.dataset.id), cs));
+}
+
+function upsellForm(u = {}, cs) {
+  dlg.innerHTML = `<form id="uf"><h3 style="margin-top:0">${u.id ? "Edit pitch" : "Log a pitch"}</h3>
+    <label>Contractor</label><select name="contractor_id" required>${cs.map((c) => `<option value="${c.id}" ${c.id === u.contractor_id ? "selected" : ""}>${esc(c.business_name)} (${esc(tradeName(c.trade_id))})</option>`).join("")}</select>
+    <label>What you pitched</label><select name="product">${["AI tools", "Website refresh", "Marketing", "Other"].map((o) => `<option ${o === u.product ? "selected" : ""}>${o}</option>`).join("")}</select>
+    <div class="grid2"><div><label>Status</label><select name="status">${["pitched", "closed", "lost"].map((o) => `<option ${o === (u.status || "pitched") ? "selected" : ""}>${o}</option>`).join("")}</select></div>
+      <div><label>Amount ($)</label><input name="amount" type="number" step="0.01" value="${u.amount ?? ""}"></div></div>
+    <div class="err" id="uerr"></div>
+    <div class="row" style="margin-top:12px;justify-content:flex-end"><button type="button" class="btn ghost" id="cx">Cancel</button><button class="btn">Save</button></div></form>`;
+  dlg.showModal();
+  $("#cx").onclick = () => dlg.close();
+  $("#uf").onsubmit = async (e) => {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(e.target));
+    const row = { ...f, amount: f.amount === "" ? null : +f.amount };
+    const { error } = u.id ? await sb.from("upsells").update(row).eq("id", u.id) : await sb.from("upsells").insert({ ...row, farmer_id: me.id });
+    if (error) return ($("#uerr").textContent = error.message);
+    const con = cs.find((c) => c.id === row.contractor_id), target = row.status === "closed" ? 9 : 8;
+    if (con && con.stage >= 7 && con.stage < target) await sb.from("contractors").update({ stage: target }).eq("id", con.id);
+    dlg.close(); boot();
+  };
+}
+
+// ---------- reviewers: 15-model lists and refund packages ----------
+async function programReviews() {
+  const [{ data: nq }, { data: rq }] = await Promise.all([sb.rpc("niche_queue"), sb.rpc("refund_queue")]);
+  const files = await Promise.all((rq || []).map((r) => Promise.all((r.files || []).map((f) =>
+    sb.storage.from("proof").createSignedUrl(f, 3600).then(({ data }) => `<a href="${esc(data?.signedUrl || "#")}" target="_blank" rel="noopener">${esc(f.split("/").pop().replace(/^refund-\d+-/, ""))}</a>`)))));
+  app.insertAdjacentHTML("beforeend", `<h2 style="font-size:18px;margin-top:28px">15 business models</h2>
+    ${(nq || []).map((n) => `<div class="card" style="margin-bottom:10px"><b>${esc(n.full_name)}</b> <small class="muted">${esc(n.email)} · sent ${new Date(n.niche_submitted_at).toLocaleDateString()}</small>
+      <ol style="margin:8px 0">${n.niche.split("\n").filter((x) => x.trim()).map((x) => `<li>${esc(x)}</li>`).join("")}</ol>
+      <div class="row" style="justify-content:flex-end"><button class="btn sm" data-nok="${n.id}">Approve</button> <button class="btn ghost sm" data-nno="${n.id}">Send back</button></div></div>`).join("")
+      || `<div class="card muted">No lists waiting.</div>`}
+    <h2 style="font-size:18px;margin-top:28px">Refund packages</h2>
+    ${(rq || []).map((r, i) => `<div class="card" style="margin-bottom:10px" id="pk-${r.id}"><b>${esc(r.full_name)}</b> <small class="muted">${esc(r.email)} · sent ${new Date(r.created_at).toLocaleDateString()}</small>
+      ${r.note ? `<p style="white-space:pre-wrap">${esc(r.note)}</p>` : ""}
+      ${progressTable(r.progress)}
+      <p style="margin:10px 0 4px"><b>Their files</b><br>${files[i].join("<br>") || `<span class="muted">none</span>`}</p>
+      <p style="margin:10px 0 4px"><b>Their CRM records</b> <small class="muted">Spot-check any contractor or customer. One fake item voids the refund.</small></p>
+      <div class="row">${evidenceButtons(r.farmer_id)}</div>
+      <div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn sm" data-rok="${r.id}">Approve refund</button> <button class="btn ghost sm" data-rno="${r.id}">Deny</button></div></div>`).join("")
+      || `<div class="card muted">No refund packages waiting.</div>`}`);
+  (rq || []).forEach((r) => wireEvidence(r.farmer_id, r.full_name || r.email));
+  const err = (e) => ($("#aperr").textContent = e.message);
+  app.querySelectorAll("[data-nok],[data-nno]").forEach((b) => b.onclick = async () => {
+    const ok = !!b.dataset.nok, note = ok ? null : prompt("What should they change? (they'll see this)");
+    if (!ok && note === null) return;
+    const { error } = await sb.rpc("review_niche", { p_farmer: b.dataset.nok || b.dataset.nno, p_approve: ok, p_note: note });
+    if (error) return err(error);
+    boot();
+  });
+  app.querySelectorAll("[data-rok],[data-rno]").forEach((b) => b.onclick = async () => {
+    const ok = !!b.dataset.rok;
+    const note = ok ? (confirm("Approve this refund? You'll then refund the $500 in Stripe yourself.") ? "" : null) : prompt("Why is it denied? (they'll see this)");
+    if (note === null) return;
+    const { error } = await sb.rpc("review_refund", { p_id: b.dataset.rok || b.dataset.rno, p_approve: ok, p_note: note });
+    if (error) return err(error);
+    if (!ok) return boot();
+    const card = $("#pk-" + b.dataset.rok);
+    card.innerHTML = `<b>Refund approved.</b> <p style="margin:6px 0 0">Now send the $500 back in Stripe: open <a href="https://dashboard.stripe.com/payments" target="_blank" rel="noopener">your Stripe payments</a>, search their email, open the payment and click Refund.</p>`;
+  });
 }
 
 // ---------- farmer: learn (lessons, must-ace quizzes, ask a teacher) ----------
@@ -600,15 +808,18 @@ function contractorForm(c = {}) {
       <div><label>Phone</label><input name="phone" value="${esc(c.phone)}"></div>
       <div><label>Email</label><input name="email" type="email" value="${esc(c.email)}"></div>
       <div><label>City</label><input name="city" value="${esc(c.city)}"></div>
+      <div style="grid-column:1/-1"><label>Where you found them (link to the post or profile)</label><input name="source_link" type="url" placeholder="https://" value="${esc(c.source_link)}"></div>
       <div><label>Found via</label><select name="found_via">${["","Facebook","Nextdoor","Local forum","Referral","Other"].map((o) => `<option ${o === c.found_via ? "selected" : ""}>${o}</option>`).join("")}</select></div>
       <div><label>Referral fee %</label><input name="fee_pct" type="number" min="0" max="100" step="0.5" value="${c.fee_pct ?? 20}"></div>
     </div>
     <label>Notes</label><textarea name="notes" rows="3">${esc(c.notes)}</textarea>
+    ${c.id ? `<div id="calls"></div>` : ""}
     <div class="err" id="cerr"></div>
     <div class="row" style="margin-top:12px;justify-content:flex-end">
       ${c.id ? `<button type="button" class="btn ghost" id="del" style="margin-right:auto">Delete</button>` : ""}
       <button type="button" class="btn ghost" id="cx">Cancel</button><button class="btn">Save</button></div></form>`;
   dlg.showModal();
+  if (c.id) callLog(c);
   $("#cx").onclick = () => dlg.close();
   if (c.id) $("#del").onclick = async () => {
     if (!confirm("Delete this contractor and its history?")) return;
