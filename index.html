@@ -179,18 +179,38 @@ async function loadRef() {
 const stageName = (id) => stages.find((s) => s.id === id)?.name || id;
 const tradeName = (id) => trades.find((t) => t.id === id)?.name || "—";
 
+const locked = () => me?.role !== "admin" && !me?.enrollment_paid;
+
+// Unpaid accounts get only this screen; the database also refuses them any program data.
+function payView() {
+  $("#nav").innerHTML = ""; $("#banner").innerHTML = "";
+  const link = C.PAYMENT_LINK && `${C.PAYMENT_LINK}?client_reference_id=${encodeURIComponent(me.id)}&prefilled_email=${encodeURIComponent(me.email || "")}`;
+  app.innerHTML = `<div class="auth card" id="paywall">
+    <h2 style="margin-top:0">Finish your enrollment</h2>
+    <p>Welcome${me.full_name ? ", " + esc(me.full_name) : ""}. The ${esc(C.PROGRAM_NAME)} opens once your one-time $500 enrollment is paid.</p>
+    ${link ? `<a class="btn" style="display:block;text-align:center;text-decoration:none" id="pay" href="${esc(link)}">Pay $500 by card</a>` : ""}
+    ${C.ZELLE_TO ? `<p class="muted">Or Zelle $500 to <b>${esc(C.ZELLE_TO)}</b> with <b>${esc(me.email)}</b> in the memo. We'll unlock your account once it arrives.</p>` : ""}
+    <p class="muted" style="font-size:14px">Already paid? It can take a minute to show up.</p>
+    <button class="btn ghost" style="width:100%" id="recheck">Check again</button>
+    <div class="err" id="perr"></div></div>`;
+  $("#recheck").onclick = () => recheck();
+}
+async function recheck(quiet = false) {
+  const { data } = await sb.from("profiles").select("*").eq("id", me.id).single();
+  if (data) me = data;
+  if (!locked()) { await loadRef(); return boot(); }
+  const e = $("#perr"); if (e && !quiet) e.textContent = "We haven't received your payment yet.";
+}
+window.addEventListener("focus", () => { if (me && locked() && $("#paywall")) recheck(true); });
+
 function boot() {
   $("#top").hidden = false;
   $("#who").textContent = me?.full_name || me?.email || "";
+  if (locked()) return payView();
   const tabs = [["pipeline","Pipeline"],["contractors","Contractors"],["leads","Leads"]];
   if (me?.role === "admin") tabs.push(["admin","Farmers"],["payouts","Payouts"],["trades","Trades"]);
   if (!tabs.some(([k]) => k === view)) view = "pipeline";
   $("#nav").innerHTML = tabs.map(([k,l]) => `<button data-v="${k}" class="${k===view?"on":""}">${l}</button>`).join("");
-  const unpaid = me?.role !== "admin" && !me?.enrollment_paid && (C.PAYMENT_LINK || C.ZELLE_TO);
-  $("#banner").innerHTML = unpaid
-    ? `<div class="banner"><div class="card"><div style="margin-right:auto"><b>Finish your enrollment</b><br><span class="muted">Your $500 program enrollment hasn't been paid yet.
-       ${C.ZELLE_TO ? `Zelle $500 to <b>${esc(C.ZELLE_TO)}</b> with <b>${esc(me.email)}</b> in the memo. We'll mark you paid once it arrives.` : ""}</span></div>
-       ${C.PAYMENT_LINK ? `<a class="btn" style="text-decoration:none" href="${esc(C.PAYMENT_LINK)}?client_reference_id=${encodeURIComponent(me.id)}&prefilled_email=${encodeURIComponent(me.email || "")}">Pay $500 by card</a>` : ""}</div></div>` : "";
   $("#nav").onclick = (e) => { if (e.target.dataset.v) { view = e.target.dataset.v; boot(); } };
   ({ pipeline, contractors, leads, admin, payouts, tradesView: tradesView })[view === "trades" ? "tradesView" : view]();
 }
