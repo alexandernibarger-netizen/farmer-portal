@@ -45,6 +45,7 @@ th{color:var(--muted);font-weight:500;font-size:12px;text-transform:uppercase;le
 dialog{border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);width:min(560px,94vw);padding:20px}
 dialog::backdrop{background:rgba(0,0,0,.4)}
 .auth{max-width:380px;margin:8vh auto}
+.banner{max-width:1400px;margin:16px auto 0;padding:0 20px}.banner .card{display:flex;gap:12px;align-items:center;flex-wrap:wrap;border-color:var(--accent)}
 .err{color:var(--warn);font-size:14px;min-height:1.2em;margin-top:8px}
 .trades{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:16px}
 .bar{height:6px;background:var(--line);border-radius:3px;margin-top:6px;overflow:hidden}.bar i{display:block;height:100%;background:var(--accent)}
@@ -58,6 +59,7 @@ dialog::backdrop{background:rgba(0,0,0,.4)}
   <span class="muted" id="who"></span>
   <button class="btn ghost sm" id="logout">Sign out</button>
 </header>
+<div id="banner"></div>
 <main id="app"></main>
 <dialog id="dlg"></dialog>
 
@@ -103,7 +105,7 @@ function authView(mode = "in") {
     if (mode === "up") $("#aerr").textContent = "Check your email to confirm your account, then sign in.";
   };
 }
-$("#logout").onclick = () => sb.auth.signOut();
+$("#logout").onclick = () => sb.auth.signOut().then(() => ($("#banner").innerHTML = ""));
 
 sb.auth.onAuthStateChange(async (_e, session) => {
   if (!session) { me = null; return authView(); }
@@ -128,6 +130,11 @@ function boot() {
   const tabs = [["pipeline","Pipeline"],["contractors","Contractors"],["leads","Leads"]];
   if (me?.role === "admin") tabs.push(["admin","Farmers"],["payouts","Payouts"],["trades","Trades"]);
   $("#nav").innerHTML = tabs.map(([k,l]) => `<button data-v="${k}" class="${k===view?"on":""}">${l}</button>`).join("");
+  const unpaid = me?.role !== "admin" && !me?.enrollment_paid && (C.PAYMENT_LINK || C.ZELLE_TO);
+  $("#banner").innerHTML = unpaid
+    ? `<div class="banner"><div class="card"><div style="margin-right:auto"><b>Finish your enrollment</b><br><span class="muted">Your $500 program enrollment hasn't been paid yet.
+       ${C.ZELLE_TO ? `Zelle $500 to <b>${esc(C.ZELLE_TO)}</b> with <b>${esc(me.email)}</b> in the memo. We'll mark you paid once it arrives.` : ""}</span></div>
+       ${C.PAYMENT_LINK ? `<a class="btn" style="text-decoration:none" href="${esc(C.PAYMENT_LINK)}?client_reference_id=${encodeURIComponent(me.id)}&prefilled_email=${encodeURIComponent(me.email || "")}">Pay $500 by card</a>` : ""}</div></div>` : "";
   $("#nav").onclick = (e) => { if (e.target.dataset.v) { view = e.target.dataset.v; boot(); } };
   ({ pipeline, contractors, leads, admin, payouts, tradesView: tradesView })[view === "trades" ? "tradesView" : view]();
 }
