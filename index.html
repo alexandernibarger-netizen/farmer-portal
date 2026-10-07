@@ -66,6 +66,10 @@ dialog::backdrop{background:rgba(0,0,0,.4)}
 .player{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:12px}.player .bar{height:10px;border-radius:99px}
 .player .lcard{font-size:18px;line-height:1.5;margin:14px 0}.metaphor{font-style:italic;color:var(--muted);margin:10px 0 0}
 .ldiagram{margin-bottom:12px}.player>.btn{align-self:flex-start}
+.todo{margin:8px 0 0;padding-left:18px}.todo li{margin:4px 0}
+.linkbtn{background:none;border:0;padding:0;font:inherit;color:var(--accent);text-align:left;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.badge{display:inline-block;min-width:18px;padding:0 5px;border-radius:99px;background:var(--warn);color:#fff;font-size:11px;line-height:18px;text-align:center;font-weight:700}
+.bar.money{display:flex;height:10px}.bar.money i.owed{background:var(--gold)}
 .opts{display:flex;flex-direction:column;gap:8px}
 .opt{text-align:left;background:var(--bg);color:var(--ink);border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit;cursor:pointer}
 .opt.right{border-color:var(--good)}.opt.wrong{border-color:var(--bad)}
@@ -307,12 +311,14 @@ function boot() {
   tabs.push(["pipeline","Pipeline"],["contractors","Contractors"]);
   if (lvl() >= 2) tabs.push(["leads","Leads"]);
   if (lvl() >= 3) tabs.push(["upsells","Upsells"]);
+  if (lvl() >= 2 && me?.role !== "admin") tabs.push(["money","Money"]);
   if (reviewer()) tabs.push(["approvals","Approvals"]);
   if (me?.role === "admin") tabs.push(["admin","Farmers"],["payouts","Payouts"],["trades","Trades"]);
   if (!tabs.some(([k]) => k === view)) view = "home";
   $("#nav").innerHTML = tabs.map(([k,l]) => `<button data-v="${k}" class="${k===view?"on":""}">${l}</button>`).join("");
-  $("#nav").onclick = (e) => { if (e.target.dataset.v) { view = e.target.dataset.v; boot(); } };
-  ({ home, learn, program, pipeline, contractors, leads, upsells, approvals, admin, payouts, tradesView: tradesView })[view === "trades" ? "tradesView" : view]();
+  $("#nav").onclick = (e) => { const b = e.target.closest("button"); if (b?.dataset.v) { view = b.dataset.v; boot(); } };
+  approvalsBadge();
+  ({ home, learn, program, pipeline, contractors, leads, upsells, money: moneyView, approvals, admin, payouts, tradesView: tradesView })[view === "trades" ? "tradesView" : view]();
 }
 
 // ---------- farmer: home (level ladder + next step) ----------
@@ -350,6 +356,7 @@ async function home() {
       <div class="row"><input id="reflink" readonly value="${esc(refLink)}" style="flex:1"><button class="btn ghost sm" id="copyref">Copy</button></div></div>` : ""}</div>`;
   if ($("#copyref")) $("#copyref").onclick = () => { $("#reflink").select(); navigator.clipboard?.writeText($("#reflink").value).catch(() => {}); $("#copyref").textContent = "Copied"; };
   if ($("#askup")) $("#askup").onclick = () => requestForm(L + 1);
+  if (me.role !== "admin") await homeExtras(cs);
   if ($("#toquiz")) $("#toquiz").onclick = (e) => { e.preventDefault(); learnQuiz = "l" + L; view = "learn"; boot(); };
 }
 
@@ -621,6 +628,156 @@ async function programReviews() {
     const card = $("#pk-" + b.dataset.rok);
     card.innerHTML = `<b>Refund approved.</b> <p style="margin:6px 0 0">Now send the $500 back in Stripe: open <a href="https://dashboard.stripe.com/payments" target="_blank" rel="noopener">your Stripe payments</a>, search their email, open the payment and click Refund.</p>`;
   });
+}
+
+// ---------- farmer: Home extras (alerts, Today list, referrals) ----------
+const ago = (t) => (Date.now() - new Date(t).getTime()) / DAY;
+const payoutLabel = (r) => r.status === "pending" ? "Waiting on their $500" : r.status === "owed" ? "$250 owed to you"
+  : r.status === "void" ? "Cancelled (they were refunded)"
+  : r.clawback_at ? (r.clawback_settled_at ? "Clawed back" : "Being clawed back (they were refunded)") : "$250 paid";
+
+// Follow-ups worked out from the farmer's own records; each opens the thing to do
+async function todayList(cs) {
+  const mine = cs.filter((c) => c.farmer_id === me.id);
+  const [{ data: calls }, { data: ls }, { data: pr }] = await Promise.all([
+    sb.from("activities").select("*").eq("farmer_id", me.id).eq("kind", "call"),
+    lvl() >= 2 ? sb.from("leads").select("*").eq("farmer_id", me.id) : Promise.resolve({ data: [] }),
+    sb.rpc("refund_progress"),
+  ]);
+  const byC = {};
+  for (const a of calls || []) (byC[a.contractor_id] ||= []).push(a);
+  for (const k in byC) byC[k].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  const items = [];
+  for (const c of mine) {
+    const cl = byC[c.id] || [], lastCall = cl[0];
+    if (lastCall?.outcome === "call back" && ago(lastCall.created_at) >= 2) items.push({ c, text: `Call ${c.business_name} back. They asked you to on ${new Date(lastCall.created_at).toLocaleDateString()}.` });
+    else if (cl.some((a) => a.outcome === "agreed") && !cl.some((a) => a.text_sent)) items.push({ c, text: `Send ${c.business_name} the 20% text. They said yes.` });
+    else if (c.stage === 2 && ago(lastCall?.created_at || c.updated_at) >= 3) items.push({ c, text: `Follow up with ${c.business_name}. No call logged in 3 days.` });
+  }
+  const cname = (id) => cs.find((c) => c.id === id)?.business_name || "the contractor";
+  for (const l of ls || []) {
+    if (l.direction === "outbound" && ["new", "sent"].includes(l.status) && ago(l.created_at) >= 7) items.push({ l, text: `Check on the lead you sent ${cname(l.contractor_id)}${l.customer_name ? ` for ${l.customer_name}` : ""}. Did it close?` });
+    if (l.status === "closed" && !l.fee_paid && ago(l.closed_at || l.created_at) >= 14) items.push({ l, text: `Collect your ${money(l.fee_amount)} fee from ${cname(l.contractor_id)}. The job closed over 2 weeks ago.` });
+  }
+  if (pr?.enrolled && pr.day >= 7 && pr.day <= 90 && pr.comments_today < 50) items.push({ go: "program", text: `Post your neighbor comments. ${pr.comments_today} of 50 logged today.` });
+  for (const s of pr?.steps || []) if (!s.met && s.deadline - pr.day >= 0 && s.deadline - pr.day <= 3)
+    items.push({ go: "program", text: `${s.name} is due ${s.deadline === pr.day ? "today" : "in " + (s.deadline - pr.day) + " day" + (s.deadline - pr.day > 1 ? "s" : "")}: ${s.progress}.` });
+  return { items, ls: ls || [] };
+}
+
+async function homeExtras(cs) {
+  const [{ items, ls }, { data: notes }, { data: refs }] = await Promise.all([
+    todayList(cs),
+    sb.from("notifications").select("*").eq("farmer_id", me.id).order("created_at", { ascending: false }),
+    sb.rpc("my_referrals"),
+  ]);
+  const unread = (notes || []).filter((n) => !n.read_at);
+  app.firstElementChild.insertAdjacentHTML("afterbegin", `
+    ${unread.map((n) => `<div class="card lvl alert" style="border-color:var(--warn)"><div class="row"><span style="flex:1">${esc(n.body)}</span>
+      <button class="btn ghost sm" data-seen="${n.id}">Got it</button></div></div>`).join("")}
+    <div class="card lvl" id="today"><b>Today</b>${items.length
+      ? `<ul class="todo">${items.map((x, i) => `<li><button class="linkbtn" data-todo="${i}">${esc(x.text)}</button></li>`).join("")}</ul>`
+      : `<p class="muted" style="margin:6px 0 0">You're caught up. Nothing needs a follow-up right now.</p>`}</div>`);
+  if (refs?.length) $("#refcard").insertAdjacentHTML("beforeend", `<div class="tablewrap" style="margin-top:12px" id="myrefs"><table><thead><tr><th>Your referrals</th><th>Status</th></tr></thead><tbody>
+    ${refs.map((r) => `<tr><td>${esc(r.full_name)}<br><small class="muted">${new Date(r.created_at).toLocaleDateString()}</small></td><td>${esc(payoutLabel(r))}</td></tr>`).join("")}</tbody></table></div>`);
+  app.querySelectorAll("[data-seen]").forEach((b) => b.onclick = async () => {
+    await sb.from("notifications").update({ read_at: new Date().toISOString() }).eq("id", b.dataset.seen);
+    b.closest(".alert").remove();
+  });
+  app.querySelectorAll("[data-todo]").forEach((b) => b.onclick = () => {
+    const x = items[+b.dataset.todo];
+    if (x.c) contractorForm(x.c);
+    else if (x.l) leadForm(x.l, cs);
+    else { view = x.go; boot(); }
+  });
+}
+
+// ---------- farmer: money (fees by month, who owes you, upsells) ----------
+async function moneyView() {
+  const cs = await myContractors();
+  const [{ data: ls }, { data: us }] = await Promise.all([
+    sb.from("leads").select("*").eq("farmer_id", me.id),
+    lvl() >= 3 ? sb.from("upsells").select("*").eq("farmer_id", me.id) : Promise.resolve({ data: [] }),
+  ]);
+  const cname = (id) => cs.find((c) => c.id === id)?.business_name || "—";
+  const closed = (ls || []).filter((l) => l.status === "closed" && l.fee_amount != null);
+  const months = {};
+  for (const l of closed) {
+    const d = new Date(l.closed_at || l.created_at), k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const m = (months[k] ||= { paid: 0, owed: 0, jobs: 0 });
+    m[l.fee_paid ? "paid" : "owed"] += Number(l.fee_amount); m.jobs++;
+  }
+  const keys = Object.keys(months).sort().reverse();
+  const top = Math.max(1, ...keys.map((k) => months[k].paid + months[k].owed));
+  const owed = closed.filter((l) => !l.fee_paid).sort((a, b) => new Date(a.closed_at || a.created_at) - new Date(b.closed_at || b.created_at));
+  const won = (us || []).filter((u) => u.status === "closed");
+  const sum = (a, f) => a.reduce((t, x) => t + Number(f(x) || 0), 0);
+  app.innerHTML = `<div style="max-width:900px">
+    <div class="stats">
+      <div class="card stat"><div class="v">${money(sum(closed.filter((l) => l.fee_paid), (l) => l.fee_amount))}</div><div class="k">Fees collected</div></div>
+      <div class="card stat"><div class="v">${money(sum(owed, (l) => l.fee_amount))}</div><div class="k">Fees still owed to you</div></div>
+      ${lvl() >= 3 ? `<div class="card stat"><div class="v">${money(sum(won, (u) => u.amount))}</div><div class="k">Upsell revenue</div></div>` : ""}
+    </div>
+    <div class="card" style="margin-bottom:12px" id="bymonth"><b>Fees by month</b>
+      ${keys.length ? `<table style="margin-top:6px"><tbody>${keys.map((k) => { const m = months[k]; return `<tr><td style="white-space:nowrap">${new Date(k + "-15").toLocaleDateString(undefined, { month: "long", year: "numeric" })}</td>
+        <td style="width:50%"><div class="bar money"><i style="width:${(m.paid / top) * 100}%"></i><i class="owed" style="width:${(m.owed / top) * 100}%"></i></div></td>
+        <td style="white-space:nowrap">${money(m.paid)} collected${m.owed ? ` · ${money(m.owed)} owed` : ""}<br><small class="muted">${m.jobs} job${m.jobs > 1 ? "s" : ""}</small></td></tr>`; }).join("")}</tbody></table>`
+      : `<p class="muted" style="margin:6px 0 0">Fees show up here once a lead you sent closes.</p>`}</div>
+    <div class="card" style="margin-bottom:12px" id="owedlist"><b>Who still owes you</b>
+      ${owed.length ? `<table style="margin-top:6px"><tbody>${owed.map((l) => `<tr><td><b>${esc(cname(l.contractor_id))}</b><br><small class="muted">${esc(l.customer_name || l.job_description || "")} · closed ${new Date(l.closed_at || l.created_at).toLocaleDateString()}</small></td>
+        <td>${money(l.fee_amount)}</td><td style="text-align:right"><button class="btn sm" data-feepaid="${l.id}">Paid</button></td></tr>`).join("")}</tbody></table>`
+      : `<p class="muted" style="margin:6px 0 0">Nobody owes you right now.</p>`}<div class="err" id="moneyerr"></div></div>
+    ${lvl() >= 3 ? `<div class="card" id="upsellmoney"><b>Upsells</b>
+      ${(us || []).length ? `<table style="margin-top:6px"><tbody>${us.map((u) => `<tr><td>${esc(cname(u.contractor_id))}</td><td>${esc(u.product)}</td><td><span class="tag">${esc(u.status)}</span></td><td>${u.amount != null ? money(u.amount) : ""}</td></tr>`).join("")}</tbody></table>`
+      : `<p class="muted" style="margin:6px 0 0">No upsells yet. Log pitches in the Upsells tab.</p>`}</div>` : ""}</div>`;
+  app.querySelectorAll("[data-feepaid]").forEach((b) => b.onclick = async () => {
+    const { error } = await sb.from("leads").update({ fee_paid: true }).eq("id", b.dataset.feepaid);
+    if (error) return ($("#moneyerr").textContent = error.message);
+    const l = closed.find((x) => x.id === b.dataset.feepaid), con = cs.find((c) => c.id === l?.contractor_id);
+    if (con && con.stage >= 3 && con.stage < 5) await sb.from("contractors").update({ stage: 5 }).eq("id", con.id);
+    moneyView();
+  });
+}
+
+// ---------- admin: one farmer's page ----------
+async function farmerPage(f) {
+  const [{ data: pr }, { data: ev, error }, { data: ps }] = await Promise.all([
+    sb.rpc("refund_progress", { p_farmer: f.id }),
+    sb.rpc("refund_evidence", { p_farmer: f.id }),
+    sb.from("recruiter_payouts").select("*").eq("recruiter_id", f.id),
+  ]);
+  const E = ev || {};
+  app.innerHTML = `<div style="max-width:980px" id="farmerpage"><button class="btn ghost sm" id="fpback">← All farmers</button>
+    <h2 style="font-size:20px;margin:12px 0 2px">${esc(f.full_name || f.email)}</h2>
+    <p class="muted" style="margin:0 0 12px">${esc(f.email)} · Level ${f.level} · ${f.enrollment_paid ? "paid" : "not paid"}${f.verifier ? " · verifier" : ""}</p>
+    ${error ? `<p class="err">${esc(error.message)}</p>` : ""}
+    <div class="stats">
+      <div class="card stat"><div class="v">${(E.contractors || []).length}</div><div class="k">Contractors</div></div>
+      <div class="card stat"><div class="v">${(E.calls || []).length}</div><div class="k">Calls logged</div></div>
+      <div class="card stat"><div class="v">${(E.leads || []).filter((l) => l.direction === "outbound").length}</div><div class="k">Leads sent</div></div>
+      <div class="card stat"><div class="v">${money((E.leads || []).filter((l) => l.status === "closed").reduce((t, l) => t + Number(l.fee || 0), 0))}</div><div class="k">Fees earned</div></div>
+      <div class="card stat"><div class="v">${(ps || []).length}</div><div class="k">Referrals</div></div>
+    </div>
+    <div class="card" style="margin-bottom:12px"><b>90 days</b>${pr?.enrolled ? `<p class="muted" style="margin:4px 0 8px">Day ${Math.min(pr.day, 90)} of 90 · package due by ${new Date(pr.submit_by).toLocaleDateString()}</p>${progressTable(pr)}`
+      : `<p class="muted" style="margin:6px 0 0">Their 90 days start when their enrollment is paid.</p>`}</div>
+    <div class="card" style="margin-bottom:12px"><b>Their CRM records</b><div class="row" style="margin-top:8px">${evidenceButtons(f.id)}</div>
+      <div class="tablewrap" style="margin-top:10px"><table><thead><tr><th>Business</th><th>Trade</th><th>Phone</th><th>Stage</th><th>Logged</th></tr></thead><tbody>
+      ${(E.contractors || []).slice(-50).reverse().map((c) => `<tr><td>${esc(c.business)}${c.source_link ? `<br><a href="${esc(c.source_link)}" target="_blank" rel="noopener">source</a>` : ""}</td><td>${esc(c.trade || "—")}</td><td>${esc(c.phone || "")}</td><td>${c.stage}. ${esc(stageName(c.stage))}</td><td>${new Date(c.logged).toLocaleDateString()}</td></tr>`).join("")
+        || `<tr><td colspan="5" class="muted">No contractors yet.</td></tr>`}</tbody></table></div>
+      ${(E.contractors || []).length > 50 ? `<p class="muted" style="font-size:13px">Showing the latest 50. Download the CSV for all of them.</p>` : ""}</div>
+    <div class="card"><b>Their referral payouts</b>
+      ${(ps || []).length ? `<table style="margin-top:6px"><tbody>${ps.map((p) => `<tr><td>${money(p.amount)}</td><td>${esc(payoutLabel(p))}</td><td>${new Date(p.created_at).toLocaleDateString()}</td></tr>`).join("")}</tbody></table>`
+      : `<p class="muted" style="margin:6px 0 0">No referrals yet.</p>`}</div></div>`;
+  wireEvidence(f.id, f.full_name || f.email);
+  $("#fpback").onclick = () => boot();
+}
+
+// Waiting count on the Approvals tab
+async function approvalsBadge() {
+  if (!reviewer()) return;
+  const { data: n } = await sb.rpc("waiting_count");
+  const b = $('#nav button[data-v="approvals"]');
+  if (b && n > 0) b.innerHTML = `Approvals <span class="badge">${n}</span>`;
 }
 
 // ---------- farmer: learn (lessons, must-ace quizzes, ask a teacher) ----------
@@ -916,7 +1073,7 @@ async function admin() {
       <div class="card stat"><div class="v">${(fs||[]).reduce((a,f)=>a+Number(f.active_network),0)}</div><div class="k">Contractors in all networks</div></div>
     </div>
     <div class="card tablewrap"><table><thead><tr><th>Farmer</th><th>Recruited by</th><th>Enrollment</th><th>Level</th><th>Verifier</th><th>Network</th><th>Leads (closed)</th><th>Fees earned</th><th>Recruits</th></tr></thead><tbody>
-    ${(fs || []).map((f) => `<tr><td><b>${esc(f.full_name)}</b><br><small class="muted">${esc(f.email)}</small></td>
+    ${(fs || []).map((f) => `<tr><td><button class="linkbtn" data-fp="${f.id}"><b>${esc(f.full_name || f.email)}</b></button><br><small class="muted">${esc(f.email)}</small></td>
       <td>${esc(byId[f.recruited_by]?.full_name || "")}</td>
       <td>${f.enrollment_paid ? '<span class="tag">paid</span>' : `<button class="btn sm" data-pay="${f.id}">Mark $500 paid</button>`}</td>
       <td><select data-lvl="${f.id}" style="width:auto">${[0,1,2,3].map((n) => `<option ${n === f.level ? "selected" : ""}>${n}</option>`).join("")}</select></td>
@@ -924,6 +1081,7 @@ async function admin() {
       <td>${f.active_network} / ${f.contractors}</td><td>${f.leads} (${f.leads_closed})</td><td>${money(f.fees_earned)}</td><td>${f.recruits}</td></tr>`).join("")
       || `<tr><td colspan="9" class="muted">No farmers yet.</td></tr>`}
     </tbody></table></div>`;
+  app.querySelectorAll("[data-fp]").forEach((b) => b.onclick = () => farmerPage(byId[b.dataset.fp]));
   app.querySelectorAll("[data-pay]").forEach((b) => b.onclick = async () => {
     const { error } = await sb.rpc("mark_enrollment_paid", { farmer: b.dataset.pay }); if (error) alert(error.message); boot();
   });
@@ -942,13 +1100,19 @@ async function payouts() {
   ]);
   const nm = (id) => (pr || []).find((p) => p.id === id)?.full_name || "—";
   const owed = (ps || []).filter((p) => p.status === "owed").reduce((a, p) => a + Number(p.amount), 0);
-  app.innerHTML = `<div class="stats"><div class="card stat"><div class="v">${money(owed)}</div><div class="k">Recruiter payouts owed</div></div></div>
+  const back = (ps || []).filter((p) => p.clawback_at && !p.clawback_settled_at).reduce((a, p) => a + Number(p.amount), 0);
+  app.innerHTML = `<div class="stats"><div class="card stat"><div class="v">${money(owed)}</div><div class="k">Recruiter payouts owed</div></div>
+    ${back ? `<div class="card stat"><div class="v">${money(back)}</div><div class="k">Clawbacks owed back to you</div></div>` : ""}</div>
     <div class="card tablewrap"><table><thead><tr><th>Recruiter</th><th>New farmer</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody>
     ${(ps || []).map((p) => `<tr><td>${esc(nm(p.recruiter_id))}</td><td>${esc(nm(p.recruit_id))}</td><td>${money(p.amount)}</td>
-      <td><span class="tag ${p.status === "owed" ? "warn" : ""}">${p.status === "pending" ? "waiting on their $500" : esc(p.status)}</span></td>
-      <td>${p.status === "owed" ? `<button class="btn sm" data-paid="${p.id}">Mark paid</button>` : ""}</td></tr>`).join("")
+      <td><span class="tag ${p.status === "owed" || (p.clawback_at && !p.clawback_settled_at) ? "warn" : ""}">${esc(payoutLabel(p).replace("$250 owed to you", "owed").replace(" (they were refunded)", ", recruit refunded"))}</span></td>
+      <td>${p.status === "owed" ? `<button class="btn sm" data-paid="${p.id}">Mark paid</button>`
+        : p.clawback_at && !p.clawback_settled_at ? `<button class="btn ghost sm" data-repaid="${p.id}">Mark repaid</button>` : ""}</td></tr>`).join("")
       || `<tr><td colspan="5" class="muted">No recruiter payouts yet.</td></tr>`}
     </tbody></table></div>`;
+  app.querySelectorAll("[data-repaid]").forEach((b) => b.onclick = async () => {
+    await sb.from("recruiter_payouts").update({ clawback_settled_at: new Date().toISOString() }).eq("id", b.dataset.repaid); boot();
+  });
   app.querySelectorAll("[data-paid]").forEach((b) => b.onclick = async () => {
     await sb.from("recruiter_payouts").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", b.dataset.paid); boot();
   });
