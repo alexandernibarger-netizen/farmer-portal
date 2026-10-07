@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-template="sprout">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -152,7 +152,7 @@ dialog::backdrop{background:rgba(0,0,0,.4)}
 .dg .awnl{stroke:var(--paper);stroke-width:4}
 @media (max-width:640px){main{padding:16px}.lessonbtn{grid-template-columns:90px 1fr}.grid2{grid-template-columns:1fr}}
 
-/* ---------- playful restyle (Duolingo-inspired: chunky buttons, rounded type, trail) ---------- */
+/* ---------- Dashboard template "sprout" (Duolingo-inspired: chunky buttons, rounded type, trail). The first of several templates; colors live in the :root tokens above, so a new template overrides tokens and this block under html[data-template="..."]. ---------- */
 body{font-family:Nunito,system-ui,sans-serif;font-weight:600;background:var(--bg)}
 h1,h2,h3,b,th{font-weight:900}
 .card{border:2px solid var(--line);border-radius:18px}
