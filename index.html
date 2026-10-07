@@ -1,1519 +1,360 @@
 <!doctype html>
-<html lang="en" data-template="farm">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Farmer CRM</title>
+<title>Lead Farming: this business works, or you don't lose a cent</title>
+<meta name="description" content="Learn to connect homeowners with local contractors who pay you a referral fee. A 90-day program with lessons, quizzes and a CRM. Do every step, and if your fees haven't paid back the $500, we refund the difference.">
+<meta property="og:title" content="Lead Farming: this business works, or you don't lose a cent">
+<meta property="og:description" content="A 90-day program for connecting homeowners with contractors who pay you a referral fee.">
+<script>
+// Members, email links (confirm, password reset) and the Stripe return all belong in the portal at /app/.
+// Add ?home to the address to see this page while signed in.
+(function () {
+  var q = location.search, h = location.hash;
+  if (/[?&]home\b/.test(q)) return;
+  var authLink = /access_token=|type=recovery|type=signup|error_description=/.test(h) || /[?&]code=/.test(q);
+  var signedIn = false;
+  try { for (var i = 0; i < localStorage.length; i++) { if (/^sb-.*-auth-token$/.test(localStorage.key(i))) signedIn = true; } } catch (e) {}
+  if (authLink || signedIn) location.replace("/app/" + q + h);
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
-<script src="config.js"></script>
-<script src="curriculum/diagrams.js"></script>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
 <style>
-:root{--leaf:#3E7B3A;--leaf2:#72AA5C;--soil:#7E5A3B;--soil2:#B48A5E;--trunk:#6A4A2E;--onsoil:#FFF5E4;--sky:#DDEBF1;--sky2:#4F8AB0;--meadow:#DCEBC8;--gold:#F0B93A;--gold-d:#A9760F;--bloom:#D3648A;--apple:#C9473B;--bad:#B83E33;--good:#2C7F45;--skin:#E5B68C;--paper:#FFFFFF;--rock:#9AA095;--bg:#FFFFFF;--card:#fff;--ink:#2B3A2E;--muted:#5F6B63;--line:#E6EBE1;--accent:#3A8A1C;--accent-ink:#fff;--warn:#B4530A;--soft:#EAF6E1;--accent-d:#2A6812;--soft2:#F3F6EF;--brand:#5BB82E;--sun:#F5B700;--sun-d:#C99600;--sky3:#2E9BD6;--sky3-d:#1C7AAE;--skysoft:#E0F0FA;--flame:#FF9F1C;--lock:#E6EBE1;--lock-d:#CDD5C7}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--leaf:#5FA552;--leaf2:#3F7A36;--soil:#4E3824;--soil2:#7A5B3B;--trunk:#8C6A47;--onsoil:#F3E7D3;--sky:#1C2D35;--sky2:#6EA8CC;--meadow:#1F2E1B;--gold:#F2C24E;--gold-d:#E6AE3A;--bloom:#E07FA0;--apple:#E06A5C;--bad:#E46B5E;--good:#5DC27B;--skin:#D2A07A;--paper:#263027;--rock:#5E655A;--bg:#121512;--card:#1b201c;--ink:#e7ebe7;--muted:#9aa49d;--line:#2c332d;--accent:#6CC24A;--accent-ink:#0d130f;--warn:#e19a62;--soft:#1f2a22;--accent-d:#3E8E22;--soft2:#1A1F1B;--brand:#5BB82E;--sun:#F2C24E;--sun-d:#B38A1E;--sky3:#4AAEE3;--sky3-d:#1C7AAE;--skysoft:#16303D;--flame:#FFAE45;--lock:#2C332D;--lock-d:#232924}}
+:root{--ink:#2B3A2E;--muted:#55615A;--line:#E6EBE1;--soft:#F3F6EF;--mint:#EAF6E1;--green:#58CC02;--green-d:#46A302;--leaf:#3E7B3A;--accent:#2E7A12;--accent-d:#1E4F0B;--gold:#F0B93A;--gold-soft:#FDF1D3;--gold-ink:#6B4A07;--sky:#DDEBF1;--blue:#1C7AAE;--bad:#B83E33;--good:#2C7F45;color-scheme:light}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 Inter,system-ui,sans-serif}
-header{display:flex;align-items:center;gap:16px;padding:12px 20px;border-bottom:1px solid var(--line);background:var(--card);position:sticky;top:0;z-index:5;flex-wrap:wrap}
-header[hidden]{display:none}
-a{color:var(--accent)}
-header h1{font-size:16px;margin:0;margin-right:auto}
-nav button{background:none;border:0;color:var(--muted);font:inherit;padding:6px 10px;border-radius:6px;cursor:pointer}
-nav button.on{background:var(--soft);color:var(--accent);font-weight:600}
-main{padding:20px;max-width:1400px;margin:0 auto}
-.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px}
-.btn{background:var(--accent);color:var(--accent-ink);border:0;border-radius:7px;padding:8px 14px;font:inherit;font-weight:600;cursor:pointer}
-.btn.ghost{background:none;color:var(--ink);border:1px solid var(--line)}
-.btn.sm{padding:4px 9px;font-size:13px}
-input,select,textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:8px 10px;width:100%}
-label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
-.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
-.muted{color:var(--muted)}
-table{width:100%;border-collapse:collapse;font-size:14px}
-th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
-th{color:var(--muted);font-weight:500;font-size:12px;text-transform:uppercase;letter-spacing:.03em}
-.tablewrap{overflow-x:auto}
-.board{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(210px,1fr);gap:10px;overflow-x:auto;padding-bottom:8px}
-.col{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;min-height:200px}
-.col h3{font-size:13px;margin:0 0 2px}
-.col .n{font-size:12px;color:var(--muted);margin-bottom:8px}
-.chip{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;margin-bottom:8px;cursor:pointer}
-.chip b{display:block;font-size:14px}
-.chip small{color:var(--muted)}
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px}
-.stat .v{font-size:24px;font-weight:700}
-.stat .k{font-size:12px;color:var(--muted)}
-.tag{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12px;background:var(--soft);color:var(--accent)}
-.tag.warn{background:transparent;border:1px solid var(--warn);color:var(--warn)}
-dialog{border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);width:min(560px,94vw);padding:20px}
-dialog::backdrop{background:rgba(0,0,0,.4)}
-.auth{max-width:380px;margin:8vh auto}
-.banner{max-width:1400px;margin:16px auto 0;padding:0 20px}.banner .card{display:flex;gap:12px;align-items:center;flex-wrap:wrap;border-color:var(--accent)}
-.err{color:var(--warn);font-size:14px;min-height:1.2em;margin-top:8px}
-.trades{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:16px}
-.lockedcol,.lvl.locked{opacity:.55;border-style:dashed}
-.lvl{margin-bottom:10px}.lvl .num{display:inline-block;width:26px;height:26px;border-radius:50%;background:var(--soft);color:var(--accent);text-align:center;line-height:26px;font-weight:700;margin-right:8px}
-.bar{height:6px;background:var(--line);border-radius:3px;margin-top:6px;overflow:hidden}.bar i{display:block;height:100%;background:var(--accent)}
-/* learn: lessons, quizzes */
-.chipbtn{background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:99px;padding:6px 12px;font:inherit;font-size:14px;cursor:pointer}
-.chipbtn.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
-.lessons{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin-bottom:16px}
-.lessonbtn{display:grid;grid-template-columns:110px 1fr;gap:12px;text-align:left;font:inherit;color:var(--ink);cursor:pointer;padding:10px;align-items:center}
-.lessonbtn b{display:block;margin:2px 0}.lessonbtn small{display:block}.lessonbtn .tag{margin-top:4px}
-.lthumb svg,.ldiagram svg{display:block;width:100%;height:auto;border-radius:6px}
-.quizcard{max-width:720px;margin-bottom:12px}.quizcard textarea{margin:6px 0}
-.qa{border-top:1px solid var(--line);margin-top:10px;padding-top:10px;font-size:14px}
-.player{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:12px}.player .bar{height:10px;border-radius:99px}
-.player .lcard{font-size:18px;line-height:1.5;margin:14px 0}.metaphor{font-style:italic;color:var(--muted);margin:10px 0 0}
-.ldiagram{margin-bottom:12px}.player>.btn{align-self:flex-start}
-.welcome{border-color:var(--accent);background:linear-gradient(180deg,var(--soft),var(--card) 70%)}
-.behind{margin-top:10px;font-size:14px}
-.nextstep{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
-.todo{margin:8px 0 0;padding-left:18px}.todo li{margin:4px 0}
-.linkbtn{background:none;border:0;padding:0;font:inherit;color:var(--accent);text-align:left;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
-.badge{display:inline-block;min-width:18px;padding:0 5px;border-radius:99px;background:var(--warn);color:#fff;font-size:11px;line-height:18px;text-align:center;font-weight:700}
-.bar.money{display:flex;height:10px}.bar.money i.owed{background:var(--gold)}
-.opts{display:flex;flex-direction:column;gap:8px}
-.opt{text-align:left;background:var(--bg);color:var(--ink);border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit;cursor:pointer}
-.opt.right{border-color:var(--good)}.opt.wrong{border-color:var(--bad)}
-.result.pass{border-color:var(--good)}.result.fail{border-color:var(--bad)}
-.dg .sky{fill:var(--sky)}
-.dg .meadow{fill:var(--meadow)}
-.dg .soil{fill:var(--soil)}
-.dg .soil2{fill:var(--soil2)}
-.dg .rocky{fill:var(--soil2)}
-.dg .rock{fill:var(--rock)}
-.dg .leaf{fill:var(--leaf)}
-.dg .leaf2{fill:var(--leaf2)}
-.dg .stem{stroke:var(--leaf);stroke-width:2.5;fill:none;stroke-linecap:round}
-.dg .bloom{fill:var(--bloom)}
-.dg .gold{fill:var(--gold)}
-.dg .apple{fill:var(--apple)}
-.dg .sky2{fill:var(--sky2)}
-.dg .wilt{fill:var(--rock)}
-.dg .trunk{fill:var(--trunk)}
-.dg .trunkl{stroke:var(--trunk);stroke-width:2.5;fill:none;stroke-linecap:round}
-.dg .root{stroke:var(--soil2);fill:none;stroke-linecap:round}
-.dg .skin{fill:var(--skin)}
-.dg .shirt1{fill:var(--accent)}
-.dg .shirt2{fill:var(--sky2)}
-.dg .shirt3{fill:var(--bloom)}
-.dg .ink{fill:var(--ink)}
-.dg .paper{fill:var(--paper);stroke:var(--line);stroke-width:1.2}
-.dg .pbad{stroke:var(--bad);stroke-width:1.8}
-.dg .pgood{stroke:var(--good);stroke-width:1.8}
-.dg .t{fill:var(--ink);font-family:Inter,system-ui,sans-serif;font-weight:600}
-.dg .tm{fill:var(--muted)}
-.dg .onsoil{fill:var(--onsoil)}
-.dg .bad{fill:var(--bad)}
-.dg .good{fill:var(--good)}
-.dg .ar{stroke:var(--ink);stroke-width:1.8;fill:none}
-.dg .arh{fill:var(--ink)}
-.dg .ag{stroke:var(--gold-d);stroke-width:2.2;fill:none}
-.dg .agh{fill:var(--gold-d)}
-.dg .ab{stroke:var(--sky2);stroke-width:1.6;fill:none}
-.dg .abh{fill:var(--sky2)}
-.dg .xbad{stroke:var(--bad);stroke-width:3.5;stroke-linecap:round;fill:none}
-.dg .okbg{fill:var(--good)}
-.dg .okl{stroke:var(--card);stroke-width:2.5;fill:none;stroke-linecap:round}
-.dg .weave{stroke:var(--trunk);stroke-width:1;fill:none;opacity:.6}
-.dg .ray{stroke:var(--gold);stroke-width:2.2;stroke-linecap:round}
-.dg .rail{stroke:var(--trunk);stroke-width:3;fill:none}
-.dg .trail{stroke:var(--soil2);stroke-width:14;fill:none;stroke-linecap:round}
-.dg .trail2{stroke:var(--soil2);stroke-width:10;fill:none}
-.dg .barn{fill:var(--apple)}
-.dg .roofl{stroke:var(--ink);stroke-width:3;fill:none}
-.dg .beak{fill:var(--gold-d)}
-.dg .bird{fill:var(--sky2)}
-.dg .puff{fill:var(--paper);stroke:var(--line)}
-.dg .seedl{stroke:var(--muted);stroke-width:1;fill:none}
-.dg .cloudf{fill:var(--paper);stroke:var(--line)}
-.dg .breeze{stroke:var(--sky2);stroke-width:2;fill:none;stroke-linecap:round}
-.dg .phone{fill:var(--ink)}
-.dg .axis{stroke:var(--muted);stroke-width:1}
-.dg .axisl{stroke:none}
-.dg .owl{fill:var(--soil2)}
-.dg .arm{stroke:var(--skin);stroke-width:4;stroke-linecap:round;fill:none}
-.dg .lead{stroke:var(--muted);stroke-width:1;fill:none}
-.dg .stripe{stroke:var(--ink);stroke-width:2.5}
-.dg .wing{fill:var(--paper);opacity:.85;stroke:var(--line)}
-.dg .wasp{fill:var(--gold-d)}
-.dg .web{stroke:var(--muted);stroke-width:.8;fill:none;opacity:.7}
-.dg .node{fill:var(--paper);stroke:var(--leaf);stroke-width:2}
-.dg .ladderl{stroke:var(--trunk);stroke-width:4;stroke-linecap:round;fill:none}
-.dg .motion{stroke:var(--muted);stroke-width:1.5;stroke-linecap:round}
-.dg .water{stroke:var(--sky2);stroke-width:3;fill:none;opacity:.6}
-.dg .ghost{fill:none;stroke:var(--muted);stroke-dasharray:3 3}
-.dg .shear{stroke:var(--muted);stroke-width:3;stroke-linecap:round}
-.dg .shearo{fill:none;stroke:var(--muted);stroke-width:2}
-.dg .tag{stroke:var(--muted);stroke-width:1.2}
-.dg .pot{fill:var(--apple)}
-.dg .awning{fill:var(--apple)}
-.dg .awnl{stroke:var(--paper);stroke-width:4}
-@media (max-width:640px){main{padding:16px}.lessonbtn{grid-template-columns:90px 1fr}.grid2{grid-template-columns:1fr}}
-
-/* ---------- Dashboard template "farm" (the default; Duolingo-inspired: chunky buttons, rounded type, trail). Other templates are at the end of this stylesheet and override these rules under :root[data-template="..."]. ---------- */
-body{font-family:Nunito,system-ui,sans-serif;font-weight:600;background:var(--bg)}
-h1,h2,h3,b,th{font-weight:900}
-.card{border:2px solid var(--line);border-radius:18px}
-.btn{border-radius:14px;padding:11px 18px;font-weight:900;letter-spacing:.04em;text-transform:uppercase;font-size:14px;box-shadow:0 4px 0 var(--accent-d);transition:transform .06s,box-shadow .06s}
-.btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--accent-d)}
-.btn:disabled{opacity:.55;cursor:default}
-.btn.ghost{background:var(--card);color:var(--ink);border:2px solid var(--line);box-shadow:0 3px 0 var(--line)}
-.btn.ghost:active{box-shadow:0 1px 0 var(--line)}
-.btn.sm{padding:6px 12px;font-size:12px;border-radius:12px}
-input,select,textarea{border:2px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--soft2);font-weight:700}
-input:focus,select:focus,textarea:focus{outline:none;border-color:var(--sky3)}
-label{font-weight:800}
-.tag{font-weight:800;padding:2px 10px}
-.bar{height:12px;border-radius:99px;background:var(--lock)}.bar i{border-radius:99px;background:var(--brand);box-shadow:inset 0 -3px 0 rgba(0,0,0,.12)}
-dialog{border:2px solid var(--line);border-radius:20px}
-.stat .v{font-weight:900}
-.chip,.col{border-width:2px;border-radius:14px}
-/* app frame: side menu on desktop, bottom bar on phones */
-header{border-bottom:2px solid var(--line)}
-header h1{font-size:20px;font-weight:900;color:var(--accent);display:flex;align-items:center;gap:8px}
-nav button{display:flex;align-items:center;gap:12px;font-weight:900;letter-spacing:.03em;text-transform:uppercase;font-size:14px;border:2px solid transparent;border-radius:14px;padding:9px 12px;color:var(--muted)}
-nav button svg{flex:none;pointer-events:none}
-nav button.on{background:var(--soft);border-color:#9FD57A;color:var(--accent)}
-nav button:hover:not(.on){background:var(--soft2)}
-@media (min-width:900px){
-  header:not([hidden]){position:fixed;top:0;left:0;bottom:0;width:236px;flex-direction:column;align-items:stretch;gap:6px;padding:24px 14px;border-bottom:0;border-right:2px solid var(--line);overflow-y:auto}
-  header h1{margin:0 8px 18px}
-  header nav{display:flex;flex-direction:column;gap:4px;flex:1}
-  header #who{padding:0 12px;font-weight:800}
-  header #logout{margin:4px 12px 0}
-  header:not([hidden]) ~ main, header:not([hidden]) ~ #banner{margin-left:236px}
-  main{padding:28px 36px 48px}
+html{scroll-behavior:smooth}
+body{margin:0;background:#fff;color:var(--ink);font:17px/1.55 Nunito,system-ui,sans-serif}
+a{color:var(--accent)}a:hover{color:var(--accent-d)}
+h1,h2,h3{font-weight:900;margin:0;letter-spacing:-.5px}
+p{margin:0}
+.wrap{max-width:1200px;margin:0 auto;padding:0 20px}
+.narrow{max-width:1000px}
+section{padding:72px 0}
+.alt{background:var(--soft)}
+.center{text-align:center}
+.lede{font-size:19px;color:var(--muted)}
+.btn{display:inline-block;text-decoration:none;font-weight:900;letter-spacing:.5px;border-radius:16px;padding:16px 28px;font-size:18px;text-align:center}
+.btn-go{background:var(--green);color:#fff;box-shadow:0 5px 0 var(--green-d)}
+.btn-go:hover{color:#fff;filter:brightness(1.05)}
+.btn-go:active{transform:translateY(3px);box-shadow:0 2px 0 var(--green-d)}
+.btn-line{color:var(--blue);border:2px solid var(--line);border-bottom-width:5px}
+.btn-line:hover{color:var(--blue);background:var(--soft)}
+.btn-white{background:#fff;color:var(--accent);box-shadow:0 5px 0 #CDD5C7}
+/* header */
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding:14px 20px;max-width:1200px;margin:0 auto}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--ink);margin-right:auto;font-weight:900;font-size:22px}
+.logo:hover{color:var(--ink)}
+.top nav{display:flex;flex-wrap:wrap}
+.top nav a{padding:10px 12px;font-weight:800;text-decoration:none;color:var(--muted)}
+.top nav a:hover{color:var(--ink)}
+.login{padding:9px 16px;border:2px solid var(--line);border-bottom-width:4px;border-radius:14px;font-weight:900;text-decoration:none}
+/* hero */
+.hero{padding:40px 0 64px}
+.hero .wrap{display:flex;flex-wrap:wrap;gap:48px;align-items:center}
+.hero-copy{flex:1 1 480px;min-width:0}
+.pill{display:inline-block;background:var(--mint);color:var(--accent-d);font-weight:900;font-size:14px;padding:6px 14px;border-radius:999px}
+.hero h1{font-size:clamp(40px,6vw,66px);line-height:1.03;margin:18px 0}
+.hero h1 span{color:var(--accent)}
+.hero .lede{font-size:20px;margin-bottom:28px;max-width:560px}
+.ctas{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.fine{font-size:14px;color:var(--muted);margin-top:16px;max-width:560px}
+.hero-art{flex:1 1 400px;min-width:0;display:flex;justify-content:center}
+.scene{width:100%;max-width:460px;background:var(--sky);border-radius:32px;padding:32px 28px 0;overflow:hidden}
+.post{background:#fff;border-radius:18px;padding:16px;box-shadow:0 4px 0 #CDD5C7;margin-bottom:14px}
+.post small{display:block;font-size:13px;color:var(--muted);font-weight:800}
+.post b{display:block;margin-top:4px;font-weight:800}
+.post.me{margin-left:40px}.post.me small{color:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:8px}
+.chip{font-weight:900;font-size:14px;padding:8px 14px;border-radius:999px}
+/* bet */
+.bet{padding:0 0 72px}
+.betbox{background:var(--gold-soft);border:2px solid var(--gold);border-bottom-width:6px;border-radius:28px;padding:40px 28px;text-align:center}
+.eyebrow{font-weight:900;letter-spacing:1px;font-size:14px}
+.betbox .eyebrow{color:var(--gold-ink)}
+.betbox h2{font-size:clamp(30px,4vw,40px);line-height:1.12;margin:12px 0 14px}
+.betbox h2 span{color:var(--accent)}
+.betbox p{font-size:19px;color:#4A3A12;max-width:720px;margin:0 auto}
+/* cards */
+h2.sec{font-size:clamp(30px,4vw,40px);line-height:1.12;margin-bottom:10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;margin-top:36px}
+.card{background:#fff;border:2px solid var(--line);border-bottom-width:6px;border-radius:24px;padding:28px}
+.num{width:56px;height:56px;border-radius:50%;color:#fff;font-weight:900;font-size:26px;display:flex;align-items:center;justify-content:center}
+.card h3{font-size:23px;margin:16px 0 8px}
+.card p{color:var(--muted)}
+/* inside */
+.split{display:flex;flex-wrap:wrap;gap:48px;align-items:center}
+.split>*{flex:1 1 420px;min-width:0}
+.feats{display:flex;flex-direction:column;gap:12px;margin-top:24px}
+.feat{display:flex;gap:14px;align-items:center;font-weight:800}
+.ic{width:44px;height:44px;flex:none;border-radius:12px;display:flex;align-items:center;justify-content:center}
+.path{background:var(--soft);border-radius:32px;padding:32px;display:flex;flex-direction:column;align-items:center;gap:14px}
+.node{width:84px;height:84px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:15px;text-align:center}
+.path .lbl{font-weight:900;text-align:center;margin-bottom:6px}
+.off{margin-left:90px}
+/* note */
+.note{display:flex;flex-wrap:wrap;gap:40px;align-items:flex-start}
+.note .who{flex:0 1 220px;min-width:0}
+.note .body{flex:999 1 520px;min-width:0}
+.note .body p{margin-bottom:16px}
+.avatar{width:180px;height:180px;border-radius:50%;background:var(--sky);display:flex;align-items:flex-end;justify-content:center;overflow:hidden}
+.sig{font-weight:900;font-size:22px;color:var(--accent)}
+/* refund */
+.refund{background:var(--leaf);color:#fff}
+.refund h2{color:#fff}
+.refund .lede{color:#EAF6E1;max-width:760px;margin:0 auto}
+.tbl{overflow-x:auto;background:#fff;border-radius:20px;margin-top:32px;color:var(--ink)}
+table{width:100%;border-collapse:collapse;min-width:600px}
+th,td{padding:14px 18px;text-align:left;vertical-align:top}
+thead th{background:var(--mint);font-weight:900}
+tbody tr{border-top:1px solid var(--line)}
+td:last-child,th:last-child{white-space:nowrap}
+.example{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-top:20px}
+.ex{background:rgba(255,255,255,.12);border:2px solid rgba(255,255,255,.3);border-radius:18px;padding:18px}
+.ex b{display:block;font-size:26px}
+.refund .small{font-size:15px;color:#EAF6E1;margin-top:20px}
+.refund a{color:#fff}
+/* fit */
+.fit h3{font-size:24px;margin-bottom:12px}
+.fit p{margin-bottom:8px}
+/* faq */
+details{border:2px solid var(--line);border-radius:20px;padding:18px 22px;margin-bottom:12px}
+summary{font-weight:900;font-size:19px;cursor:pointer;list-style-position:outside}
+details p{margin-top:8px;color:var(--muted)}
+/* final */
+.final{background:var(--green);color:#fff;border-radius:32px;padding:48px 28px;text-align:center;box-shadow:0 8px 0 var(--green-d)}
+.final h2{font-size:clamp(30px,4vw,40px);margin-bottom:10px}
+.final p{font-size:19px;margin-bottom:24px}
+.final .fine{color:#fff;margin:16px auto 0}
+footer{border-top:2px solid var(--line);padding:28px 0;color:var(--muted);font-size:14px}
+footer .wrap{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between}
+@media (max-width:640px){
+  section{padding:52px 0}
+  .top nav{display:none}
+  .off{margin-left:0}
+  .post.me{margin-left:20px}
+  .btn{width:100%}
 }
-@media (max-width:899px){
-  header:not([hidden]) ~ main{padding-bottom:96px}
-  header nav{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;gap:2px;overflow-x:auto;background:var(--card);border-top:2px solid var(--line);padding:6px 6px 10px}
-  header nav button{flex-direction:column;gap:2px;font-size:10px;padding:6px 8px;min-width:64px;min-height:48px;justify-content:center}
-  header #who{display:none}
-}
-/* home */
-.homegrid{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
-.homemain{flex:1 1 520px;max-width:660px;min-width:0;display:flex;flex-direction:column;gap:14px}
-.homemain .lvl{margin-bottom:0}
-.homeside{flex:0 1 320px;min-width:260px;display:flex;flex-direction:column;gap:16px}
-.welcome{display:flex;gap:16px;align-items:flex-end;border:0;background:none;padding:0}
-.welcome .mascot{flex:none;width:92px}
-.welcome .bubble{flex:1;border:2px solid var(--line);border-radius:18px;padding:14px 18px;margin-bottom:24px;background:var(--card)}
-.welcome #greeting{font-size:20px;line-height:1.35;font-weight:800;margin:0}
-.nextcard{background:var(--accent);color:#fff;border-radius:20px;padding:20px 22px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;box-shadow:0 5px 0 var(--accent-d)}
-.nextcard small{font-weight:900;letter-spacing:.08em;text-transform:uppercase;opacity:.9}
-.nextcard #nexttext{display:block;font-size:20px;line-height:1.3;margin-top:4px}
-.nextcard .btn{background:#fff;color:var(--accent);box-shadow:0 4px 0 #CFE9BD;margin-left:auto}
-.behind{border:2px solid #F5C66B;background:#FFF8E6;color:#5C3D00;border-radius:16px;padding:12px 16px;font-size:15px}
-.trail{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));row-gap:18px;justify-items:center;margin-top:16px}
-.node{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;font-size:12px;font-weight:800;color:var(--muted)}
-.node:nth-child(5n+2),.node:nth-child(5n+4){margin-top:16px}.node:nth-child(5n+3){margin-top:28px}
-.node .dot{width:58px;height:54px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--lock);box-shadow:0 5px 0 var(--lock-d)}
-.node.done .dot{background:var(--sun);box-shadow:0 5px 0 var(--sun-d)}
-.node.now .dot{width:68px;height:64px;background:var(--brand);box-shadow:0 6px 0 var(--accent-d),0 0 0 7px var(--soft)}
-.node.now{color:var(--accent);font-weight:900}
-.node.miss .dot{background:#F6D3C4;box-shadow:0 5px 0 #E3A98F}
-.nowbar{margin-top:18px;background:var(--soft2);border-radius:14px;padding:12px 14px;display:flex;gap:12px;align-items:center}
-.todo li::marker{color:var(--brand)}
-.statrow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
-.statrow span{display:flex;align-items:center;gap:6px;font-size:17px;font-weight:900}
-.ring{width:88px;height:88px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none}
-.ring>div{width:66px;height:66px;border-radius:50%;background:var(--card);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1}
-.week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;text-align:center;font-size:12px;font-weight:800;color:var(--muted);margin-top:12px}
-.week i{display:block;height:28px;border-radius:9px;background:var(--soft2);margin-bottom:4px}
-.week i.on{background:var(--flame)}.week i.today{background:var(--card);border:2px dashed var(--sun)}
-#refcard{background:var(--skysoft);border-color:transparent}
-#refcard .btn.ghost{background:var(--sky3);color:#fff;border:0;box-shadow:0 4px 0 var(--sky3-d)}
-@media (max-width:640px){.welcome .mascot{width:66px}.welcome #greeting{font-size:17px}.nextcard .btn{width:100%;margin-left:0}.node .dot{width:50px;height:46px}.node.now .dot{width:58px;height:54px}}
-
-/* ---------- other dashboard templates (picked in Settings) ---------- */
-.tiles,#clock{display:none}
-.tiles{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px}
-.tile{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;gap:4px}
-.tile small{color:var(--muted);font-size:13px;font-weight:500}.tile b{font-size:24px;line-height:1.2}.tile span{font-size:13px;color:var(--muted)}
-:root:not([data-template="farm"]) body{font-family:Inter,system-ui,sans-serif;font-weight:400}
-:root:not([data-template="farm"]) :is(h1,h2,h3,b,th){font-weight:700}
-:root:not([data-template="farm"]) .tiles{display:grid}
-:root:not([data-template="farm"]) .card{border-width:1px;border-radius:10px}
-:root:not([data-template="farm"]) .btn{text-transform:none;letter-spacing:0;font-weight:600;font-size:14px;border-radius:8px;box-shadow:none}
-:root:not([data-template="farm"]) .btn:active{transform:none}
-:root:not([data-template="farm"]) .btn.ghost{box-shadow:none;border-width:1px}
-:root:not([data-template="farm"]) :is(input,select,textarea){border-width:1px;border-radius:8px;font-weight:400}
-:root:not([data-template="farm"]) label{font-weight:600}
-:root:not([data-template="farm"]) header{border-width:1px}
-:root:not([data-template="farm"]) header h1{font-weight:700}
-:root:not([data-template="farm"]) nav button{text-transform:none;letter-spacing:0;font-weight:500;font-size:15px;border:0;border-radius:8px}
-:root:not([data-template="farm"]) nav button.on{background:var(--soft);color:var(--accent)}
-:root:not([data-template="farm"]) .welcome .mascot{display:none}
-:root:not([data-template="farm"]) .welcome .bubble{margin-bottom:0;border-width:1px;border-radius:10px}
-:root:not([data-template="farm"]) .welcome #greeting{font-weight:600}
-:root:not([data-template="farm"]) .nextcard{border-radius:12px;box-shadow:none}
-:root:not([data-template="farm"]) .nextcard .btn{box-shadow:none}
-:root:not([data-template="farm"]) .node .dot{box-shadow:none}
-:root:not([data-template="farm"]) .node.now .dot{box-shadow:0 0 0 6px var(--soft)}
-:root:not([data-template="farm"]) :is(.homemain){max-width:none}
-:root:not([data-template="farm"]) .bar i{box-shadow:none}
-:root:not([data-template="farm"]) #refcard .btn.ghost{box-shadow:none}
-:is([data-template="nightbarn"],[data-template="sunrise"],[data-template="almanac"]) #refcard .btn.ghost{color:#0A0A0B}
-:root:not([data-template="farm"]) .behind{border-width:1px;border-radius:10px}
-:root:not([data-template="farm"]) .stat .v{font-weight:700}
-@media (min-width:900px){:root:not([data-template="farm"]) header:not([hidden]){border-right-width:1px}}
-/* Clean: light page, dark navy menu, blue accents */
-:root[data-template="clean"]{--bg:#F1F5F9;--card:#fff;--ink:#1C2434;--muted:#5B6B82;--line:#E2E8F0;--accent:#3C50E0;--accent-ink:#fff;--accent-d:#2F3FB8;--soft:#EFF4FB;--soft2:#F7F9FC;--brand:#3C50E0;--sky3:#3C50E0;--sky3-d:#2F3FB8;--skysoft:#EFF4FB;--lock:#E2E8F0;--lock-d:#CBD5E1;--warn:#C2410C;color-scheme:light}
-[data-template="clean"] header{background:#1C2434;border-color:#1C2434}
-[data-template="clean"] header h1,[data-template="clean"] header #who{color:#fff}
-[data-template="clean"] nav button{color:#DEE4EE}
-[data-template="clean"] nav button.on{background:#333A48;color:#fff}
-[data-template="clean"] nav button:hover:not(.on){background:#2A3241}
-[data-template="clean"] header nav{background:#1C2434;border-color:#1C2434}
-[data-template="clean"] header .btn.ghost{background:none;color:#DEE4EE;border-color:#3A4458}
-[data-template="clean"] .nextcard{background:#1C2434}
-[data-template="clean"] .nextcard .btn{background:#3C50E0;color:#fff}
-[data-template="clean"] .tile{box-shadow:0 1px 3px rgba(0,0,0,.05)}
-/* Night barn: dark navy with colored stat tiles */
-:root[data-template="nightbarn"]{--bg:#1E2235;--card:#272C44;--ink:#E4E8F5;--muted:#A3ABC8;--line:#363D5C;--accent:#5AAEF5;--accent-ink:#0B1A33;--accent-d:#3D8FE0;--soft:#2D3655;--soft2:#232842;--brand:#3D9BF0;--sun:#F7CF4B;--sun-d:#C9A22A;--sky3:#4FB0F5;--sky3-d:#2D7FD6;--skysoft:#23324F;--lock:#343B5A;--lock-d:#2A3049;--warn:#F0A35A;--flame:#F0453A;color-scheme:dark}
-[data-template="nightbarn"] header,[data-template="nightbarn"] header nav{background:#1E2235}
-[data-template="nightbarn"] a,[data-template="nightbarn"] .linkbtn{color:#7CC4FA}
-[data-template="nightbarn"] nav button.on{background:none;color:#4FB0F5}
-[data-template="nightbarn"] nav button.on svg{background:#2570C2;border-radius:50%;padding:4px;box-sizing:content-box;margin:-4px;stroke:#fff}
-[data-template="nightbarn"] .tile{border:0;border-radius:4px;color:#fff}
-[data-template="nightbarn"] .tile small,[data-template="nightbarn"] .tile span{color:rgba(255,255,255,.9)}
-[data-template="nightbarn"] .tile:nth-child(1){background:#2570C2}
-[data-template="nightbarn"] .tile:nth-child(2){background:#127A70}
-[data-template="nightbarn"] .tile:nth-child(3){background:#566080}
-[data-template="nightbarn"] .tile:nth-child(4){background:#F7CF4B;color:#1E2235}
-[data-template="nightbarn"] .tile:nth-child(4) :is(small,span){color:#1E2235}
-[data-template="nightbarn"] .nextcard{background:#127A70}
-[data-template="nightbarn"] .nextcard .btn{background:#fff;color:#0E5F57}
-[data-template="nightbarn"] .behind{background:#3A2E0E;border-color:#6B5414;color:#FDE68A}
-[data-template="nightbarn"] .node.miss .dot{background:#5A2A2A}
-[data-template="nightbarn"] .node.miss .dot b{color:#FCA5A5 !important}
-/* Sunrise: near-black, big clock greeting */
-:root[data-template="sunrise"]{--bg:#0A0A0B;--card:#141416;--ink:#EDEDED;--muted:#A1A1AA;--line:#26262A;--accent:#F4F4F5;--accent-ink:#0A0A0B;--accent-d:#D4D4D8;--soft:#1F1F23;--soft2:#18181B;--brand:#4ADE80;--sun:#FACC15;--sun-d:#CA8A04;--sky3:#60A5FA;--sky3-d:#3B82F6;--skysoft:#16202E;--lock:#26262A;--lock-d:#1C1C20;--warn:#FBBF24;--flame:#4ADE80;color-scheme:dark}
-[data-template="sunrise"] .card,[data-template="sunrise"] .tile,[data-template="sunrise"] .welcome .bubble{border-radius:18px}
-[data-template="sunrise"] header,[data-template="sunrise"] header nav{background:#0A0A0B}
-[data-template="sunrise"] nav button.on{background:#26262A;color:#fff}
-[data-template="sunrise"] #clock{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;background:linear-gradient(135deg,#1C1C20,#121214);border:1px solid var(--line);border-radius:18px;padding:22px 24px}
-[data-template="sunrise"] #clock .time{font-size:56px;font-weight:600;letter-spacing:-.03em;line-height:1.1}
-[data-template="sunrise"] .nextcard{background:#13261A;border:1px solid #1F3D29}
-[data-template="sunrise"] .nextcard small{color:#86EFAC}
-[data-template="sunrise"] .nextcard .btn{background:#fff;color:#0A0A0B}
-[data-template="sunrise"] .behind{background:#2A220A;border-color:#4A3B0E;color:#FDE68A}
-[data-template="sunrise"] .node.done .dot b,[data-template="sunrise"] .node.now .dot b{color:#0A0A0B !important}
-[data-template="sunrise"] .node.miss .dot{background:#4A2525}
-[data-template="sunrise"] .node.miss .dot b{color:#FCA5A5 !important}
-@media (max-width:640px){[data-template="sunrise"] #clock .time{font-size:40px}}
-/* Almanac: deep navy grid of tiles, menu across the top */
-:root[data-template="almanac"]{--bg:#021B2E;--card:#0B2B44;--ink:#fff;--muted:#B5CFE6;--line:#1B3A52;--accent:#CFE8FF;--accent-ink:#021B2E;--accent-d:#9CC9EE;--soft:#123A57;--soft2:#0E3350;--brand:#7FBDF0;--sun:#FCD34D;--sun-d:#D4A82A;--sky3:#7FBDF0;--sky3-d:#4F9AD8;--skysoft:#123A57;--lock:#123A57;--lock-d:#0E3350;--warn:#FCD34D;--flame:#7FBDF0;color-scheme:dark}
-[data-template="almanac"] :is(h1,h2,h3){font-family:Outfit,Inter,sans-serif}
-[data-template="almanac"] header,[data-template="almanac"] header nav{background:#021B2E}
-[data-template="almanac"] nav button{color:#B5CFE6}
-[data-template="almanac"] nav button.on{background:#123A57;color:#fff}
-[data-template="almanac"] .card,[data-template="almanac"] .tile,[data-template="almanac"] .welcome .bubble{border:0;border-radius:4px}
-[data-template="almanac"] .tile{text-align:center;padding:0 0 16px;overflow:hidden}
-[data-template="almanac"] .tile small{display:block;background:#1B3A52;color:#fff;font-weight:700;font-size:14px;letter-spacing:.06em;text-transform:uppercase;padding:8px;margin-bottom:10px}
-[data-template="almanac"] .tile b{font-size:28px}
-[data-template="almanac"] .nextcard{background:#123A57}
-[data-template="almanac"] .nextcard small{color:#B5CFE6}
-[data-template="almanac"] .nextcard .btn{background:#CFE8FF;color:#021B2E}
-[data-template="almanac"] .behind{background:#2A2A10;border-color:#5A4E12;color:#FDE68A}
-[data-template="almanac"] .node.done .dot b,[data-template="almanac"] .node.now .dot b{color:#021B2E !important}
-[data-template="almanac"] .node.miss .dot{background:#4A2525}
-[data-template="almanac"] .node.miss .dot b{color:#FCA5A5 !important}
-@media (min-width:900px){
-  [data-template="almanac"] header:not([hidden]){position:sticky;top:0;bottom:auto;width:auto;flex-direction:row;align-items:center;padding:14px 36px;border-right:0;border-bottom:1px solid var(--line);overflow:visible}
-  [data-template="almanac"] header h1{margin:0 12px 0 0}
-  [data-template="almanac"] header nav{flex-direction:row;flex-wrap:wrap;flex:1}
-  [data-template="almanac"] nav button svg{display:none}
-  [data-template="almanac"] header:not([hidden]) ~ main,[data-template="almanac"] header:not([hidden]) ~ #banner{margin-left:0}
-}
-/* Settings: template picker */
-.tpls{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-top:12px}
-.tpl{display:flex;flex-direction:column;gap:8px;text-align:left;background:var(--card);color:var(--ink);border:2px solid var(--line);border-radius:12px;padding:10px;cursor:pointer;font:inherit}
-.tpl[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
-.tpl .pv{height:96px;border-radius:8px;display:flex;overflow:hidden;border:1px solid rgba(127,127,127,.25)}
-.tpl .pv i{display:block}
-.tpl b{font-size:15px}.tpl small{color:var(--muted);font-size:13px}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 </style>
 </head>
 <body>
-<header id="top" hidden>
-  <h1 id="brand"></h1>
-  <nav id="nav"></nav>
-  <span class="muted" id="who"></span>
-  <button class="btn ghost sm" id="logout">Sign out</button>
+
+<header class="top">
+  <a class="logo" href="/?home">
+    <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true"><ellipse cx="20" cy="26" rx="18" ry="6" fill="#F0B93A"/><path d="M9 25c0-9 5-15 11-15s11 6 11 15z" fill="#F5C94F"/><rect x="9" y="21" width="22" height="4" rx="2" fill="#3E7B3A"/></svg>
+    Lead Farming
+  </a>
+  <nav aria-label="Page sections">
+    <a href="#how">How it works</a>
+    <a href="#inside">Inside</a>
+    <a href="#refund">Refund rules</a>
+    <a href="#faq">FAQ</a>
+  </nav>
+  <a class="login" href="/app/">LOG IN</a>
 </header>
-<div id="banner"></div>
-<main id="app"></main>
-<dialog id="dlg"></dialog>
 
-<script type="module">
-import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-const C = window.CRM_CONFIG;
-let recovering = /type=recovery/.test(location.hash + location.search);
-let linkError = new URLSearchParams(location.hash.slice(1)).get("error_description");
-const sb = createClient(C.SUPABASE_URL, C.SUPABASE_KEY);
-const $ = (s) => document.querySelector(s);
-const app = $("#app"), dlg = $("#dlg");
-// dashboard templates (Settings). The last pick is cached so the page opens in it before sign-in finishes.
-const TEMPLATES = [
-  ["farm", "Farm", "Rounded and playful, with the 90-day trail and the mascot.", ["#fff", "#5BB82E", "#F5B700"]],
-  ["clean", "Clean", "Light page with a dark navy menu and blue accents.", ["#1C2434", "#F1F5F9", "#3C50E0"]],
-  ["nightbarn", "Night barn", "Dark navy with colored stat tiles.", ["#1E2235", "#2570C2", "#127A70"]],
-  ["sunrise", "Sunrise", "Near-black with a big clock greeting.", ["#0A0A0B", "#141416", "#4ADE80"]],
-  ["almanac", "Almanac", "Deep navy grid of tiles, menu across the top.", ["#021B2E", "#0B2B44", "#CFE8FF"]],
-];
-function applyTemplate(t) {
-  if (!TEMPLATES.some(([k]) => k === t)) t = "farm";
-  document.documentElement.dataset.template = t;
-  try { localStorage.setItem("lf_template", t); } catch {}
-}
-try { applyTemplate(localStorage.getItem("lf_template")); } catch { applyTemplate("farm"); }
-const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const money = (n) => "$" + Number(n || 0).toLocaleString(undefined, {maximumFractionDigits: 2});
-const PER_TRADE = 10;
-let me = null, stages = [], trades = [], view = "home";
-const SPROUT = `<svg width="32" height="32" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="16" fill="var(--soft)"/><path d="M17 27V15" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/><path d="M17 17c-6 0-8-4-8-8 5 0 8 3 8 8z" fill="var(--brand)"/><path d="M17 15c0-5 3-8 8-8 0 5-3 8-8 8z" fill="#7BCB45"/></svg>`;
-$("#brand").innerHTML = SPROUT + `<span>${esc(C.PROGRAM_NAME)}</span>`;
-// menu icons (stroke, colored per section)
-const ico = (color, d) => `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
-const NAV_ICONS = {
-  home: ico("currentColor", '<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>'),
-  learn: ico("#2E9BD6", '<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5"/>'),
-  program: ico("#F09A00", '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
-  pipeline: ico("#8B5E3C", '<path d="M4 20h16"/><path d="M7 20V10"/><path d="M12 20V6"/><path d="M17 20v-7"/>'),
-  contractors: ico("#7A5CC9", '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7"/><path d="M18 14.6c1.8.7 3 2.5 3.5 5.4"/>'),
-  leads: ico("#D14F8A", '<path d="M4 12h12"/><path d="M12 6l6 6-6 6"/><path d="M20 4v16"/>'),
-  upsells: ico("#E0A100", '<path d="M12 3l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.3 6.8 19.1l1-5.8L3.5 9.2l5.9-.8z"/>'),
-  money: ico("#3A8A1C", '<rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>'),
-  approvals: ico("#2E9BD6", '<path d="M5 12.5l4.5 4.5L19 7.5"/>'),
-  admin: ico("#7A5CC9", '<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/>'),
-  payouts: ico("#3A8A1C", '<path d="M12 3v18"/><path d="M17 7H9.5a3 3 0 0 0 0 6h5a3 3 0 0 1 0 6H6"/>'),
-  trades: ico("#8B5E3C", '<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.5-2.5z"/>'),
-  welcome: ico("#D14F8A", '<path d="M4 5h16v11H9l-5 4z"/>'),
-  settings: ico("#5F6B63", '<circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6a7 7 0 0 0 0 2.4l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z"/>'),
-};
-const REF = new URLSearchParams(location.search).get("ref") || ""; // referral links: leadfarminghq.com/?ref=friend@email
-
-// ---------- auth ----------
-function authView(mode = "in") {
-  $("#top").hidden = true;
-  if (linkError) history.replaceState(null, "", location.pathname);
-  if (mode === "forgot") return forgotView();
-  app.innerHTML = `<div class="auth card">
-    <h2 style="margin-top:0">${mode === "in" ? "Sign in" : "Create your account"}</h2>
-    <form id="af">
-      ${mode === "up" ? `<label>Full name</label><input name="full_name" required>
-      <label>Phone</label><input name="phone">
-      <label>Who referred you? (their email, optional)</label><input name="recruiter_email" type="email" value="${esc(REF)}">` : ""}
-      <label>Email</label><input name="email" type="email" required>
-      <label>Password</label><input name="password" type="password" minlength="8" required>
-      ${mode === "in" ? `<p style="margin:6px 0 0;font-size:13px;text-align:right"><a href="#" id="fg">Forgot password?</a></p>` : ""}
-      <div class="err" id="aerr">${linkError ? esc(linkError) + ". Use Forgot password? to get a new link." : ""}</div>
-      <button class="btn" style="width:100%;margin-top:8px">${mode === "in" ? "Sign in" : "Sign up"}</button>
-    </form>
-    <p class="muted" style="font-size:14px">${mode === "in"
-      ? `New farmer? <a href="#" id="sw">Create an account</a>`
-      : `Already have an account? <a href="#" id="sw">Sign in</a>`}</p></div>`;
-  $("#sw").onclick = (e) => { e.preventDefault(); authView(mode === "in" ? "up" : "in"); };
-  linkError = null;
-  if ($("#fg")) $("#fg").onclick = (e) => { e.preventDefault(); authView("forgot"); };
-  $("#af").onsubmit = async (e) => {
-    e.preventDefault();
-    const f = Object.fromEntries(new FormData(e.target));
-    const { error } = mode === "in"
-      ? await sb.auth.signInWithPassword({ email: f.email, password: f.password })
-      : await sb.auth.signUp({ email: f.email, password: f.password,
-          options: { emailRedirectTo: location.origin + location.pathname,
-            data: { full_name: f.full_name, phone: f.phone, recruiter_email: f.recruiter_email } } });
-    if (error) return ($("#aerr").textContent = error.message);
-    if (mode === "up") $("#aerr").textContent = "Check your email to confirm your account, then sign in.";
-  };
-}
-function forgotView() {
-  app.innerHTML = `<div class="auth card">
-    <h2 style="margin-top:0">Reset your password</h2>
-    <p class="muted" style="font-size:14px;margin-top:0">Enter your account email and we'll send you a link to set a new password.</p>
-    <form id="ff"><label>Email</label><input name="email" type="email" required>
-      <div class="err" id="ferr"></div>
-      <button class="btn" style="width:100%;margin-top:8px">Send reset link</button></form>
-    <p class="muted" style="font-size:14px"><a href="#" id="sw">Back to sign in</a></p></div>`;
-  $("#sw").onclick = (e) => { e.preventDefault(); authView("in"); };
-  $("#ff").onsubmit = async (e) => {
-    e.preventDefault();
-    const email = new FormData(e.target).get("email");
-    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
-    $("#ferr").textContent = error ? error.message : "If that email has an account, a reset link is on its way. Check your inbox.";
-  };
-}
-
-function newPasswordView() {
-  $("#top").hidden = true;
-  app.innerHTML = `<div class="auth card">
-    <h2 style="margin-top:0">Set a new password</h2>
-    <form id="nf"><label>New password</label><input name="password" type="password" minlength="8" required>
-      <label>Confirm new password</label><input name="confirm" type="password" minlength="8" required>
-      <div class="err" id="nerr"></div>
-      <button class="btn" style="width:100%;margin-top:8px">Save new password</button></form></div>`;
-  $("#nf").onsubmit = async (e) => {
-    e.preventDefault();
-    const f = Object.fromEntries(new FormData(e.target));
-    if (f.password !== f.confirm) return ($("#nerr").textContent = "Passwords don't match.");
-    const { error } = await sb.auth.updateUser({ password: f.password });
-    if (error) return ($("#nerr").textContent = error.message);
-    recovering = false;
-    history.replaceState(null, "", location.pathname);
-    const { data } = await sb.auth.getSession();
-    signedIn(data.session);
-  };
-}
-
-$("#logout").onclick = () => { view = "home"; sb.auth.signOut().then(() => ($("#banner").innerHTML = "")); };
-
-sb.auth.onAuthStateChange((event, session) => {
-  if (event === "USER_UPDATED") return; // new password saved; the form handles what's next
-  if (event === "PASSWORD_RECOVERY") recovering = true;
-  if (recovering && session) return newPasswordView();
-  // supabase-js warns against awaiting its own calls inside this callback
-  setTimeout(() => signedIn(session));
-});
-
-async function signedIn(session) {
-  if (!session) { me = null; return authView(); }
-  const { data } = await sb.from("profiles").select("*").eq("id", session.user.id).single();
-  if (me?.id !== data?.id) view = "home";  // every sign-in opens on Home
-  me = data;
-  applyTemplate(me?.dashboard_template);
-  await loadRef();
-  boot();
-}
-
-async function loadRef() {
-  [stages, trades] = await Promise.all([
-    sb.from("stages").select("*").order("id").then((r) => r.data || []),
-    sb.from("trades").select("*").order("sort_order").order("name").then((r) => r.data || []),
-  ]);
-}
-const stageName = (id) => stages.find((s) => s.id === id)?.name || id;
-const tradeName = (id) => trades.find((t) => t.id === id)?.name || "—";
-
-const locked = () => me?.role !== "admin" && !me?.verifier && !me?.enrollment_paid;
-const lvl = () => (me?.role === "admin" ? 3 : me?.level || 0);
-const reviewer = () => me?.role === "admin" || me?.verifier;
-
-// Unpaid accounts get only this screen; the database also refuses them any program data.
-function payView() {
-  $("#nav").innerHTML = ""; $("#banner").innerHTML = "";
-  const link = C.PAYMENT_LINK && `${C.PAYMENT_LINK}?client_reference_id=${encodeURIComponent(me.id)}&prefilled_email=${encodeURIComponent(me.email || "")}`;
-  app.innerHTML = `<div class="auth card" id="paywall">
-    <h2 style="margin-top:0">Finish your enrollment</h2>
-    <p>Welcome${me.full_name ? ", " + esc(me.full_name) : ""}. The ${esc(C.PROGRAM_NAME)} opens once your one-time $500 enrollment is paid.</p>
-    ${link ? `<a class="btn" style="display:block;text-align:center;text-decoration:none" id="pay" href="${esc(link)}">Pay $500 by card</a>` : ""}
-    ${C.ZELLE_TO ? `<p class="muted">Or Zelle $500 to <b>${esc(C.ZELLE_TO)}</b> with <b>${esc(me.email)}</b> in the memo. We'll unlock your account once it arrives.</p>` : ""}
-    <p class="muted" style="font-size:14px">Already paid? It can take a minute to show up.</p>
-    <button class="btn ghost" style="width:100%" id="recheck">Check again</button>
-    <div class="err" id="perr"></div></div>`;
-  $("#recheck").onclick = () => recheck();
-}
-async function recheck(quiet = false) {
-  const { data } = await sb.from("profiles").select("*").eq("id", me.id).single();
-  if (data) me = data;
-  if (!locked()) { await loadRef(); return boot(); }
-  const e = $("#perr"); if (e && !quiet) e.textContent = "We haven't received your payment yet.";
-}
-window.addEventListener("focus", () => { if (me && locked() && $("#paywall")) recheck(true); });
-
-function boot() {
-  $("#top").hidden = false;
-  $("#who").textContent = me?.full_name || me?.email || "";
-  if (locked()) return payView();
-  const tabs = [["home","Home"],["learn","Learn"]];
-  if (me?.role !== "admin" && me?.enrollment_paid) tabs.push(["program","90 days"]);
-  tabs.push(["pipeline","Pipeline"],["contractors","Contractors"]);
-  if (lvl() >= 2) tabs.push(["leads","Leads"]);
-  if (lvl() >= 3) tabs.push(["upsells","Upsells"]);
-  if (lvl() >= 2 && me?.role !== "admin") tabs.push(["money","Money"]);
-  if (reviewer()) tabs.push(["approvals","Approvals"]);
-  if (me?.role === "admin") tabs.push(["admin","Farmers"],["payouts","Payouts"],["trades","Trades"],["welcome","Welcome"]);
-  tabs.push(["settings","Settings"]);
-  if (!tabs.some(([k]) => k === view)) view = "home";
-  $("#nav").innerHTML = tabs.map(([k,l]) => `<button data-v="${k}" class="${k===view?"on":""}">${NAV_ICONS[k] || ""}<span>${l}</span></button>`).join("");
-  $("#nav").onclick = (e) => { const b = e.target.closest("button"); if (b?.dataset.v) { view = b.dataset.v; boot(); } };
-  approvalsBadge();
-  ({ home, learn, program, pipeline, contractors, leads, upsells, money: moneyView, welcome: welcomeLines, settings: settingsView, approvals, admin, payouts, tradesView: tradesView })[view === "trades" ? "tradesView" : view]();
-}
-
-// ---------- farmer: home (level ladder + next step) ----------
-async function home() {
-  // pick up an approval that happened since sign-in
-  const { data: fresh } = await sb.from("profiles").select("*").eq("id", me.id).single();
-  if (fresh && fresh.level !== me.level) { me = fresh; await loadRef(); return boot(); }
-  const [{ data: ladder }, { data: reqs }, cs, { data: passes }] = await Promise.all([
-    sb.rpc("level_ladder"),
-    sb.from("level_requests").select("*").eq("farmer_id", me.id).order("created_at", { ascending: false }),
-    myContractors(),
-    sb.from("quiz_passes").select("quiz").eq("farmer_id", me.id),
-  ]);
-  const L = lvl(), last = (reqs || [])[0], pending = last?.status === "pending";
-  const top = Math.max(0, ...cs.filter((c) => c.farmer_id === me.id).map((c) => c.stage));
-  const ready = (L === 1 && top >= 3) || (L === 2 && top >= 6);
-  const aced = (passes || []).some((p) => p.quiz === "l" + L);
-  const refLink = `${location.origin}${location.pathname}?ref=${encodeURIComponent(me.email || "")}`;
-  const card = (l) => {
-    if (l.level === 0) return "";
-    if (l.level <= L) return `<div class="card lvl"><span class="num">${l.level}</span><b>${esc(l.name)}</b> <span class="tag">unlocked</span></div>`;
-    if (l.level === L + 1) return `<div class="card lvl" id="next"><span class="num">${l.level}</span><b>${esc(l.name)}</b>
-      <p style="margin:8px 0">${esc(l.requirement || "")}</p>
-      ${pending ? `<span class="tag">Request sent, waiting for review</span>`
-        : `${last?.status === "rejected" && last.to_level === l.level ? `<p class="err">Sent back${last.review_note ? ": " + esc(last.review_note) : ""}. Add more proof and ask again.</p>` : ""}
-           <p style="margin:8px 0;font-size:14px">${aced ? "✓ Level " + L + " quiz aced" : `<b>Also ace the Level ${L} quiz.</b> <a href="#" id="toquiz">Go to your lessons</a>`}</p>
-           ${ready && aced ? `<button class="btn" id="askup">Request level ${l.level}</button>` : `<span class="muted" style="font-size:14px">The request button appears once you've reached this goal and aced the quiz.</span>`}`}</div>`;
-    return `<div class="card lvl locked"><span class="num">${l.level}</span><span class="muted">${esc(l.teaser)}</span></div>`;
-  };
-  app.innerHTML = `<div class="homegrid"><div class="homemain">
-    <h2 style="font-size:20px;margin:8px 0 0">Your levels</h2>
-    ${me.role === "admin" ? `<p class="muted">Admins see every level.</p>` : (ladder || []).map(card).join("")}
-    ${me.role !== "admin" ? `<div class="card lvl" id="refcard" style="margin-top:20px"><b>Know someone who'd be good at this?</b>
-      <p style="margin:6px 0">Introduce them and earn $250 when they enroll. Share your link:</p>
-      <div class="row"><input id="reflink" readonly value="${esc(refLink)}" style="flex:1"><button class="btn ghost sm" id="copyref">Copy link</button></div></div>` : ""}</div>
-    ${me.role !== "admin" ? `<aside class="homeside" id="homeside" aria-label="Your stats"></aside>` : ""}</div>`;
-  if ($("#copyref")) $("#copyref").onclick = () => { $("#reflink").select(); navigator.clipboard?.writeText($("#reflink").value).catch(() => {}); $("#copyref").textContent = "Copied"; };
-  if ($("#askup")) $("#askup").onclick = () => requestForm(L + 1);
-  if (me.role !== "admin") await homeExtras(cs, { L, aced, ready, pending, passes });
-  if ($("#toquiz")) $("#toquiz").onclick = (e) => { e.preventDefault(); learnQuiz = "l" + L; view = "learn"; boot(); };
-}
-
-function requestForm(to) {
-  dlg.innerHTML = `<form id="rf"><h3 style="margin-top:0">Request level ${to}</h3>
-    <p class="muted" style="font-size:14px;margin-top:0">Show what you did to reach this level's goal. Screenshots, photos or PDFs work (10 MB each).</p>
-    <label>What did you do?</label><textarea name="note" rows="4"></textarea>
-    <label>Proof files</label><input name="files" type="file" multiple accept="image/*,.pdf">
-    <div class="err" id="rerr"></div>
-    <div class="row" style="margin-top:12px;justify-content:flex-end"><button type="button" class="btn ghost" id="cx">Cancel</button><button class="btn" id="rsend">Send for review</button></div></form>`;
-  dlg.showModal();
-  $("#cx").onclick = () => dlg.close();
-  $("#rf").onsubmit = async (e) => {
-    e.preventDefault();
-    $("#rsend").disabled = true;
-    const note = new FormData(e.target).get("note");
-    const paths = [];
-    for (const f of e.target.files.files) {
-      const path = `${me.id}/${Date.now()}-${f.name.replace(/[^\w.-]+/g, "_")}`;
-      const { error } = await sb.storage.from("proof").upload(path, f);
-      if (error) { $("#rsend").disabled = false; return ($("#rerr").textContent = `Couldn't upload ${f.name}: ${error.message}`); }
-      paths.push(path);
-    }
-    const { error } = await sb.rpc("request_level_up", { p_note: note, p_files: paths });
-    if (error) { $("#rsend").disabled = false; return ($("#rerr").textContent = error.message); }
-    dlg.close(); boot();
-  };
-}
-
-// ---------- reviewers: level-up approvals ----------
-async function approvals() {
-  const { data: q, error } = await sb.rpc("review_queue");
-  const rows = q || [];
-  const links = await Promise.all(rows.map((r) => Promise.all((r.files || []).map((f) =>
-    sb.storage.from("proof").createSignedUrl(f, 3600).then(({ data }) => `<a href="${esc(data?.signedUrl || "#")}" target="_blank" rel="noopener">${esc(f.split("/").pop().replace(/^\d+-/, ""))}</a>`))))) ;
-  app.innerHTML = `<h2 style="font-size:18px;margin-top:0">Level-up requests</h2>
-    <div class="err" id="aperr"></div>
-    ${error ? `<p class="err">${esc(error.message)}</p>` : ""}
-    <div class="card tablewrap"><table><thead><tr><th>Farmer</th><th>Asking for</th><th>Their proof</th><th></th></tr></thead><tbody>
-    ${rows.map((r, i) => `<tr><td><b>${esc(r.full_name)}</b><br><small class="muted">${esc(r.email)}</small><br><small class="muted">${new Date(r.created_at).toLocaleDateString()}</small></td>
-      <td>Level ${r.to_level}</td><td>${esc(r.note)}${links[i].length ? "<br>" + links[i].join("<br>") : ""}</td>
-      <td style="white-space:nowrap"><button class="btn sm" data-ok="${r.id}">Approve</button> <button class="btn ghost sm" data-no="${r.id}">Send back</button></td></tr>`).join("")
-      || `<tr><td colspan="4" class="muted">No requests waiting.</td></tr>`}
-    </tbody></table></div>`;
-  const act = async (id, ok) => {
-    const note = ok ? null : prompt("What should they fix or add? (they'll see this)");
-    if (!ok && note === null) return;
-    const { error } = await sb.rpc("review_level_request", { p_id: id, p_approve: ok, p_note: note });
-    if (error) return ($("#aperr").textContent = error.message);
-    boot();
-  };
-  const { data: qs } = await sb.rpc("question_queue");
-  app.insertAdjacentHTML("beforeend", `<h2 style="font-size:18px;margin-top:28px">Questions from farmers</h2>
-    <p class="muted" style="font-size:14px;margin-top:-6px">Farmers can only ask after acing that level's quiz.</p>
-    ${(qs || []).map((t) => `<div class="card" style="margin-bottom:10px"><b>${esc(t.full_name)}</b> <span class="tag">${esc(t.quiz === "rec" ? "Recruiting" : "Level " + t.quiz.slice(1))}</span>
-      <small class="muted">${new Date(t.created_at).toLocaleDateString()}</small><p style="white-space:pre-wrap">${esc(t.body)}</p>
-      <textarea rows="3" data-ansbox="${t.id}" placeholder="Your answer (they'll see it in Learn)"></textarea>
-      <div class="row" style="justify-content:flex-end;margin-top:8px"><button class="btn sm" data-ans="${t.id}">Send answer</button></div></div>`).join("")
-      || `<div class="card muted">No questions waiting.</div>`}`);
-  app.querySelectorAll("[data-ans]").forEach((b) => b.onclick = async () => {
-    const { error } = await sb.rpc("answer_question", { p_id: b.dataset.ans, p_answer: app.querySelector(`[data-ansbox="${b.dataset.ans}"]`).value });
-    if (error) return ($("#aperr").textContent = error.message);
-    boot();
-  });
-  app.querySelectorAll("[data-ok]").forEach((b) => b.onclick = () => act(b.dataset.ok, true));
-  app.querySelectorAll("[data-no]").forEach((b) => b.onclick = () => act(b.dataset.no, false));
-  await programReviews();
-}
-
-// ---------- farmer: the 90-day refund program ----------
-const DAY = 864e5;
-const onDay = (t0, n) => new Date(new Date(t0).getTime() + n * DAY).toLocaleDateString();
-const csvOf = (rows) => {
-  const cols = [...new Set(rows.flatMap((r) => Object.keys(r)))];
-  const cell = (v) => { const s = v == null ? "" : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
-  return [cols.join(","), ...rows.map((r) => cols.map((c) => cell(r[c])).join(","))].join("\n");
-};
-const download = (name, text) => {
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob([text], { type: "text/csv" })); a.download = name; a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-};
-// CRM records as CSV files, straight from the database (the reviewer checks the package against these)
-const evidenceButtons = (key) => ["contractors", "calls", "comments", "leads", "upsells"]
-  .map((k) => `<button class="btn ghost sm" data-ev="${k}" data-evf="${key}">${k[0].toUpperCase() + k.slice(1)} CSV</button>`).join(" ");
-const wireEvidence = (farmer, who) => app.querySelectorAll(`[data-evf="${farmer || "me"}"]`).forEach((b) => b.onclick = async () => {
-  const { data, error } = await sb.rpc("refund_evidence", farmer ? { p_farmer: farmer } : {});
-  if (error) return alert(error.message);
-  download(`${who}-${b.dataset.ev}.csv`.replace(/[^\w.-]+/g, "_"), csvOf(data[b.dataset.ev] || []));
-});
-const progressTable = (pr) => `<div class="tablewrap"><table><thead><tr><th>Step</th><th>Goal</th><th>Due</th><th>Where you are</th><th></th></tr></thead><tbody>
-  ${pr.steps.map((s) => `<tr data-step="${s.n}"><td><b>${s.n}. ${esc(s.name)}</b></td><td>${esc(s.quota)}</td>
-    <td style="white-space:nowrap">Day ${s.deadline}<br><small class="muted">${onDay(pr.paid_at, s.deadline)}</small></td>
-    <td>${esc(s.progress)}</td><td>${s.met ? `<span class="tag">Met</span>` : pr.day > s.deadline ? `<span class="tag warn">Missed</span>` : `<span class="muted">Open</span>`}</td></tr>`).join("")}
-  ${pr.rules.map((r) => `<tr><td colspan="3"><b>${esc(r.name)}</b></td><td>${esc(r.progress)}</td><td>${r.met ? `<span class="tag">Met</span>` : `<span class="muted">Open</span>`}</td></tr>`).join("")}
-  </tbody></table></div>`;
-
-async function program() {
-  const [{ data: pr, error }, { data: reqs }] = await Promise.all([
-    sb.rpc("refund_progress"),
-    sb.from("refund_requests").select("*").eq("farmer_id", me.id).order("created_at", { ascending: false }),
-  ]);
-  if (error) return (app.innerHTML = `<div class="card err">${esc(error.message)}</div>`);
-  if (!pr?.enrolled) return (app.innerHTML = `<div class="card muted">Your 90 days start the day your enrollment is paid.</div>`);
-  const last = (reqs || [])[0], s0 = pr.steps[0], open = last && last.status !== "denied";
-  const day = Math.min(pr.day, 90), late = new Date() > new Date(pr.submit_by);
-  const packageCard = () => {
-    if (last?.status === "approved") return `<p><span class="tag">Approved</span> Your refund was approved ${new Date(last.reviewed_at).toLocaleDateString()}. It goes back to the card you paid with.</p>`;
-    if (last?.status === "pending") return `<p><span class="tag">Sent ${new Date(last.created_at).toLocaleDateString()}</span> Alex or a verifier is checking it and may call a few of your contractors or customers.</p>`;
-    const denied = last?.status === "denied" ? `<p class="err">Your last package was turned down${last.review_note ? ": " + esc(last.review_note) : ""}.</p>` : "";
-    if (late) return denied + `<p class="muted">The refund window closed on day 97 (${new Date(pr.submit_by).toLocaleDateString()}).</p>`;
-    if (!pr.all_met) return denied + `<p class="muted">The button opens once every goal and rule above says Met. You have until ${new Date(pr.submit_by).toLocaleDateString()} (day 97) to send it.</p>`;
-    return denied + `<form id="pkf"><p style="margin:6px 0">Every goal is met. Attach your proof: call-history screenshots, signed agreements or 20% texts, weekly comment screenshots, handoff texts, fee payments, leads sent back, pitches, and the upsell invoice. Each screenshot can prove only one thing.</p>
-      <label>Anything the reviewer should know?</label><textarea name="note" rows="3"></textarea>
-      <label>Evidence files</label><input name="files" type="file" multiple accept="image/*,.pdf">
-      <div class="err" id="pkerr"></div>
-      <div class="row" style="justify-content:flex-end"><button class="btn" id="pksend">Submit refund package</button></div></form>`;
-  };
-  app.innerHTML = `<div style="max-width:980px">
-    <div class="card" style="margin-bottom:12px"><div class="row"><h2 style="font-size:20px;margin:0;margin-right:auto">Day ${day} of 90</h2>
-      <span class="muted">Started ${new Date(pr.paid_at).toLocaleDateString()} · refund package due by ${new Date(pr.submit_by).toLocaleDateString()}</span></div>
-      <div class="bar"><i style="width:${(day / 90) * 100}%"></i></div>
-      <p style="margin:10px 0 0;font-size:14px">Hit every goal below by its day and you can send one package for your $500 back. Only what you log here on the day you do it counts, so log each contractor, call and lead as it happens. Bringing in friends is not part of it.</p></div>
-    ${s0.progress !== "Approved" ? `<div class="card" id="nichecard" style="margin-bottom:12px"><b>Step 0: your 15 business models</b>
-      ${s0.progress === "Waiting for review" ? `<p class="muted" style="margin:6px 0 0">Sent. Waiting for Alex or a verifier to approve it.</p>`
-      : `<p style="margin:6px 0">List 15 different, non-overlapping business models in your niche, one per line. Due day 3 (${onDay(pr.paid_at, 3)}).</p>
-        ${pr.niche_note ? `<p class="err">Sent back: ${esc(pr.niche_note)}</p>` : ""}
-        <textarea id="niche" rows="8" placeholder="Kitchen remodels&#10;Roof repair&#10;…">${esc(pr.niche || "")}</textarea><div class="err" id="nerr"></div>
-        <div class="row" style="justify-content:flex-end"><button class="btn" id="nsend">Send my 15</button></div>`}</div>` : ""}
-    <div class="card row" id="comcard" style="margin-bottom:12px"><span style="margin-right:auto"><b>Neighbor comments today: ${pr.comments_today}</b> / 50
-      <br><small class="muted">50 a day on 5 days of every week, from day 7 to day 90. Log them the same day.</small></span>
-      <input id="comn" type="number" min="1" max="1000" placeholder="How many" style="width:120px"><button class="btn" id="comadd">Log comments</button>
-      <div class="err" id="comerr" style="width:100%"></div></div>
-    <div class="card" style="margin-bottom:12px">${progressTable(pr)}</div>
-    <div class="card" id="pkcard"><b>Refund package</b>${packageCard()}
-      <p class="muted" style="font-size:13px;margin:10px 0 6px">Your CRM records, as the reviewer will see them:</p><div class="row">${evidenceButtons("me")}</div>
-      <p class="muted" style="font-size:13px;margin:10px 0 0">One fake or edited item voids the refund for good.</p></div></div>`;
-  wireEvidence(null, "my");
-  if ($("#nsend")) $("#nsend").onclick = async () => {
-    const { error } = await sb.rpc("submit_niche", { p_list: $("#niche").value });
-    if (error) return ($("#nerr").textContent = error.message);
-    program();
-  };
-  $("#comadd").onclick = async () => {
-    const n = +$("#comn").value;
-    if (!(n >= 1)) return ($("#comerr").textContent = "Enter how many comments you posted today.");
-    const { error } = await sb.from("activities").insert({ farmer_id: me.id, kind: "comments", count: n });
-    if (error) return ($("#comerr").textContent = error.message);
-    program();
-  };
-  if ($("#pkf")) $("#pkf").onsubmit = async (e) => {
-    e.preventDefault();
-    $("#pksend").disabled = true;
-    const paths = [];
-    for (const f of e.target.files.files) {
-      const path = `${me.id}/refund-${Date.now()}-${f.name.replace(/[^\w.-]+/g, "_")}`;
-      const { error } = await sb.storage.from("proof").upload(path, f);
-      if (error) { $("#pksend").disabled = false; return ($("#pkerr").textContent = `Couldn't upload ${f.name}: ${error.message}`); }
-      paths.push(path);
-    }
-    const { error } = await sb.rpc("submit_refund_package", { p_note: new FormData(e.target).get("note"), p_files: paths });
-    if (error) { $("#pksend").disabled = false; return ($("#pkerr").textContent = error.message); }
-    program();
-  };
-}
-
-// Calls logged on a contractor (opened from the contractor dialog)
-async function callLog(c) {
-  const box = $("#calls");
-  if (!box) return;
-  const { data: calls } = await sb.from("activities").select("*").eq("contractor_id", c.id).eq("kind", "call").order("created_at", { ascending: false });
-  box.innerHTML = `<h4 style="margin:16px 0 4px">Calls</h4>
-    ${(calls || []).map((a) => `<div class="row" style="font-size:14px;gap:8px"><span class="muted">${new Date(a.created_at).toLocaleString()}</span><span>${esc(a.outcome || "")}</span>
-      ${a.outcome === "agreed" ? (a.text_sent ? `<span class="tag">20% text sent</span>` : `<button type="button" class="btn ghost sm" data-txt="${a.id}">I sent the 20% text</button>`) : ""}</div>`).join("")
-      || `<p class="muted" style="font-size:14px;margin:0">No calls logged yet.</p>`}
-    <div class="row" style="margin-top:8px"><select id="cout" style="width:auto">${["no answer", "call back", "not interested", "agreed"].map((o) => `<option>${o}</option>`).join("")}</select>
-      <label style="margin:0;display:flex;gap:6px;align-items:center"><input type="checkbox" id="ctxt" style="width:auto"> Sent the 20% text</label>
-      <button type="button" class="btn sm" id="clog">Log a call</button></div><div class="err" id="callerr"></div>`;
-  box.querySelectorAll("[data-txt]").forEach((b) => b.onclick = async () => {
-    const { error } = await sb.from("activities").update({ text_sent: true }).eq("id", b.dataset.txt);
-    if (error) return ($("#callerr").textContent = error.message);
-    callLog(c);
-  });
-  $("#clog").onclick = async () => {
-    const outcome = $("#cout").value;
-    const { error } = await sb.from("activities").insert({ farmer_id: me.id, contractor_id: c.id, kind: "call", outcome, text_sent: $("#ctxt").checked });
-    if (error) return ($("#callerr").textContent = error.message);
-    // a call moves the contractor to Outreach Made; a yes moves them to Terms Agreed
-    const target = outcome === "agreed" ? 3 : 2;
-    if (c.stage < target) { await sb.from("contractors").update({ stage: target }).eq("id", c.id); c.stage = target; }
-    callLog(c);
-  };
-}
-
-// ---------- farmer: upsells (level 3) ----------
-async function upsells() {
-  const cs = await myContractors();
-  let q = sb.from("upsells").select("*").order("created_at", { ascending: false });
-  if (me.role !== "admin") q = q.eq("farmer_id", me.id);
-  const us = (await q).data || [];
-  const cname = (id) => cs.find((c) => c.id === id)?.business_name || "—";
-  app.innerHTML = `<div class="row" style="margin-bottom:12px"><h2 style="margin:0;margin-right:auto;font-size:18px">Upsells</h2>
-      <button class="btn" id="add">Log a pitch</button></div>
-    <div class="card tablewrap"><table><thead><tr><th>Date</th><th>Contractor</th><th>Product</th><th>Status</th><th>Amount</th></tr></thead><tbody>
-    ${us.map((u) => `<tr data-id="${u.id}" style="cursor:pointer"><td>${new Date(u.created_at).toLocaleDateString()}</td><td>${esc(cname(u.contractor_id))}</td>
-      <td>${esc(u.product)}</td><td><span class="tag">${esc(u.status)}</span></td><td>${u.amount != null ? money(u.amount) : ""}</td></tr>`).join("")
-      || `<tr><td colspan="5" class="muted">No pitches yet.</td></tr>`}</tbody></table></div>`;
-  $("#add").onclick = () => upsellForm({}, cs);
-  app.querySelectorAll("tr[data-id]").forEach((el) => el.onclick = () => upsellForm(us.find((u) => u.id === el.dataset.id), cs));
-}
-
-function upsellForm(u = {}, cs) {
-  dlg.innerHTML = `<form id="uf"><h3 style="margin-top:0">${u.id ? "Edit pitch" : "Log a pitch"}</h3>
-    <label>Contractor</label><select name="contractor_id" required>${cs.map((c) => `<option value="${c.id}" ${c.id === u.contractor_id ? "selected" : ""}>${esc(c.business_name)} (${esc(tradeName(c.trade_id))})</option>`).join("")}</select>
-    <label>What you pitched</label><select name="product">${["AI tools", "Website refresh", "Marketing", "Other"].map((o) => `<option ${o === u.product ? "selected" : ""}>${o}</option>`).join("")}</select>
-    <div class="grid2"><div><label>Status</label><select name="status">${["pitched", "closed", "lost"].map((o) => `<option ${o === (u.status || "pitched") ? "selected" : ""}>${o}</option>`).join("")}</select></div>
-      <div><label>Amount ($)</label><input name="amount" type="number" step="0.01" value="${u.amount ?? ""}"></div></div>
-    <div class="err" id="uerr"></div>
-    <div class="row" style="margin-top:12px;justify-content:flex-end"><button type="button" class="btn ghost" id="cx">Cancel</button><button class="btn">Save</button></div></form>`;
-  dlg.showModal();
-  $("#cx").onclick = () => dlg.close();
-  $("#uf").onsubmit = async (e) => {
-    e.preventDefault();
-    const f = Object.fromEntries(new FormData(e.target));
-    const row = { ...f, amount: f.amount === "" ? null : +f.amount };
-    const { error } = u.id ? await sb.from("upsells").update(row).eq("id", u.id) : await sb.from("upsells").insert({ ...row, farmer_id: me.id });
-    if (error) return ($("#uerr").textContent = error.message);
-    const con = cs.find((c) => c.id === row.contractor_id), target = row.status === "closed" ? 9 : 8;
-    if (con && con.stage >= 7 && con.stage < target) await sb.from("contractors").update({ stage: target }).eq("id", con.id);
-    dlg.close(); boot();
-  };
-}
-
-// ---------- reviewers: 15-model lists and refund packages ----------
-async function programReviews() {
-  const [{ data: nq }, { data: rq }] = await Promise.all([sb.rpc("niche_queue"), sb.rpc("refund_queue")]);
-  const files = await Promise.all((rq || []).map((r) => Promise.all((r.files || []).map((f) =>
-    sb.storage.from("proof").createSignedUrl(f, 3600).then(({ data }) => `<a href="${esc(data?.signedUrl || "#")}" target="_blank" rel="noopener">${esc(f.split("/").pop().replace(/^refund-\d+-/, ""))}</a>`)))));
-  app.insertAdjacentHTML("beforeend", `<h2 style="font-size:18px;margin-top:28px">15 business models</h2>
-    ${(nq || []).map((n) => `<div class="card" style="margin-bottom:10px"><b>${esc(n.full_name)}</b> <small class="muted">${esc(n.email)} · sent ${new Date(n.niche_submitted_at).toLocaleDateString()}</small>
-      <ol style="margin:8px 0">${n.niche.split("\n").filter((x) => x.trim()).map((x) => `<li>${esc(x)}</li>`).join("")}</ol>
-      <div class="row" style="justify-content:flex-end"><button class="btn sm" data-nok="${n.id}">Approve</button> <button class="btn ghost sm" data-nno="${n.id}">Send back</button></div></div>`).join("")
-      || `<div class="card muted">No lists waiting.</div>`}
-    <h2 style="font-size:18px;margin-top:28px">Refund packages</h2>
-    ${(rq || []).map((r, i) => `<div class="card" style="margin-bottom:10px" id="pk-${r.id}"><b>${esc(r.full_name)}</b> <small class="muted">${esc(r.email)} · sent ${new Date(r.created_at).toLocaleDateString()}</small>
-      ${r.note ? `<p style="white-space:pre-wrap">${esc(r.note)}</p>` : ""}
-      ${progressTable(r.progress)}
-      <p style="margin:10px 0 4px"><b>Their files</b><br>${files[i].join("<br>") || `<span class="muted">none</span>`}</p>
-      <p style="margin:10px 0 4px"><b>Their CRM records</b> <small class="muted">Spot-check any contractor or customer. One fake item voids the refund.</small></p>
-      <div class="row">${evidenceButtons(r.farmer_id)}</div>
-      <div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn sm" data-rok="${r.id}">Approve refund</button> <button class="btn ghost sm" data-rno="${r.id}">Deny</button></div></div>`).join("")
-      || `<div class="card muted">No refund packages waiting.</div>`}`);
-  (rq || []).forEach((r) => wireEvidence(r.farmer_id, r.full_name || r.email));
-  const err = (e) => ($("#aperr").textContent = e.message);
-  app.querySelectorAll("[data-nok],[data-nno]").forEach((b) => b.onclick = async () => {
-    const ok = !!b.dataset.nok, note = ok ? null : prompt("What should they change? (they'll see this)");
-    if (!ok && note === null) return;
-    const { error } = await sb.rpc("review_niche", { p_farmer: b.dataset.nok || b.dataset.nno, p_approve: ok, p_note: note });
-    if (error) return err(error);
-    boot();
-  });
-  app.querySelectorAll("[data-rok],[data-rno]").forEach((b) => b.onclick = async () => {
-    const ok = !!b.dataset.rok;
-    const note = ok ? (confirm("Approve this refund? You'll then refund the $500 in Stripe yourself.") ? "" : null) : prompt("Why is it denied? (they'll see this)");
-    if (note === null) return;
-    const { error } = await sb.rpc("review_refund", { p_id: b.dataset.rok || b.dataset.rno, p_approve: ok, p_note: note });
-    if (error) return err(error);
-    if (!ok) return boot();
-    const card = $("#pk-" + b.dataset.rok);
-    card.innerHTML = `<b>Refund approved.</b> <p style="margin:6px 0 0">Now send the $500 back in Stripe: open <a href="https://dashboard.stripe.com/payments" target="_blank" rel="noopener">your Stripe payments</a>, search their email, open the payment and click Refund.</p>`;
-  });
-}
-
-// ---------- farmer: Home extras (alerts, Today list, referrals) ----------
-const ago = (t) => (Date.now() - new Date(t).getTime()) / DAY;
-const payoutLabel = (r) => r.status === "pending" ? "Waiting on their $500" : r.status === "owed" ? "$250 owed to you"
-  : r.status === "void" ? "Cancelled (they were refunded)"
-  : r.clawback_at ? (r.clawback_settled_at ? "Clawed back" : "Being clawed back (they were refunded)") : "$250 paid";
-
-// Follow-ups worked out from the farmer's own records; each opens the thing to do
-async function todayList(cs) {
-  const mine = cs.filter((c) => c.farmer_id === me.id);
-  const [{ data: calls }, { data: ls }, { data: pr }] = await Promise.all([
-    sb.from("activities").select("*").eq("farmer_id", me.id).eq("kind", "call"),
-    lvl() >= 2 ? sb.from("leads").select("*").eq("farmer_id", me.id) : Promise.resolve({ data: [] }),
-    sb.rpc("refund_progress"),
-  ]);
-  const byC = {};
-  for (const a of calls || []) (byC[a.contractor_id] ||= []).push(a);
-  for (const k in byC) byC[k].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-  const items = [];
-  for (const c of mine) {
-    const cl = byC[c.id] || [], lastCall = cl[0];
-    if (lastCall?.outcome === "call back" && ago(lastCall.created_at) >= 2) items.push({ c, text: `Call ${c.business_name} back. They asked you to on ${new Date(lastCall.created_at).toLocaleDateString()}.` });
-    else if (cl.some((a) => a.outcome === "agreed") && !cl.some((a) => a.text_sent)) items.push({ c, text: `Send ${c.business_name} the 20% text. They said yes.` });
-    else if (c.stage === 2 && ago(lastCall?.created_at || c.updated_at) >= 3) items.push({ c, text: `Follow up with ${c.business_name}. No call logged in 3 days.` });
-  }
-  const cname = (id) => cs.find((c) => c.id === id)?.business_name || "the contractor";
-  for (const l of ls || []) {
-    if (l.direction === "outbound" && ["new", "sent"].includes(l.status) && ago(l.created_at) >= 7) items.push({ l, text: `Check on the lead you sent ${cname(l.contractor_id)}${l.customer_name ? ` for ${l.customer_name}` : ""}. Did it close?` });
-    if (l.status === "closed" && !l.fee_paid && ago(l.closed_at || l.created_at) >= 14) items.push({ l, text: `Collect your ${money(l.fee_amount)} fee from ${cname(l.contractor_id)}. The job closed over 2 weeks ago.` });
-  }
-  if (pr?.enrolled && pr.day >= 7 && pr.day <= 90 && pr.comments_today < 50) items.push({ go: "program", text: `Post your neighbor comments. ${pr.comments_today} of 50 logged today.` });
-  for (const s of pr?.steps || []) if (!s.met && s.deadline - pr.day >= 0 && s.deadline - pr.day <= 3)
-    items.push({ go: "program", text: `${s.name} is due ${s.deadline === pr.day ? "today" : "in " + (s.deadline - pr.day) + " day" + (s.deadline - pr.day > 1 ? "s" : "")}: ${s.progress}.` });
-  return { items, ls: ls || [], pr };
-}
-
-// One greeting per visit, in turn, from the lines Alex keeps in the Welcome tab
-const greetingFrom = (lines) => {
-  if (!lines?.length) return `Welcome back, ${firstName()}.`;
-  const key = "lf-greet-" + me.id;
-  let i = 0;
-  try { i = (+(localStorage.getItem(key) ?? -1) + 1) % lines.length; localStorage.setItem(key, i); } catch { i = Math.floor(Math.random() * lines.length); }
-  return lines[i].body.replaceAll("{name}", firstName());
-};
-const firstName = () => (me.full_name || "").trim().split(/\s+/)[0] || "farmer";
-
-// What to do right now, in order of what unblocks the most
-function nextStep({ L, aced, ready, pending }, pr, items) {
-  const s0 = pr?.enrolled && pr.steps[0];
-  if (s0 && !s0.met && pr.day <= 3 && !["Approved", "Waiting for review"].includes(s0.progress))
-    return { text: "Send in your 15 business models. They're due on day 3.", go: "program", btn: "Open 90 days" };
-  if (L < 3 && !aced) return { text: `Go through your Level ${L} lessons and ace the quiz. It shows you exactly what to do next.`, go: "learn", btn: "Open lessons" };
-  if (L < 3 && ready && !pending) return { text: `You've reached the Level ${L + 1} goal. Send your proof and ask to move up.`, go: "next", btn: "Request it" };
-  if (pending) return { text: `Your Level ${L + 1} request is with Alex. Keep logging your work while you wait.`, go: items[0] ? "todo" : "program", btn: items[0] ? "Start" : "Open 90 days" };
-  const open = pr?.enrolled && pr.steps.find((x) => !x.met && x.deadline >= pr.day);
-  if (items[0]) return { text: items[0].text, go: "todo", btn: "Do it" };
-  if (open) return { text: `Keep working on step ${open.n}, ${open.name}: ${open.quota}. You're at ${open.progress}.`, go: "program", btn: "Open 90 days" };
-  return { text: "Log today's calls and comments so your streak stays alive.", go: "program", btn: "Open 90 days" };
-}
-
-async function homeExtras(cs, ctx) {
-  const [{ items, ls, pr }, { data: notes }, { data: refs }, { data: lines }] = await Promise.all([
-    todayList(cs),
-    sb.from("notifications").select("*").eq("farmer_id", me.id).order("created_at", { ascending: false }),
-    sb.rpc("my_referrals"),
-    sb.from("welcome_lines").select("*").order("id"),
-  ]);
-  const unread = (notes || []).filter((n) => !n.read_at);
-  const missed = pr?.enrolled ? pr.steps.filter((x) => !x.met && x.deadline < pr.day) : [];
-  const soon = pr?.enrolled ? pr.steps.filter((x) => !x.met && x.deadline >= pr.day && x.deadline - pr.day <= 7) : [];
-  const nx = nextStep(ctx, pr, items);
-  const behind = [...missed.map((x) => `Step ${x.n}, ${x.name}, was due on day ${x.deadline} and wasn't met (${x.progress}).`),
-    ...soon.map((x) => `Step ${x.n}, ${x.name}, is due ${x.deadline === pr.day ? "today" : "in " + (x.deadline - pr.day) + " day" + (x.deadline - pr.day > 1 ? "s" : "")}. You're at ${x.progress}.`)];
-  const greeting = greetingFrom(lines);
-  const summary = [greeting,
-    unread.length ? `You have ${unread.length} new alert${unread.length > 1 ? "s" : ""}. ${unread.map((n) => n.body).join(" ")}` : "No new alerts.",
-    behind.length ? behind.join(" ") : pr?.enrolled ? `You're on day ${Math.min(pr.day, 90)} of 90 and nothing is overdue.` : "",
-    `Your next step: ${nx.text}`].filter(Boolean).join(" ");
-  const STEP_SHORT = ["Niche", "Identified", "Outreach", "Terms", "First lead", "Closed", "Reciprocal", "Anchors", "Pitched", "Upsell"];
-  let trail = "";
-  if (pr?.enrolled) {
-    const cur = (pr.steps.find((x) => !x.met && x.deadline >= pr.day) || pr.steps.find((x) => !x.met))?.n;
-    const check = `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>`;
-    const lock = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>`;
-    const nodes = pr.steps.map((x) => {
-      const st = x.met ? "done" : x.n === cur ? "now" : x.deadline < pr.day ? "miss" : "";
-      const inner = st === "done" ? check : st === "now" ? `<b style="color:#fff;font-size:24px">${x.n}</b>` : st === "miss" ? `<b style="color:#8A3B12;font-size:20px">${x.n}</b>` : lock;
-      return `<div class="node ${st}" title="${esc(x.name)}: ${esc(x.progress)}"><span class="dot">${inner}</span>${esc(STEP_SHORT[x.n] || x.name)}</div>`;
-    }).join("");
-    const cs0 = pr.steps.find((x) => x.n === cur), m = cs0 && /(\d+) of (\d+)/.exec(cs0.progress);
-    trail = `<section class="card" id="trail" aria-label="Your 90-day trail"><div class="row" style="justify-content:space-between">
-      <h2 style="margin:0;font-size:20px">Your 90-day trail</h2>${cs0 ? `<span class="muted" style="font-weight:800">Step ${cs0.n} of 9 · ${esc(cs0.name)}</span>` : `<span class="tag">Every step met</span>`}</div>
-      <div class="trail">${nodes}</div>
-      ${cs0 ? `<div class="nowbar"><div style="flex:1"><b>${esc(cs0.quota)}</b> <span class="muted">by day ${cs0.deadline}</span>
-        ${m ? `<div class="bar" style="margin-top:8px"><i style="width:${Math.min(100, (+m[1] / +m[2]) * 100)}%"></i></div>` : ""}</div>
-        <b style="color:var(--accent);white-space:nowrap">${esc(m ? m[1] + " / " + m[2] : cs0.progress)}</b></div>` : ""}</section>`;
-  }
-  const MASCOT = `<svg class="mascot" viewBox="0 0 96 110" aria-hidden="true"><ellipse cx="48" cy="104" rx="30" ry="5" fill="var(--line)"/><path d="M22 70c0-20 11-34 26-34s26 14 26 34v18c0 8-6 14-14 14H36c-8 0-14-6-14-14z" fill="#F5B700"/><path d="M22 76c8 4 44 4 52 0v12c0 8-6 14-14 14H36c-8 0-14-6-14-14z" fill="#E0A100"/><circle cx="38" cy="62" r="7" fill="#fff"/><circle cx="58" cy="62" r="7" fill="#fff"/><circle cx="39.5" cy="63" r="3.4" fill="#2B3A2E"/><circle cx="59.5" cy="63" r="3.4" fill="#2B3A2E"/><path d="M42 74c3 3 9 3 12 0" stroke="#8B5E3C" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M18 40c4-9 18-14 30-14s26 5 30 14c-10 3-50 3-60 0z" fill="#C98B4D"/><path d="M30 30c2-12 10-18 18-18s16 6 18 18c-10 2-26 2-36 0z" fill="#D9A066"/><path d="M48 12V4" stroke="#3E8E22" stroke-width="3" stroke-linecap="round"/><path d="M48 7c-5 0-7-3-7-6 4 0 7 2 7 6z" fill="#5BB82E"/></svg>`;
-  const SPEAKER = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10v4h4l5 4V6L8 10z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8.5 8.5 0 0 1 0 12"/></svg>`;
-  $(".homemain").insertAdjacentHTML("afterbegin", `
-    <section class="welcome" id="welcome" aria-label="Welcome">${MASCOT}<div class="bubble">
-      <p id="greeting">${esc(greeting)}</p>
-      ${"speechSynthesis" in window ? `<button class="btn ghost sm" id="readout" style="margin-top:10px;display:inline-flex;align-items:center;gap:6px;color:var(--sky3)">${SPEAKER}Read it to me</button>` : ""}</div></section>
-    <section class="nextcard" aria-label="Your next step"><span style="flex:1 1 260px"><small>Your next step</small><b id="nexttext">${esc(nx.text)}</b></span>
-      <button class="btn" id="nextgo">${esc(nx.btn)}</button></section>
-    ${behind.length ? `<div class="behind"><b>${missed.length ? "You're behind" : "Coming up"}</b><ul class="todo">${behind.map((b) => `<li>${esc(b)}</li>`).join("")}</ul></div>` : ""}
-    ${unread.map((n) => `<div class="card lvl alert" style="border-color:var(--warn)"><div class="row"><span style="flex:1">${esc(n.body)}</span>
-      <button class="btn ghost sm" data-seen="${n.id}">Got it</button></div></div>`).join("")}
-    ${trail}
-    <div class="card lvl" id="today"><h2 style="margin:0;font-size:20px">Today</h2>${items.length
-      ? `<ul class="todo">${items.map((x, i) => `<li><button class="linkbtn" data-todo="${i}">${esc(x.text)}</button></li>`).join("")}</ul>`
-      : `<p class="muted" style="margin:6px 0 0">You're caught up. Nothing needs a follow-up right now.</p>`}</div>`);
-  // stats column: streak, money, level, the 90-day ring, this week, quizzes, referrals
-  const { data: acts } = await sb.from("activities").select("created_at").eq("farmer_id", me.id);
-  const dayKey = (t) => { const d = new Date(t); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; };
-  const active = new Set([...(acts || []), ...cs.filter((c) => c.farmer_id === me.id), ...ls].map((x) => dayKey(x.created_at)));
-  let streak = 0;
-  for (let d = new Date(), k = 0; k < 400; k++, d.setDate(d.getDate() - 1)) {
-    if (active.has(dayKey(d))) streak++; else if (k > 0) break;
-  }
-  const week = [...Array(7)].map((_, k) => { const d = new Date(); d.setDate(d.getDate() - 6 + k); return { on: active.has(dayKey(d)), today: k === 6, l: d.toLocaleDateString(undefined, { weekday: "narrow" }) }; });
-  const fees = ls.filter((l) => l.status === "closed" && l.fee_paid).reduce((t, l) => t + Number(l.fee_amount || 0), 0);
-  const pct = pr?.enrolled ? Math.min(100, (pr.day / 90) * 100) : 0;
-  // stat tiles and clock: shown by the non-farm templates (CSS hides them in Farm)
-  const mineN = cs.filter((c) => c.farmer_id === me.id).length;
-  const owedSum = ls.filter((l) => l.status === "closed" && !l.fee_paid).reduce((t, l) => t + Number(l.fee_amount || 0), 0);
-  const tiles = [["Fees collected", money(fees), owedSum ? money(owedSum) + " still owed" : "Nothing owed"],
-    ["Contractors", String(mineN), pr?.enrolled ? "Goal: 300" : "On your list"],
-    ["Leads", String(ls.length), "Logged so far"],
-    pr?.enrolled ? ["90 days", `Day ${Math.min(pr.day, 90)}`, missed.length ? missed.length + " missed" : soon.length ? soon.length + " due this week" : "Nothing overdue"]
-      : ["Streak", `${streak} day${streak === 1 ? "" : "s"}`, "Days in a row"]];
-  const first = (me.full_name || "").trim().split(/\s+/)[0];
-  $("#welcome").insertAdjacentHTML("beforebegin", `<section id="clock" aria-label="Today"><div><b style="font-size:22px">Good ${new Date().getHours() < 12 ? "morning" : new Date().getHours() < 18 ? "afternoon" : "evening"}${first ? ", " + esc(first) : ""}</b>
-      <div class="time" id="clocktime"></div><div class="muted">${new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}${pr?.enrolled ? ` · Day ${Math.min(pr.day, 90)} of 90` : ""}</div></div>
-      <div style="text-align:right"><b style="font-size:28px" id="clockstreak">${streak}</b><div class="muted">day streak</div></div></section>
-    <div class="tiles" id="tiles">${tiles.map(([k, v, sub]) => `<div class="tile"><small>${esc(k)}</small><b>${esc(v)}</b><span>${esc(sub)}</span></div>`).join("")}</div>`);
-  const tick = () => { const el = $("#clocktime"); if (!el) return clearInterval(clockTimer); el.textContent = new Date().toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }); };
-  clearInterval(clockTimer); clockTimer = setInterval(tick, 15000); tick();
-  $("#homeside").innerHTML = `
-    <div class="statrow"><span title="Days in a row with work logged" style="color:#D97A00"><svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c1 4 6 6 6 12a6 6 0 0 1-12 0c0-3 1.5-5 3-6 0 2 1 3 2 3 0-4-1-6 1-9z" fill="#FF9F1C"/><path d="M12 13c1 2 3 2.5 3 5a3 3 0 0 1-6 0c0-1.5.8-2.4 1.5-3 .2 1 .8 1.5 1.5 1.5 0-1.5-.5-2.3 0-3.5z" fill="#FFD166"/></svg><span id="streak">${streak}</span></span>
-      <span title="Fees collected" style="color:var(--accent)"><svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="3" fill="#5BB82E"/><circle cx="12" cy="12" r="3" fill="#E2F3D6"/></svg>${money(fees)}</span>
-      <span title="Your level" style="color:var(--sky3)"><svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.3 6.8 19.1l1-5.8L3.5 9.2l5.9-.8z" fill="#2E9BD6"/></svg>Lv ${ctx.L}</span></div>
-    ${pr?.enrolled ? `<div class="card row" style="gap:14px;flex-wrap:nowrap"><div class="ring" style="background:conic-gradient(var(--sun) 0 ${pct}%, var(--lock) ${pct}% 100%)"><div><b style="font-size:22px">${Math.min(pr.day, 90)}</b><small class="muted" style="font-weight:800">of 90</small></div></div>
-      <div><b style="font-size:17px">Day ${Math.min(pr.day, 90)} of 90</b><div class="muted" style="font-size:14px">Refund package due ${new Date(pr.submit_by).toLocaleDateString()}</div>
-      ${soon.length || missed.length ? `<div style="font-size:14px;font-weight:800;color:var(--warn);margin-top:4px">${missed.length ? missed.length + " missed" : soon.length + " due this week"}</div>` : ""}</div></div>` : ""}
-    <div class="card"><div class="row" style="justify-content:space-between"><b style="font-size:17px">This week</b><small class="muted" style="font-weight:800">5 of 7 days keeps you on track</small></div>
-      <div class="week">${week.map((w) => `<div><i class="${w.on ? "on" : w.today ? "today" : ""}"></i>${esc(w.l)}</div>`).join("")}</div></div>
-    <div class="card"><b style="font-size:17px">Quizzes</b>${[1, 2, 3].filter((n) => n <= Math.max(1, ctx.L)).map((n) => `<div class="row" style="justify-content:space-between;margin-top:8px;font-weight:800"><span>Level ${n}</span>
-      ${(ctx.passes || []).some((p) => p.quiz === "l" + n) ? `<span class="tag" style="background:#FFF1CC;color:#7A5200">Aced</span>` : `<button class="linkbtn" data-quiz="l${n}">Take it</button>`}</div>`).join("")}</div>`;
-  $("#homeside").append($("#refcard"));
-  app.querySelectorAll("[data-quiz]").forEach((b) => b.onclick = () => { learnQuiz = b.dataset.quiz; view = "learn"; boot(); });
-  if (refs?.length) $("#refcard").insertAdjacentHTML("beforeend", `<div class="tablewrap" style="margin-top:12px" id="myrefs"><table><thead><tr><th>Your referrals</th><th>Status</th></tr></thead><tbody>
-    ${refs.map((r) => `<tr><td>${esc(r.full_name)}<br><small class="muted">${new Date(r.created_at).toLocaleDateString()}</small></td><td>${esc(payoutLabel(r))}</td></tr>`).join("")}</tbody></table></div>`);
-  $("#nextgo").onclick = () => {
-    if (nx.go === "todo") return app.querySelector("[data-todo]")?.click();
-    if (nx.go === "next") return $("#askup")?.click();
-    if (nx.go === "learn") learnQuiz = "l" + ctx.L;
-    view = nx.go; boot();
-  };
-  if ($("#readout")) $("#readout").onclick = () => {
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(summary); u.rate = 1.02;
-    speechSynthesis.speak(u);
-  };
-  app.querySelectorAll("[data-seen]").forEach((b) => b.onclick = async () => {
-    await sb.from("notifications").update({ read_at: new Date().toISOString() }).eq("id", b.dataset.seen);
-    b.closest(".alert").remove();
-  });
-  app.querySelectorAll("[data-todo]").forEach((b) => b.onclick = () => {
-    const x = items[+b.dataset.todo];
-    if (x.c) contractorForm(x.c);
-    else if (x.l) leadForm(x.l, cs);
-    else { view = x.go; boot(); }
-  });
-}
-
-let clockTimer = 0;
-
-// ---------- everyone: settings (dashboard template) ----------
-function settingsView() {
-  const cur = document.documentElement.dataset.template;
-  app.innerHTML = `<div style="max-width:1000px" id="settings"><h2 style="margin:0 0 4px">Settings</h2>
-    <div class="card"><b style="font-size:17px">Dashboard look</b><p class="muted" style="margin:4px 0 0">Pick how your portal looks. Only you see your choice, and you can switch any time.</p>
-    <div class="tpls" role="group" aria-label="Dashboard look">${TEMPLATES.map(([k, name, about, c]) => `<button class="tpl" data-tpl="${k}" aria-pressed="${k === cur}">
-      <span class="pv" aria-hidden="true"><i style="width:28%;background:${c[0]}"></i><i style="flex:1;background:${c[1]};padding:10px;display:flex;flex-direction:column;gap:6px"><i style="height:14px;width:60%;border-radius:4px;background:${c[2]}"></i><i style="height:28px;border-radius:4px;background:${c[0]};opacity:.55"></i><i style="height:14px;width:80%;border-radius:4px;background:${c[2]};opacity:.6"></i></i></span>
-      <b>${esc(name)}${k === "farm" ? ` <span class="tag">Default</span>` : ""}</b><small>${esc(about)}</small></button>`).join("")}</div>
-    <div class="err" id="tplerr"></div></div></div>`;
-  app.querySelectorAll("[data-tpl]").forEach((b) => b.onclick = async () => {
-    const t = b.dataset.tpl, prev = document.documentElement.dataset.template;
-    applyTemplate(t);
-    app.querySelectorAll("[data-tpl]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
-    const { error } = await sb.from("profiles").update({ dashboard_template: t }).eq("id", me.id);
-    if (error) { applyTemplate(prev); settingsView(); return ($("#tplerr").textContent = "Couldn't save your choice: " + error.message); }
-    me.dashboard_template = t;
-  });
-}
-
-// ---------- farmer: money (fees by month, who owes you, upsells) ----------
-async function moneyView() {
-  const cs = await myContractors();
-  const [{ data: ls }, { data: us }] = await Promise.all([
-    sb.from("leads").select("*").eq("farmer_id", me.id),
-    lvl() >= 3 ? sb.from("upsells").select("*").eq("farmer_id", me.id) : Promise.resolve({ data: [] }),
-  ]);
-  const cname = (id) => cs.find((c) => c.id === id)?.business_name || "—";
-  const closed = (ls || []).filter((l) => l.status === "closed" && l.fee_amount != null);
-  const months = {};
-  for (const l of closed) {
-    const d = new Date(l.closed_at || l.created_at), k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    const m = (months[k] ||= { paid: 0, owed: 0, jobs: 0 });
-    m[l.fee_paid ? "paid" : "owed"] += Number(l.fee_amount); m.jobs++;
-  }
-  const keys = Object.keys(months).sort().reverse();
-  const top = Math.max(1, ...keys.map((k) => months[k].paid + months[k].owed));
-  const owed = closed.filter((l) => !l.fee_paid).sort((a, b) => new Date(a.closed_at || a.created_at) - new Date(b.closed_at || b.created_at));
-  const won = (us || []).filter((u) => u.status === "closed");
-  const sum = (a, f) => a.reduce((t, x) => t + Number(f(x) || 0), 0);
-  app.innerHTML = `<div style="max-width:900px">
-    <div class="stats">
-      <div class="card stat"><div class="v">${money(sum(closed.filter((l) => l.fee_paid), (l) => l.fee_amount))}</div><div class="k">Fees collected</div></div>
-      <div class="card stat"><div class="v">${money(sum(owed, (l) => l.fee_amount))}</div><div class="k">Fees still owed to you</div></div>
-      ${lvl() >= 3 ? `<div class="card stat"><div class="v">${money(sum(won, (u) => u.amount))}</div><div class="k">Upsell revenue</div></div>` : ""}
+<main>
+<section class="hero">
+  <div class="wrap">
+    <div class="hero-copy">
+      <span class="pill">I know this business works. Here's my bet.</span>
+      <h1>This business works. <span>If I'm wrong, you don't lose a cent.</span></h1>
+      <p class="lede">Your neighbors need a roofer. You know one. I'll teach you to connect homeowners with local contractors who pay you a referral fee when the job closes. Do every step for 90 days, and if your fees haven't paid back the $500, I refund the difference.</p>
+      <div class="ctas">
+        <a class="btn btn-go js-start" href="/app/?signup">START FOR $500</a>
+        <a class="btn btn-line" href="#how">SEE HOW IT WORKS</a>
+      </div>
+      <p class="fine">The refund applies when you hit every effort quota on time and prove it. <a href="#refund">Read the rules</a> before you pay.</p>
     </div>
-    <div class="card" style="margin-bottom:12px" id="bymonth"><b>Fees by month</b>
-      ${keys.length ? `<table style="margin-top:6px"><tbody>${keys.map((k) => { const m = months[k]; return `<tr><td style="white-space:nowrap">${new Date(k + "-15").toLocaleDateString(undefined, { month: "long", year: "numeric" })}</td>
-        <td style="width:50%"><div class="bar money"><i style="width:${(m.paid / top) * 100}%"></i><i class="owed" style="width:${(m.owed / top) * 100}%"></i></div></td>
-        <td style="white-space:nowrap">${money(m.paid)} collected${m.owed ? ` · ${money(m.owed)} owed` : ""}<br><small class="muted">${m.jobs} job${m.jobs > 1 ? "s" : ""}</small></td></tr>`; }).join("")}</tbody></table>`
-      : `<p class="muted" style="margin:6px 0 0">Fees show up here once a lead you sent closes.</p>`}</div>
-    <div class="card" style="margin-bottom:12px" id="owedlist"><b>Who still owes you</b>
-      ${owed.length ? `<table style="margin-top:6px"><tbody>${owed.map((l) => `<tr><td><b>${esc(cname(l.contractor_id))}</b><br><small class="muted">${esc(l.customer_name || l.job_description || "")} · closed ${new Date(l.closed_at || l.created_at).toLocaleDateString()}</small></td>
-        <td>${money(l.fee_amount)}</td><td style="text-align:right"><button class="btn sm" data-feepaid="${l.id}">Paid</button></td></tr>`).join("")}</tbody></table>`
-      : `<p class="muted" style="margin:6px 0 0">Nobody owes you right now.</p>`}<div class="err" id="moneyerr"></div></div>
-    ${lvl() >= 3 ? `<div class="card" id="upsellmoney"><b>Upsells</b>
-      ${(us || []).length ? `<table style="margin-top:6px"><tbody>${us.map((u) => `<tr><td>${esc(cname(u.contractor_id))}</td><td>${esc(u.product)}</td><td><span class="tag">${esc(u.status)}</span></td><td>${u.amount != null ? money(u.amount) : ""}</td></tr>`).join("")}</tbody></table>`
-      : `<p class="muted" style="margin:6px 0 0">No upsells yet. Log pitches in the Upsells tab.</p>`}</div>` : ""}</div>`;
-  app.querySelectorAll("[data-feepaid]").forEach((b) => b.onclick = async () => {
-    const { error } = await sb.from("leads").update({ fee_paid: true }).eq("id", b.dataset.feepaid);
-    if (error) return ($("#moneyerr").textContent = error.message);
-    const l = closed.find((x) => x.id === b.dataset.feepaid), con = cs.find((c) => c.id === l?.contractor_id);
-    if (con && con.stage >= 3 && con.stage < 5) await sb.from("contractors").update({ stage: 5 }).eq("id", con.id);
-    moneyView();
-  });
-}
-
-// ---------- admin: one farmer's page ----------
-async function farmerPage(f) {
-  const [{ data: pr }, { data: ev, error }, { data: ps }] = await Promise.all([
-    sb.rpc("refund_progress", { p_farmer: f.id }),
-    sb.rpc("refund_evidence", { p_farmer: f.id }),
-    sb.from("recruiter_payouts").select("*").eq("recruiter_id", f.id),
-  ]);
-  const E = ev || {};
-  app.innerHTML = `<div style="max-width:980px" id="farmerpage"><button class="btn ghost sm" id="fpback">← All farmers</button>
-    <h2 style="font-size:20px;margin:12px 0 2px">${esc(f.full_name || f.email)}</h2>
-    <p class="muted" style="margin:0 0 12px">${esc(f.email)} · Level ${f.level} · ${f.enrollment_paid ? "paid" : "not paid"}${f.verifier ? " · verifier" : ""}</p>
-    ${error ? `<p class="err">${esc(error.message)}</p>` : ""}
-    <div class="stats">
-      <div class="card stat"><div class="v">${(E.contractors || []).length}</div><div class="k">Contractors</div></div>
-      <div class="card stat"><div class="v">${(E.calls || []).length}</div><div class="k">Calls logged</div></div>
-      <div class="card stat"><div class="v">${(E.leads || []).filter((l) => l.direction === "outbound").length}</div><div class="k">Leads sent</div></div>
-      <div class="card stat"><div class="v">${money((E.leads || []).filter((l) => l.status === "closed").reduce((t, l) => t + Number(l.fee || 0), 0))}</div><div class="k">Fees earned</div></div>
-      <div class="card stat"><div class="v">${(ps || []).length}</div><div class="k">Referrals</div></div>
+    <div class="hero-art">
+      <div class="scene">
+        <div class="post"><small>Neighborhood group · 12 min ago</small><b>"Our roof is leaking after the storm. Anyone know someone good?"</b></div>
+        <div class="post me"><small>You</small><b>"I know a great roofer nearby. Sending you his number now."</b></div>
+        <div class="chips">
+          <span class="chip" style="background:#F0B93A;color:#3B2A06">Job closes</span>
+          <span class="chip" style="background:#3E7B3A;color:#fff">Contractor pays your 20% fee</span>
+        </div>
+        <svg viewBox="0 0 400 190" width="100%" role="img" aria-label="The Lead Farming mascot in a straw hat, waving from a field" style="display:block">
+          <path d="M0 150c80-30 150-30 220-10s130 10 180-10v60H0z" fill="#72AA5C"/>
+          <path d="M0 170c90-20 190-10 260 0s100 0 140-8v28H0z" fill="#3E7B3A"/>
+          <rect x="150" y="96" width="70" height="70" rx="20" fill="#3E7B3A"/>
+          <circle cx="185" cy="80" r="34" fill="#E5B68C"/>
+          <circle cx="173" cy="80" r="4" fill="#2B3A2E"/><circle cx="197" cy="80" r="4" fill="#2B3A2E"/>
+          <path d="M172 93c8 8 18 8 26 0" stroke="#2B3A2E" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <ellipse cx="185" cy="54" rx="58" ry="12" fill="#F0B93A"/>
+          <path d="M152 52c0-22 14-34 33-34s33 12 33 34z" fill="#F5C94F"/>
+          <rect x="152" y="44" width="66" height="8" rx="4" fill="#C9473B"/>
+          <path d="M222 110l30-34" stroke="#E5B68C" stroke-width="12" stroke-linecap="round"/>
+        </svg>
+      </div>
     </div>
-    <div class="card" style="margin-bottom:12px"><b>90 days</b>${pr?.enrolled ? `<p class="muted" style="margin:4px 0 8px">Day ${Math.min(pr.day, 90)} of 90 · package due by ${new Date(pr.submit_by).toLocaleDateString()}</p>${progressTable(pr)}`
-      : `<p class="muted" style="margin:6px 0 0">Their 90 days start when their enrollment is paid.</p>`}</div>
-    <div class="card" style="margin-bottom:12px"><b>Their CRM records</b><div class="row" style="margin-top:8px">${evidenceButtons(f.id)}</div>
-      <div class="tablewrap" style="margin-top:10px"><table><thead><tr><th>Business</th><th>Trade</th><th>Phone</th><th>Stage</th><th>Logged</th></tr></thead><tbody>
-      ${(E.contractors || []).slice(-50).reverse().map((c) => `<tr><td>${esc(c.business)}${c.source_link ? `<br><a href="${esc(c.source_link)}" target="_blank" rel="noopener">source</a>` : ""}</td><td>${esc(c.trade || "—")}</td><td>${esc(c.phone || "")}</td><td>${c.stage}. ${esc(stageName(c.stage))}</td><td>${new Date(c.logged).toLocaleDateString()}</td></tr>`).join("")
-        || `<tr><td colspan="5" class="muted">No contractors yet.</td></tr>`}</tbody></table></div>
-      ${(E.contractors || []).length > 50 ? `<p class="muted" style="font-size:13px">Showing the latest 50. Download the CSV for all of them.</p>` : ""}</div>
-    <div class="card"><b>Their referral payouts</b>
-      ${(ps || []).length ? `<table style="margin-top:6px"><tbody>${ps.map((p) => `<tr><td>${money(p.amount)}</td><td>${esc(payoutLabel(p))}</td><td>${new Date(p.created_at).toLocaleDateString()}</td></tr>`).join("")}</tbody></table>`
-      : `<p class="muted" style="margin:6px 0 0">No referrals yet.</p>`}</div></div>`;
-  wireEvidence(f.id, f.full_name || f.email);
-  $("#fpback").onclick = () => boot();
-}
+  </div>
+</section>
 
-// Waiting count on the Approvals tab
-async function approvalsBadge() {
-  if (!reviewer()) return;
-  const { data: n } = await sb.rpc("waiting_count");
-  const b = $('#nav button[data-v="approvals"]');
-  if (b && n > 0) b.querySelector("span").insertAdjacentHTML("beforeend", ` <span class="badge">${n}</span>`);
-}
-
-// ---------- farmer: learn (lessons, must-ace quizzes, ask a teacher) ----------
-let learnQuiz = null;
-const shuffle = (a) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
-const doneKey = () => "lf-done-" + me.id;
-const doneSet = () => { try { return new Set(JSON.parse(localStorage.getItem(doneKey()) || "[]")); } catch { return new Set(); } };
-const markDone = (id) => { try { const d = doneSet(); d.add(id); localStorage.setItem(doneKey(), JSON.stringify([...d])); } catch {} };
-// lesson pictures are drawn by curriculum/diagrams.js (plain script, global DIAGRAMS)
-const svgOf = (d) => { try { return DIAGRAMS[d.diagram](); } catch { return ""; } };
-const quizLabel = (z) => z.key === "rec" ? "Recruiting" : z.name;
-
-async function learn() {
-  const [{ data: qz }, { data: ls }, { data: passes }, { data: asks }] = await Promise.all([
-    sb.from("quizzes").select("*").order("sort"),
-    sb.from("lessons").select("*").order("sort"),
-    sb.from("quiz_passes").select("*").eq("farmer_id", me.id),
-    sb.from("teacher_questions").select("*").eq("farmer_id", me.id).order("created_at", { ascending: false }),
-  ]);
-  const quizzes = qz || [];
-  if (!quizzes.length) return (app.innerHTML = `<div class="card muted">Lessons aren't available yet.</div>`);
-  if (!quizzes.some((z) => z.key === learnQuiz)) learnQuiz = (quizzes.find((z) => z.key === "l" + lvl()) || quizzes[0]).key;
-  const Z = quizzes.find((z) => z.key === learnQuiz);
-  const mine = (ls || []).filter((l) => l.quiz === Z.key);
-  const pass = (passes || []).find((p) => p.quiz === Z.key);
-  const { data: qq } = await sb.rpc("get_quiz", { p_quiz: Z.key });
-  const done = doneSet();
-  const myAsks = (asks || []).filter((t) => t.quiz === Z.key);
-  app.innerHTML = `<div class="learn">
-    <div class="row" id="qzchips">${quizzes.map((z) => `<button class="chipbtn ${z.key === Z.key ? "on" : ""}" data-q="${z.key}">${esc(quizLabel(z))} · ${esc(z.title)}${(passes || []).some((p) => p.quiz === z.key) ? " ✓" : ""}</button>`).join("")}</div>
-    <h2 style="font-size:20px;margin:18px 0 4px">${esc(quizLabel(Z))}: ${esc(Z.title)}</h2>
-    <p class="muted" style="margin:0 0 14px">${mine.filter((l) => done.has(l.id)).length} of ${mine.length} lessons done</p>
-    <div class="lessons">${mine.map((l) => `<button class="lessonbtn card" data-l="${l.id}">
-      <span class="lthumb">${svgOf(l.data)}</span><span><small class="muted">${esc(l.data.step)}</small><b>${esc(l.data.title)}</b>
-      <small class="muted">${esc(l.data.metaphor)}</small>${done.has(l.id) ? `<span class="tag">done</span>` : ""}</span></button>`).join("")}</div>
-    <div class="card quizcard" id="quizcard"><b>${esc(quizLabel(Z))} quiz</b>
-      <p style="margin:6px 0">${(qq || []).length} questions. You need every one right${Z.key === "rec" ? "" : " before you can request the next level"}.</p>
-      ${pass ? `<p><span class="tag">Aced ${new Date(pass.passed_at).toLocaleDateString()}</span></p>` : ""}
-      <button class="btn" id="startquiz">${pass ? "Take it again" : "Take the quiz"}</button></div>
-    <div class="card quizcard" id="askcard"><b>Ask a teacher</b>
-      ${pass ? `<p class="muted" style="margin:6px 0">Stuck on something the lessons don't cover? Alex, Vincent or Julian will answer here.</p>
-        <textarea id="askbody" rows="3" placeholder="Your question"></textarea><div class="err" id="askerr"></div>
-        <div class="row" style="justify-content:flex-end"><button class="btn" id="asksend">Send question</button></div>`
-      : `<p class="muted" style="margin:6px 0">🔒 Ace the ${esc(quizLabel(Z))} quiz to ask about it. Everything on the quiz is in these lessons.</p>`}
-      ${myAsks.map((t) => `<div class="qa"><p style="margin:0;white-space:pre-wrap"><b>You:</b> ${esc(t.body)}</p>
-        <p style="margin:4px 0 0;white-space:pre-wrap">${t.answer ? `<b>Answer:</b> ${esc(t.answer)}` : `<span class="muted">Waiting for an answer</span>`}</p></div>`).join("")}</div></div>`;
-  app.querySelectorAll("[data-q]").forEach((b) => b.onclick = () => { learnQuiz = b.dataset.q; learn(); });
-  app.querySelectorAll("[data-l]").forEach((b) => b.onclick = () => lessonView(mine, mine.findIndex((l) => l.id === b.dataset.l)));
-  $("#startquiz").onclick = () => quizView(Z, qq || [], mine);
-  if ($("#asksend")) $("#asksend").onclick = async () => {
-    const { error } = await sb.rpc("ask_teacher", { p_quiz: Z.key, p_body: $("#askbody").value });
-    if (error) return ($("#askerr").textContent = error.message);
-    learn();
-  };
-}
-
-// One card at a time, then a practice question
-function lessonView(list, li, step = 0) {
-  const l = list[li], d = l.data, n = d.cards.length;
-  const back = `<button class="btn ghost sm" id="lback">← All lessons</button>`;
-  if (step < n) {
-    app.innerHTML = `<div class="player">${back}<div class="bar"><i style="width:${(step / (n + 1)) * 100}%"></i></div>
-      <div class="card"><div class="ldiagram">${svgOf(d)}</div><small class="muted">${esc(d.step)} · ${esc(d.title)}</small>
-      ${step === 0 ? `<p class="metaphor">${esc(d.metaphor)}</p>` : ""}<p class="lcard">${esc(d.cards[step])}</p>
-      <div class="row" style="justify-content:space-between"><span class="muted" style="font-size:13px">${step + 1} of ${n}</span>
-      <span class="row">${step ? `<button class="btn ghost" id="lprev">Back</button>` : ""}<button class="btn" id="lnext">Next</button></span></div></div></div>`;
-    $("#lnext").onclick = () => lessonView(list, li, step + 1);
-    if ($("#lprev")) $("#lprev").onclick = () => lessonView(list, li, step - 1);
-  } else {
-    const c = d.check;
-    app.innerHTML = `<div class="player">${back}<div class="bar"><i style="width:${(n / (n + 1)) * 100}%"></i></div>
-      <div class="card"><small class="muted">Practice</small><p class="lcard"><b>${esc(c.q)}</b></p>
-      <div class="opts">${c.o.map((o, i) => `<button class="opt" data-i="${i}">${esc(o)}</button>`).join("")}</div>
-      <p id="fb" class="muted" style="min-height:1.4em"></p>
-      <div class="row" style="justify-content:flex-end"><button class="btn ghost" id="lprev">Back</button><button class="btn" id="lfin" hidden>${li + 1 < list.length ? "Next lesson" : "Finish"}</button></div></div></div>`;
-    app.querySelectorAll(".opt").forEach((b) => b.onclick = () => {
-      app.querySelectorAll(".opt").forEach((x) => x.classList.remove("right", "wrong"));
-      const ok = +b.dataset.i === c.a;
-      b.classList.add(ok ? "right" : "wrong");
-      $("#fb").textContent = ok ? "Nice. That's it." : "Not quite. Try again.";
-      if (ok) { markDone(l.id); $("#lfin").hidden = false; }
-    });
-    $("#lprev").onclick = () => lessonView(list, li, n - 1);
-    $("#lfin").onclick = () => li + 1 < list.length ? lessonView(list, li + 1) : learn();
-  }
-  $("#lback").onclick = () => learn();
-  window.scrollTo(0, 0);
-}
-
-// The quiz: shuffled questions and answers; graded by the database; misses point back to lessons
-function quizView(Z, qq, mine) {
-  const qs = shuffle(qq).map((x) => ({ ...x, order: shuffle(x.options.map((_, i) => i)) }));
-  const answers = [];
-  const show = (i) => {
-    if (i >= qs.length) return submit();
-    const x = qs[i];
-    app.innerHTML = `<div class="player"><button class="btn ghost sm" id="qquit">Quit</button>
-      <div class="bar"><i style="width:${(i / qs.length) * 100}%"></i></div>
-      <div class="card"><small class="muted">${esc(quizLabel(Z))} quiz · question ${i + 1} of ${qs.length}</small>
-      <p class="lcard"><b>${esc(x.q)}</b></p>
-      <div class="opts">${x.order.map((oi) => `<button class="opt" data-i="${oi}">${esc(x.options[oi])}</button>`).join("")}</div></div></div>`;
-    app.querySelectorAll(".opt").forEach((b) => b.onclick = () => { answers[x.idx] = +b.dataset.i; show(i + 1); });
-    $("#qquit").onclick = () => learn();
-  };
-  const submit = async () => {
-    app.innerHTML = `<div class="player"><div class="card muted">Checking your answers…</div></div>`;
-    const full = qq.map((x) => answers[x.idx] ?? -1);
-    const { data: r, error } = await sb.rpc("submit_quiz", { p_quiz: Z.key, p_answers: full });
-    if (error) return (app.innerHTML = `<div class="player"><div class="card"><p class="err">${esc(error.message)}</p><button class="btn" id="qback">Back</button></div></div>`, $("#qback").onclick = () => learn());
-    const review = mine.filter((l) => (r.review || []).includes(l.id));
-    app.innerHTML = `<div class="player"><div class="card result ${r.passed ? "pass" : "fail"}">
-      <h2 style="margin:0 0 6px">${r.passed ? `🎉 Aced it: ${r.total} of ${r.total}` : `${r.score} of ${r.total}. You need every one.`}</h2>
-      <p>${r.passed ? (Z.key === "rec" ? "You can ask a teacher about recruiting now." : "You can ask a teacher about this level now, and request the next level once you've reached its goal and have your proof.")
-        : "Review these lessons, then try again:"}</p>
-      ${review.map((l) => `<button class="btn ghost sm" data-rl="${l.id}" style="margin:0 6px 6px 0">${esc(l.data.title)}</button>`).join("")}
-      <div class="row" style="margin-top:10px"><button class="btn" id="qagain">${r.passed ? "Back to lessons" : "Try again"}</button></div></div></div>`;
-    app.querySelectorAll("[data-rl]").forEach((b) => b.onclick = () => lessonView(mine, mine.findIndex((l) => l.id === b.dataset.rl)));
-    $("#qagain").onclick = () => r.passed ? learn() : quizView(Z, qq, mine);
-  };
-  show(0);
-}
-
-// ---------- farmer: pipeline ----------
-async function myContractors() {
-  let q = sb.from("contractors").select("*").order("updated_at", { ascending: false });
-  if (me.role !== "admin") q = q.eq("farmer_id", me.id);
-  return (await q).data || [];
-}
-
-async function pipeline() {
-  const cs = await myContractors();
-  const active = cs.filter((c) => c.stage >= 3).length;
-  const { data: ls } = await sb.from("leads").select("status,fee_amount,fee_paid").eq("farmer_id", me.id);
-  const closed = (ls || []).filter((l) => l.status === "closed");
-  const earned = closed.reduce((a, l) => a + Number(l.fee_amount || 0), 0);
-  const unpaid = closed.filter((l) => !l.fee_paid).reduce((a, l) => a + Number(l.fee_amount || 0), 0);
-  const goal = trades.length * PER_TRADE;
-  app.innerHTML = `
-    <div class="stats">
-      <div class="card stat"><div class="v">${active}<span class="muted" style="font-size:14px"> / ${goal || 150}</span></div><div class="k">Contractors in network (stage 3+)</div></div>
-      <div class="card stat"><div class="v">${(ls||[]).length}</div><div class="k">Leads sent</div></div>
-      <div class="card stat"><div class="v">${closed.length}</div><div class="k">Leads closed</div></div>
-      <div class="card stat"><div class="v">${money(earned)}</div><div class="k">Referral fees earned</div></div>
-      <div class="card stat"><div class="v">${money(unpaid)}</div><div class="k">Fees still owed to you</div></div>
+<section class="bet">
+  <div class="wrap narrow">
+    <div class="betbox">
+      <div class="eyebrow">THE ONLY THING YOU'RE BETTING ON</div>
+      <h2>You're not betting on whether this works. <span>You're betting on whether you try.</span></h2>
+      <p>Follow every step for 90 days and prove it. If your referral fees haven't paid you back the full $500, I refund the difference. The only way to lose money here is to not do the work.</p>
     </div>
-    <div class="row" style="margin-bottom:12px"><h2 style="margin:0;margin-right:auto;font-size:18px">Pipeline</h2>
-      <button class="btn" id="add">Add contractor</button></div>
-    <div class="board">${stages.map((s) => {
-      const list = cs.filter((c) => c.stage === s.id);
-      return `<div class="col"><h3>${s.id}. ${esc(s.name)}</h3><div class="n">${list.length} · ${esc(s.description)}</div>
-        ${list.map((c) => `<div class="chip" data-id="${c.id}"><b>${esc(c.business_name)}</b><small>${esc(tradeName(c.trade_id))}${c.city ? " · " + esc(c.city) : ""}</small></div>`).join("")}</div>`;
-    }).join("")}${lvl() < 3 ? `<div class="col lockedcol"><h3>More stages</h3><div class="n">Open as you move up a level. See Home for your next step.</div></div>` : ""}</div>`;
-  $("#add").onclick = () => contractorForm();
-  app.querySelectorAll(".chip").forEach((el) => el.onclick = () => contractorForm(cs.find((c) => c.id === el.dataset.id)));
-}
+  </div>
+</section>
 
-// ---------- farmer: contractors ----------
-async function contractors() {
-  const cs = await myContractors();
-  app.innerHTML = `
-    <div class="row" style="margin-bottom:12px"><h2 style="margin:0;margin-right:auto;font-size:18px">Contractors by trade</h2>
-      <button class="btn" id="add">Add contractor</button></div>
-    <div class="trades">${trades.map((t) => {
-      const n = cs.filter((c) => c.trade_id === t.id && c.stage >= 3).length;
-      return `<div class="card" style="padding:10px"><b style="font-size:14px">${esc(t.name)}</b>
-        <div class="muted" style="font-size:12px">${n} / ${PER_TRADE} in network</div><div class="bar"><i style="width:${Math.min(100, n / PER_TRADE * 100)}%"></i></div></div>`;
-    }).join("") || `<p class="muted">No trades set up yet.</p>`}</div>
-    <div class="card tablewrap"><table><thead><tr><th>Business</th><th>Trade</th><th>Contact</th><th>Stage</th><th>Fee %</th></tr></thead><tbody>
-    ${cs.map((c) => `<tr data-id="${c.id}" style="cursor:pointer"><td><b>${esc(c.business_name)}</b><br><small class="muted">${esc(c.city)}</small></td>
-      <td>${esc(tradeName(c.trade_id))}</td><td>${esc(c.contact_name)}<br><small class="muted">${esc(c.phone)} ${esc(c.email)}</small></td>
-      <td><span class="tag">${c.stage}. ${esc(stageName(c.stage))}</span></td><td>${c.fee_pct ?? ""}</td></tr>`).join("") || `<tr><td colspan="5" class="muted">No contractors yet.</td></tr>`}
-    </tbody></table></div>`;
-  $("#add").onclick = () => contractorForm();
-  app.querySelectorAll("tr[data-id]").forEach((el) => el.onclick = () => contractorForm(cs.find((c) => c.id === el.dataset.id)));
-}
-
-function contractorForm(c = {}) {
-  dlg.innerHTML = `<form method="dialog" id="cf">
-    <h3 style="margin-top:0">${c.id ? "Edit contractor" : "Add contractor"}</h3>
-    <label>Business name</label><input name="business_name" required value="${esc(c.business_name)}">
-    <div class="grid2">
-      <div><label>Trade</label><select name="trade_id"><option value="">—</option>${trades.map((t) => `<option value="${t.id}" ${t.id === c.trade_id ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</select></div>
-      <div><label>Stage</label><select name="stage">${stages.map((s) => `<option value="${s.id}" ${s.id === (c.stage || 1) ? "selected" : ""}>${s.id}. ${esc(s.name)}</option>`).join("")}</select></div>
-      <div><label>Contact name</label><input name="contact_name" value="${esc(c.contact_name)}"></div>
-      <div><label>Phone</label><input name="phone" value="${esc(c.phone)}"></div>
-      <div><label>Email</label><input name="email" type="email" value="${esc(c.email)}"></div>
-      <div><label>City</label><input name="city" value="${esc(c.city)}"></div>
-      <div style="grid-column:1/-1"><label>Where you found them (link to the post or profile)</label><input name="source_link" type="url" placeholder="https://" value="${esc(c.source_link)}"></div>
-      <div><label>Found via</label><select name="found_via">${["","Facebook","Nextdoor","Local forum","Referral","Other"].map((o) => `<option ${o === c.found_via ? "selected" : ""}>${o}</option>`).join("")}</select></div>
-      <div><label>Referral fee %</label><input name="fee_pct" type="number" min="0" max="100" step="0.5" value="${c.fee_pct ?? 20}"></div>
+<section id="how" class="alt">
+  <div class="wrap">
+    <h2 class="sec center">Three moves. Repeat them.</h2>
+    <p class="lede center">No inventory, no tools, no license to do the work. You make introductions.</p>
+    <div class="grid">
+      <div class="card"><div class="num" style="background:#4A9E0E">1</div><h3>Plant your contractors</h3><p>Pick 15 home-service trades that share customers. Call local roofers, plumbers, painters and more with the script, and get each to agree to a 20% referral fee in writing.</p></div>
+      <div class="card"><div class="num" style="background:#1C7AAE">2</div><h3>Spot the neighbors asking</h3><p>Watch neighborhood groups for people who need work done. Comment, connect them with the right contractor, and log the lead in your CRM.</p></div>
+      <div class="card"><div class="num" style="background:#F0B93A;color:#3B2A06">3</div><h3>Harvest the fee</h3><p>When the job closes, the contractor pays your referral fee. Good contractors start sending leads back to you, and your network grows from there.</p></div>
     </div>
-    <label>Notes</label><textarea name="notes" rows="3">${esc(c.notes)}</textarea>
-    ${c.id ? `<div id="calls"></div>` : ""}
-    <div class="err" id="cerr"></div>
-    <div class="row" style="margin-top:12px;justify-content:flex-end">
-      ${c.id ? `<button type="button" class="btn ghost" id="del" style="margin-right:auto">Delete</button>` : ""}
-      <button type="button" class="btn ghost" id="cx">Cancel</button><button class="btn">Save</button></div></form>`;
-  dlg.showModal();
-  if (c.id) callLog(c);
-  $("#cx").onclick = () => dlg.close();
-  if (c.id) $("#del").onclick = async () => {
-    if (!confirm("Delete this contractor and its history?")) return;
-    await sb.from("contractors").delete().eq("id", c.id); dlg.close(); boot();
-  };
-  $("#cf").onsubmit = async (e) => {
-    e.preventDefault();
-    const f = Object.fromEntries(new FormData(e.target));
-    const row = { ...f, trade_id: f.trade_id ? +f.trade_id : null, stage: +f.stage, fee_pct: f.fee_pct === "" ? null : +f.fee_pct };
-    const { error } = c.id
-      ? await sb.from("contractors").update(row).eq("id", c.id)
-      : await sb.from("contractors").insert({ ...row, farmer_id: me.id });
-    if (error) return ($("#cerr").textContent = error.message);
-    dlg.close(); boot();
-  };
-}
+  </div>
+</section>
 
-// ---------- farmer: leads ----------
-async function leads() {
-  const cs = await myContractors();
-  let q = sb.from("leads").select("*").order("created_at", { ascending: false });
-  if (me.role !== "admin") q = q.eq("farmer_id", me.id);
-  const ls = (await q).data || [];
-  const cname = (id) => cs.find((c) => c.id === id)?.business_name || "—";
-  app.innerHTML = `
-    <div class="row" style="margin-bottom:12px"><h2 style="margin:0;margin-right:auto;font-size:18px">Leads</h2>
-      <button class="btn" id="add">Log a lead</button></div>
-    <div class="card tablewrap"><table><thead><tr><th>Date</th><th>Direction</th><th>Customer / job</th><th>Contractor</th><th>Status</th><th>Job value</th><th>Fee</th></tr></thead><tbody>
-    ${ls.map((l) => `<tr data-id="${l.id}" style="cursor:pointer"><td>${new Date(l.created_at).toLocaleDateString()}</td>
-      <td>${l.direction === "inbound" ? "From contractor" : "To contractor"}<br><small class="muted">${esc(l.source)}</small></td>
-      <td>${esc(l.customer_name)}<br><small class="muted">${esc(l.job_description)}</small></td>
-      <td>${esc(cname(l.contractor_id))}</td><td><span class="tag">${esc(l.status)}</span></td>
-      <td>${l.job_value != null ? money(l.job_value) : ""}</td>
-      <td>${l.fee_amount != null ? money(l.fee_amount) + (l.status === "closed" ? (l.fee_paid ? ' <span class="tag">paid</span>' : ' <span class="tag warn">owed</span>') : "") : ""}</td></tr>`).join("")
-      || `<tr><td colspan="7" class="muted">No leads yet.</td></tr>`}
-    </tbody></table></div>`;
-  $("#add").onclick = () => leadForm({}, cs);
-  app.querySelectorAll("tr[data-id]").forEach((el) => el.onclick = () => leadForm(ls.find((l) => l.id === el.dataset.id), cs));
-}
-
-function leadForm(l = {}, cs) {
-  dlg.innerHTML = `<form id="lf">
-    <h3 style="margin-top:0">${l.id ? "Edit lead" : "Log a lead"}</h3>
-    <div class="grid2">
-      <div><label>Direction</label><select name="direction"><option value="outbound" ${l.direction !== "inbound" ? "selected" : ""}>I sent it to a contractor</option><option value="inbound" ${l.direction === "inbound" ? "selected" : ""}>A contractor sent it to me</option></select></div>
-      <div><label>Source</label><select name="source">${["Nextdoor","Facebook","Local forum","Contractor referral","Other"].map((o) => `<option ${o === l.source ? "selected" : ""}>${o}</option>`).join("")}</select></div>
+<section id="inside">
+  <div class="wrap split">
+    <div>
+      <h2 class="sec">Learn it like a game. Run it like a business.</h2>
+      <p class="lede">Short lessons with farm diagrams, a quiz you have to ace before you level up, and a real CRM to track every contractor, lead and payment.</p>
+      <div class="feats">
+        <div class="feat"><span class="ic" style="background:#EAF6E1"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2E7A12" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h5"/></svg></span>30 bite-size lessons, from your first call script to upsells</div>
+        <div class="feat"><span class="ic" style="background:#E0F0FA"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1C7AAE" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg></span>Must-ace quizzes, so you know it before you do it</div>
+        <div class="feat"><span class="ic" style="background:#FDF1D3"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8A5D06" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg></span>A built-in CRM for contractors, leads, follow-ups and fees</div>
+        <div class="feat"><span class="ic" style="background:#FBE3EA"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#A8355C" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>Ask a teacher when you're stuck</div>
+      </div>
     </div>
-    <label>Contractor</label><select name="contractor_id"><option value="">—</option>${cs.map((c) => `<option value="${c.id}" ${c.id === l.contractor_id ? "selected" : ""}>${esc(c.business_name)} (${esc(tradeName(c.trade_id))})</option>`).join("")}</select>
-    <label>Customer name</label><input name="customer_name" value="${esc(l.customer_name)}">
-    <label>Job description</label><textarea name="job_description" rows="2">${esc(l.job_description)}</textarea>
-    <div class="grid2">
-      <div><label>Status</label><select name="status">${["new","sent","closed","lost"].map((o) => `<option ${o === (l.status || "sent") ? "selected" : ""}>${o}</option>`).join("")}</select></div>
-      <div><label>Job value ($)</label><input name="job_value" type="number" step="0.01" value="${l.job_value ?? ""}"></div>
-      <div><label>Fee %</label><input name="fee_pct" type="number" step="0.5" value="${l.fee_pct ?? ""}" placeholder="defaults to contractor's %"></div>
-      <div><label>Fee paid?</label><select name="fee_paid"><option value="false">No</option><option value="true" ${l.fee_paid ? "selected" : ""}>Yes</option></select></div>
+    <div class="path" aria-label="The three levels">
+      <div style="font-weight:900;color:var(--muted);font-size:14px;letter-spacing:1px">YOUR PATH</div>
+      <div class="node" style="background:#58CC02;box-shadow:0 6px 0 #46A302;color:#fff">LEVEL 1</div>
+      <div class="lbl">Enrolled: find, call, sign</div>
+      <div class="node off" style="background:#F0B93A;box-shadow:0 6px 0 #A9760F;color:#3B2A06">LEVEL 2</div>
+      <div class="lbl off">Network builder: send and close leads</div>
+      <div class="node" style="background:#E6EBE1;box-shadow:0 6px 0 #CDD5C7;color:var(--muted)">LEVEL 3</div>
+      <div class="lbl" style="color:var(--muted)">Anchor: your best partners, upsells</div>
     </div>
-    <div class="err" id="lerr"></div>
-    <div class="row" style="margin-top:12px;justify-content:flex-end"><button type="button" class="btn ghost" id="cx">Cancel</button><button class="btn">Save</button></div></form>`;
-  dlg.showModal();
-  $("#cx").onclick = () => dlg.close();
-  $("#lf").onsubmit = async (e) => {
-    e.preventDefault();
-    const f = Object.fromEntries(new FormData(e.target));
-    const con = cs.find((c) => c.id === f.contractor_id);
-    const row = { ...f, contractor_id: f.contractor_id || null,
-      job_value: f.job_value === "" ? null : +f.job_value,
-      fee_pct: f.fee_pct === "" ? (con?.fee_pct ?? null) : +f.fee_pct,
-      fee_paid: f.fee_paid === "true",
-      closed_at: f.status === "closed" ? (l.closed_at || new Date().toISOString()) : null };
-    const { error } = l.id
-      ? await sb.from("leads").update(row).eq("id", l.id)
-      : await sb.from("leads").insert({ ...row, farmer_id: me.id });
-    if (error) return ($("#lerr").textContent = error.message);
-    // First outbound lead / first close nudges the contractor's stage forward
-    if (con && row.direction === "outbound") {
-      const target = row.status === "closed" && row.fee_paid ? 5 : 4;
-      if (con.stage < target && con.stage >= 3) await sb.from("contractors").update({ stage: target }).eq("id", con.id);
-    }
-    if (con && row.direction === "inbound" && con.stage >= 5 && con.stage < 6) await sb.from("contractors").update({ stage: 6 }).eq("id", con.id);
-    dlg.close(); boot();
-  };
-}
+  </div>
+</section>
 
-// ---------- admin ----------
-async function admin() {
-  const { data: fs } = await sb.from("farmer_summary").select("*").order("full_name");
-  const byId = Object.fromEntries((fs || []).map((f) => [f.id, f]));
-  const paid = (fs || []).filter((f) => f.enrollment_paid).length;
-  app.innerHTML = `
-    <div class="stats">
-      <div class="card stat"><div class="v">${(fs||[]).length}</div><div class="k">Farmers</div></div>
-      <div class="card stat"><div class="v">${paid}</div><div class="k">Paid enrollment</div></div>
-      <div class="card stat"><div class="v">${money(paid * 500)}</div><div class="k">Enrollment revenue</div></div>
-      <div class="card stat"><div class="v">${(fs||[]).reduce((a,f)=>a+Number(f.active_network),0)}</div><div class="k">Contractors in all networks</div></div>
+<section class="alt">
+  <div class="wrap narrow note">
+    <div class="who">
+      <!-- PHOTO: swap this mascot for a real photo of Alex (square, at least 360px) -->
+      <div class="avatar">
+        <svg viewBox="100 10 170 170" width="100%" aria-hidden="true">
+          <rect x="140" y="110" width="90" height="80" rx="24" fill="#3E7B3A"/>
+          <circle cx="185" cy="88" r="38" fill="#E5B68C"/>
+          <circle cx="172" cy="88" r="4.5" fill="#2B3A2E"/><circle cx="198" cy="88" r="4.5" fill="#2B3A2E"/>
+          <path d="M171 102c9 8 19 8 28 0" stroke="#2B3A2E" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <ellipse cx="185" cy="58" rx="64" ry="13" fill="#F0B93A"/>
+          <path d="M148 56c0-24 16-37 37-37s37 13 37 37z" fill="#F5C94F"/>
+          <rect x="148" y="47" width="74" height="9" rx="4.5" fill="#C9473B"/>
+        </svg>
+      </div>
+      <p style="font-weight:900;margin-top:12px">Alex Nibarger</p>
+      <p style="color:var(--muted);font-size:15px">Founder, Lead Farming Mentoring</p>
     </div>
-    <div class="card tablewrap"><table><thead><tr><th>Farmer</th><th>Recruited by</th><th>Enrollment</th><th>Level</th><th>Verifier</th><th>Network</th><th>Leads (closed)</th><th>Fees earned</th><th>Recruits</th></tr></thead><tbody>
-    ${(fs || []).map((f) => `<tr><td><button class="linkbtn" data-fp="${f.id}"><b>${esc(f.full_name || f.email)}</b></button><br><small class="muted">${esc(f.email)}</small></td>
-      <td>${esc(byId[f.recruited_by]?.full_name || "")}</td>
-      <td>${f.enrollment_paid ? '<span class="tag">paid</span>' : `<button class="btn sm" data-pay="${f.id}">Mark $500 paid</button>`}</td>
-      <td><select data-lvl="${f.id}" style="width:auto">${[0,1,2,3].map((n) => `<option ${n === f.level ? "selected" : ""}>${n}</option>`).join("")}</select></td>
-      <td><input type="checkbox" data-ver="${f.id}" ${f.verifier ? "checked" : ""} style="width:auto"></td>
-      <td>${f.active_network} / ${f.contractors}</td><td>${f.leads} (${f.leads_closed})</td><td>${money(f.fees_earned)}</td><td>${f.recruits}</td></tr>`).join("")
-      || `<tr><td colspan="9" class="muted">No farmers yet.</td></tr>`}
-    </tbody></table></div>`;
-  app.querySelectorAll("[data-fp]").forEach((b) => b.onclick = () => farmerPage(byId[b.dataset.fp]));
-  app.querySelectorAll("[data-pay]").forEach((b) => b.onclick = async () => {
-    const { error } = await sb.rpc("mark_enrollment_paid", { farmer: b.dataset.pay }); if (error) alert(error.message); boot();
-  });
-  app.querySelectorAll("[data-lvl]").forEach((el) => el.onchange = async () => {
-    const { error } = await sb.rpc("set_level", { farmer: el.dataset.lvl, lvl: +el.value }); if (error) alert(error.message); boot();
-  });
-  app.querySelectorAll("[data-ver]").forEach((el) => el.onchange = async () => {
-    const { error } = await sb.rpc("set_verifier", { farmer: el.dataset.ver, on_off: el.checked }); if (error) alert(error.message); boot();
-  });
-}
+    <div class="body">
+      <h2 class="sec" style="margin-bottom:18px">A note before you pay anything</h2>
+      <p>Everybody complains about something. A leaky roof, a dead AC, a fence that blew over. People ask their neighbors for help in local groups every single day, and most of those posts get a few guesses and nothing else.</p>
+      <p>Contractors, meanwhile, spend a lot to find good jobs. When you show up with a real homeowner who needs the work, most will happily pay you a cut. That gap is the whole business.</p>
+      <p>I'm not going to promise you a number. What you earn depends on you, your area and the contractors you sign. What I will promise is this: I know the method works, so if you do every step and it hasn't paid you back, I'll refund the difference. Every rule is below, before you pay.</p>
+      <p class="sig">Alex</p>
+    </div>
+  </div>
+</section>
 
-async function payouts() {
-  const [{ data: ps }, { data: pr }] = await Promise.all([
-    sb.from("recruiter_payouts").select("*").order("created_at", { ascending: false }),
-    sb.from("profiles").select("id,full_name,email"),
-  ]);
-  const nm = (id) => (pr || []).find((p) => p.id === id)?.full_name || "—";
-  const owed = (ps || []).filter((p) => p.status === "owed").reduce((a, p) => a + Number(p.amount), 0);
-  const back = (ps || []).filter((p) => p.clawback_at && !p.clawback_settled_at).reduce((a, p) => a + Number(p.amount), 0);
-  app.innerHTML = `<div class="stats"><div class="card stat"><div class="v">${money(owed)}</div><div class="k">Recruiter payouts owed</div></div>
-    ${back ? `<div class="card stat"><div class="v">${money(back)}</div><div class="k">Clawbacks owed back to you</div></div>` : ""}</div>
-    <div class="card tablewrap"><table><thead><tr><th>Recruiter</th><th>New farmer</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody>
-    ${(ps || []).map((p) => `<tr><td>${esc(nm(p.recruiter_id))}</td><td>${esc(nm(p.recruit_id))}</td><td>${money(p.amount)}</td>
-      <td><span class="tag ${p.status === "owed" || (p.clawback_at && !p.clawback_settled_at) ? "warn" : ""}">${esc(payoutLabel(p).replace("$250 owed to you", "owed").replace(" (they were refunded)", ", recruit refunded"))}</span></td>
-      <td>${p.status === "owed" ? `<button class="btn sm" data-paid="${p.id}">Mark paid</button>`
-        : p.clawback_at && !p.clawback_settled_at ? `<button class="btn ghost sm" data-repaid="${p.id}">Mark repaid</button>` : ""}</td></tr>`).join("")
-      || `<tr><td colspan="5" class="muted">No recruiter payouts yet.</td></tr>`}
-    </tbody></table></div>`;
-  app.querySelectorAll("[data-repaid]").forEach((b) => b.onclick = async () => {
-    await sb.from("recruiter_payouts").update({ clawback_settled_at: new Date().toISOString() }).eq("id", b.dataset.repaid); boot();
-  });
-  app.querySelectorAll("[data-paid]").forEach((b) => b.onclick = async () => {
-    await sb.from("recruiter_payouts").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", b.dataset.paid); boot();
-  });
-}
+<section id="refund" class="refund">
+  <div class="wrap narrow">
+    <h2 class="sec center">The refund rules, in full</h2>
+    <p class="lede center">These quotas measure effort, not luck. Hit every one on time, log it in the CRM as it happens, and send your proof by day 97. If your referral fees by day 90 add up to less than $500, I refund the difference.</p>
+    <div class="tbl" role="region" aria-label="Refund quotas" tabindex="0">
+      <table>
+        <thead><tr><th>Step</th><th>Quota</th><th>By day</th></tr></thead>
+        <tbody>
+          <tr><td>Niche</td><td>15 trades that share customers but don't compete, approved</td><td>3</td></tr>
+          <tr><td>Contractors found</td><td>300 logged, 20 in each trade, with a source link</td><td>14</td></tr>
+          <tr><td>Outreach</td><td>300 calls, plus a follow-up 20% text to every yes</td><td>21</td></tr>
+          <tr><td>Terms agreed</td><td>150 signed, 10 in each of your 15 trades</td><td>45</td></tr>
+          <tr><td>Neighbor comments</td><td>50 a day, 5 days a week</td><td>7 to 90</td></tr>
+          <tr><td>Leads sent</td><td>300 leads to 100+ different contractors</td><td>75</td></tr>
+          <tr><td>Consistency</td><td>CRM activity on at least 5 of every 7 days</td><td>1 to 90</td></tr>
+          <tr><td>Quizzes</td><td>Every level quiz passed at 100%</td><td>90</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="example">
+      <div class="ex"><b>$0 earned</b>You get $500 back</div>
+      <div class="ex"><b>$300 earned</b>You get $200 back</div>
+      <div class="ex"><b>$500+ earned</b>The method paid for itself</div>
+    </div>
+    <p class="small center">One fake or edited proof item cancels the refund. Recruiting is never part of it. The full terms are in the enrollment agreement.</p>
+  </div>
+</section>
 
-// ---------- admin: the welcome-back greetings ----------
-async function welcomeLines() {
-  const { data: lines } = await sb.from("welcome_lines").select("*").order("id");
-  app.innerHTML = `<div class="card" style="max-width:720px"><h2 style="margin-top:0;font-size:18px">Welcome-back greetings</h2>
-    <p class="muted">Farmers see the next one each time they open Home. Write {name} where their first name goes.</p>
-    <table><tbody>${(lines || []).map((l) => `<tr><td>${esc(l.body)}</td><td style="text-align:right;white-space:nowrap">
-      <button class="btn ghost sm" data-wedit="${l.id}">Edit</button> <button class="btn ghost sm" data-wdel="${l.id}">Remove</button></td></tr>`).join("")
-      || `<tr><td class="muted">No greetings yet. Farmers will see "Welcome back".</td></tr>`}</tbody></table>
-    <form id="wf" class="row" style="margin-top:12px"><input name="body" placeholder="Welcome back, {name}. …" required maxlength="300" style="flex:1"><button class="btn">Add</button></form>
-    <div class="err" id="werr"></div></div>`;
-  const done = ({ error }) => error ? ($("#werr").textContent = error.message) : welcomeLines();
-  $("#wf").onsubmit = async (e) => { e.preventDefault(); done(await sb.from("welcome_lines").insert({ body: new FormData(e.target).get("body").trim() })); };
-  app.querySelectorAll("[data-wdel]").forEach((b) => b.onclick = async () => done(await sb.from("welcome_lines").delete().eq("id", +b.dataset.wdel)));
-  app.querySelectorAll("[data-wedit]").forEach((b) => b.onclick = async () => {
-    const l = lines.find((x) => x.id === +b.dataset.wedit), body = prompt("Edit the greeting ({name} = their first name)", l.body);
-    if (body && body.trim() !== l.body) done(await sb.from("welcome_lines").update({ body: body.trim() }).eq("id", l.id));
-  });
-}
+<section>
+  <div class="wrap narrow">
+    <div class="grid fit" style="margin-top:0">
+      <div class="card"><h3 style="color:var(--good)">This is for you if</h3><p>You're fine making 20 phone calls in a day.</p><p>You're in local Facebook and Nextdoor groups, or will be.</p><p>You want a business built on real relationships.</p></div>
+      <div class="card"><h3 style="color:var(--bad)">Skip it if</h3><p>You want money without daily work.</p><p>You hate talking to business owners.</p><p>You can't give it 5 days of every week.</p></div>
+    </div>
+  </div>
+</section>
 
-async function tradesView() {
-  app.innerHTML = `<div class="card" style="max-width:560px"><h2 style="margin-top:0;font-size:18px">Trades in the niche</h2>
-    <p class="muted">Every farmer works toward ${PER_TRADE} contractors per trade.</p>
-    <table><tbody>${trades.map((t) => `<tr><td>${esc(t.name)}</td><td style="text-align:right"><button class="btn ghost sm" data-del="${t.id}">Remove</button></td></tr>`).join("")}</tbody></table>
-    <form id="tf" class="row" style="margin-top:12px"><input name="name" placeholder="Add a trade, e.g. Roofing" required style="flex:1"><button class="btn">Add</button></form>
-    <div class="err" id="terr"></div></div>`;
-  $("#tf").onsubmit = async (e) => {
-    e.preventDefault();
-    const name = new FormData(e.target).get("name").trim();
-    const { error } = await sb.from("trades").insert({ name, sort_order: trades.length });
-    if (error) return ($("#terr").textContent = error.message);
-    await loadRef(); boot();
-  };
-  app.querySelectorAll("[data-del]").forEach((b) => b.onclick = async () => {
-    const { error } = await sb.from("trades").delete().eq("id", +b.dataset.del);
-    if (error) return ($("#terr").textContent = "Can't remove a trade that contractors are filed under.");
-    await loadRef(); boot();
-  });
-}
+<!-- TESTIMONIALS: add real quotes (first name + city) and remove "hidden". Never invent them. -->
+<section class="alt" hidden>
+  <div class="wrap narrow">
+    <h2 class="sec center">From the first farmers</h2>
+    <div class="grid">
+      <div class="card"><p>"[Real quote from a farmer]"</p><p style="font-weight:900;margin-top:10px">[First name, city]</p></div>
+      <div class="card"><p>"[Real quote from a contractor partner]"</p><p style="font-weight:900;margin-top:10px">[Name, trade]</p></div>
+      <!-- VIDEO: a 2-minute video of Alex walking through one lead could go here -->
+    </div>
+  </div>
+</section>
+
+<section id="faq" class="alt">
+  <div class="wrap" style="max-width:820px">
+    <h2 class="sec center" style="margin-bottom:24px">Questions</h2>
+    <details><summary>How much will I make?</summary><p>I don't promise any amount. It depends on your effort, your area and the contractors you sign. That's why the refund exists: do every step, and if your fees haven't covered the $500, you get the difference back.</p></details>
+    <details><summary>Do I need a contractor's license?</summary><p>You introduce homeowners to licensed contractors. The contractor does the work and bills for it.</p></details>
+    <details><summary>Where can I do this?</summary><p>Anywhere. It's phone and online work, so your territory is wherever your contractors and neighbors are.</p></details>
+    <details><summary>Do I have to recruit anyone?</summary><p>No. Your fees come from contractors paying for real jobs. Recruiting is never required, and it has nothing to do with the refund.</p></details>
+    <details><summary>How does the refund work, exactly?</summary><p>Hit every quota in the table above on time, logged in the CRM as it happens, and send your proof package by day 97. I check it, then refund $500 minus the referral fees you earned by day 90. Miss a quota and there's no refund.</p></details>
+    <details><summary>What happens after I pay?</summary><p>Level 1 opens right away: the first lessons, the call script and your CRM.</p></details>
+  </div>
+</section>
+
+<section>
+  <div class="wrap narrow">
+    <div class="final">
+      <h2>Ready to plant your first seed?</h2>
+      <p>$500, one time. Lessons, quizzes, CRM and the 90-day program.</p>
+      <a class="btn btn-white js-start" href="/app/?signup">START FOR $500</a>
+      <p class="fine">Do every step and prove it. If your fees haven't paid back the $500 by day 90, I refund the difference.</p>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 Lead Farming Mentoring</span>
+    <span>Results vary. No earnings are promised. <a href="/app/">Log in</a></span>
+  </div>
+</footer>
+
+<script>
+// Keep a recruiter's referral (?ref=email) on the way to sign-up.
+(function () {
+  var ref = new URLSearchParams(location.search).get("ref");
+  if (!ref) return;
+  document.querySelectorAll(".js-start").forEach(function (a) { a.href = "/app/?signup&ref=" + encodeURIComponent(ref); });
+})();
 </script>
 </body>
 </html>
