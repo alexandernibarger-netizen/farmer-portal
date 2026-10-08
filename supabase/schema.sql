@@ -682,6 +682,7 @@ declare
   steps jsonb := '[]';
   v1 int; v2 int; v3 int; ok boolean;
   fees numeric := 0;
+  bonuses numeric := 0;
 begin
   if f <> auth.uid() and not public.is_verifier() then raise exception 'verifiers only'; end if;
   select * into p from public.profiles where id = f;
@@ -733,9 +734,12 @@ begin
     'progress', v3 || ' of 12 comment weeks · ' || v1 || ' of 300 leads · ' || v2 || ' of 100 contractors', 'met', v3 >= 12 and v1 >= 300 and v2 >= 100);
 
   -- referral fees actually received by day 90 (fee_paid_at is stamped by the server when marked paid);
-  -- the refund is the price they paid minus these
+  -- the refund is the price they paid minus these and the recruiting bonuses below
   select coalesce(sum(l.fee_amount), 0) into fees from public.leads l
     where l.farmer_id = f and l.direction = 'outbound' and l.status = 'closed' and l.fee_paid and l.fee_paid_at <= t0 + interval '90 days';
+  -- $250 recruiting bonuses paid to them by day 90 (Alex, 2026-10-08); a bonus taken back after its recruit's refund doesn't count
+  select coalesce(sum(r.amount), 0) into bonuses from public.recruiter_payouts r
+    where r.recruiter_id = f and r.status = 'paid' and r.paid_at <= t0 + interval '90 days' and r.clawback_at is null;
 
   -- rules: activity on 5 of every 7 days (13 weeks, days 0-90); quizzes for every level reached
   select count(*) filter (where days >= least(5, len)) into v1 from (
@@ -758,7 +762,7 @@ begin
       jsonb_build_object('name', 'Portal activity on 5 of every 7 days', 'progress', v1 || ' of 13 weeks', 'met', v1 >= 13),
       jsonb_build_object('name', 'Quizzes aced for every level reached', 'progress', v2 || ' of ' || greatest(p.level, 1), 'met', v2 >= greatest(p.level, 1))),
     'all_met', not exists (select 1 from jsonb_array_elements(steps) s where not (s->>'met')::boolean) and v1 >= 13 and v2 >= greatest(p.level, 1),
-    'price', p.enrollment_fee, 'fees', fees, 'refund_amount', greatest(0, p.enrollment_fee - fees),
+    'price', p.enrollment_fee, 'fees', fees, 'bonuses', bonuses, 'refund_amount', greatest(0, p.enrollment_fee - fees - bonuses),
     'niche', p.niche, 'niche_note', p.niche_note,
     'comments_today', (select coalesce(sum(a.count), 0) from public.activities a
       where a.farmer_id = f and a.kind = 'comments' and a.created_at >= date_trunc('day', now())));
@@ -789,7 +793,7 @@ begin
   if not coalesce((pr->>'enrolled')::boolean, false) then raise exception 'Finish your enrollment first'; end if;
   if now() > (pr->>'submit_by')::timestamptz then raise exception 'The refund window closed on day 97'; end if;
   if not (pr->>'all_met')::boolean then raise exception 'Every quota has to be met before you can send the package'; end if;
-  if (pr->>'refund_amount')::numeric <= 0 then raise exception 'Your referral fees reached what you paid, so no refund is owed'; end if;
+  if (pr->>'refund_amount')::numeric <= 0 then raise exception 'Your referral fees and recruiting bonuses reached what you paid, so no refund is owed'; end if;
   if coalesce(cardinality(p_files), 0) = 0 then raise exception 'Attach your evidence files'; end if;
   if exists (select 1 from unnest(p_files) x where x not like auth.uid()::text || '/%') then
     raise exception 'Evidence files must be your own uploads';

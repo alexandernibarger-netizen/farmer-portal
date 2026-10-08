@@ -741,7 +741,7 @@ const progressTable = (pr) => `<div class="tablewrap"><table><thead><tr><th>Step
     <td style="white-space:nowrap">Day ${s.deadline}<br><small class="muted">${onDay(pr.paid_at, s.deadline)}</small></td>
     <td>${esc(s.progress)}</td><td>${s.met ? `<span class="tag">Met</span>` : pr.day > s.deadline ? `<span class="tag warn">Missed</span>` : `<span class="muted">Open</span>`}</td></tr>`).join("")}
   ${pr.rules.map((r) => `<tr><td colspan="3"><b>${esc(r.name)}</b></td><td>${esc(r.progress)}</td><td>${r.met ? `<span class="tag">Met</span>` : `<span class="muted">Open</span>`}</td></tr>`).join("")}
-  ${pr.fees != null ? `<tr id="refundamt"><td colspan="3"><b>Referral fees received</b><br><small class="muted">Paid to you by day 90. The refund is the ${money(pr.price)} you paid minus these.</small></td><td>${money(pr.fees)}</td>
+  ${pr.fees != null ? `<tr id="refundamt"><td colspan="3"><b>Referral fees received</b><br><small class="muted">Paid to you by day 90${Number(pr.bonuses) > 0 ? `, plus ${money(pr.bonuses)} in recruiting bonuses` : ""}. The refund is the ${money(pr.price)} you paid minus these.</small></td><td>${money(Number(pr.fees) + Number(pr.bonuses || 0))}</td>
     <td style="white-space:nowrap">${Number(pr.refund_amount) > 0 ? `Refund: <b>${money(pr.refund_amount)}</b>` : `<span class="tag">Paid for itself</span>`}</td></tr>` : ""}
   </tbody></table></div>`;
 
@@ -759,9 +759,9 @@ async function program() {
     if (last?.status === "pending") return `<p><span class="tag">Sent ${new Date(last.created_at).toLocaleDateString()}</span> Alex or a verifier is checking it and may call a few of your contractors or customers.</p>`;
     const denied = last?.status === "denied" ? `<p class="err">Your last package was turned down${last.review_note ? ": " + esc(last.review_note) : ""}.</p>` : "";
     if (late) return denied + `<p class="muted">The refund window closed on day 97 (${new Date(pr.submit_by).toLocaleDateString()}).</p>`;
-    if (Number(pr.refund_amount) <= 0) return denied + `<p>The referral fees you've received reached ${money(pr.fees)}, so the method paid for itself and no refund is owed.</p>`;
+    if (Number(pr.refund_amount) <= 0) return denied + `<p>What you've received in referral fees and recruiting bonuses reached ${money(Number(pr.fees) + Number(pr.bonuses || 0))}, so the method paid for itself and no refund is owed.</p>`;
     if (!pr.all_met) return denied + `<p class="muted">The button opens once every goal and rule above says Met. You have until ${new Date(pr.submit_by).toLocaleDateString()} (day 97) to send it.</p>`;
-    return denied + `<form id="pkf"><p style="margin:6px 0">Every goal is met, so you can get back <b>${money(pr.refund_amount)}</b> (the ${money(pr.price)} you paid minus the ${money(pr.fees)} in referral fees you've received). Attach your proof: call-history screenshots, signed agreements or 20% texts, weekly comment screenshots and lead handoff texts. Each screenshot can prove only one thing.</p>
+    return denied + `<form id="pkf"><p style="margin:6px 0">Every goal is met, so you can get back <b>${money(pr.refund_amount)}</b> (the ${money(pr.price)} you paid minus the ${money(pr.fees)} in referral fees${Number(pr.bonuses) > 0 ? ` and ${money(pr.bonuses)} in recruiting bonuses` : ""} you've received). Attach your proof: call-history screenshots, signed agreements or 20% texts, weekly comment screenshots and lead handoff texts. Each screenshot can prove only one thing.</p>
       <label>Anything the reviewer should know?</label><textarea name="note" rows="3"></textarea>
       <label>Evidence files</label><input name="files" type="file" multiple accept="image/*,.pdf">
       <div class="err" id="pkerr"></div>
@@ -771,7 +771,7 @@ async function program() {
     <div class="card" style="margin-bottom:12px"><div class="row"><h2 style="font-size:20px;margin:0;margin-right:auto">Day ${day} of 90</h2>
       <span class="muted">Started ${new Date(pr.paid_at).toLocaleDateString()} · refund package due by ${new Date(pr.submit_by).toLocaleDateString()}</span></div>
       <div class="bar"><i style="width:${(day / 90) * 100}%"></i></div>
-      <p style="margin:10px 0 0;font-size:14px">Hit every goal below by its day. If your referral fees haven't paid back your ${money(pr.price ?? C.PRICE)} by day 90, you can send one package and get back what you paid minus the fees you received. Only what you log here on the day you do it counts, so log each contractor, call and lead as it happens. Bringing in friends is not part of it.</p></div>
+      <p style="margin:10px 0 0;font-size:14px">Hit every goal below by its day. If your referral fees and recruiting bonuses haven't paid back your ${money(pr.price ?? C.PRICE)} by day 90, you can send one package and get back the difference. Only what you log here on the day you do it counts, so log each contractor, call and lead as it happens. Bringing in friends is never required, but any $250 bonus you're paid by day 90 counts toward paying you back.</p></div>
     ${s0.progress !== "Approved" ? `<div class="card" id="nichecard" style="margin-bottom:12px"><b>Step 0: your 15 business models</b>
       ${s0.progress === "Waiting for review" ? `<p class="muted" style="margin:6px 0 0">Sent. Waiting for Alex or a verifier to approve it.</p>`
       : `<p style="margin:6px 0">List 15 different, non-overlapping business models in your niche, one per line. Due day 3 (${onDay(pr.paid_at, 3)}).</p>
