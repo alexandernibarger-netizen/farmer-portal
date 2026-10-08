@@ -436,7 +436,7 @@ function authView(mode = "in") {
   };
 }
 // The enrollment agreement lives at /terms/; bump TERMS_VERSION whenever that page's version date changes.
-const TERMS_VERSION = "2026-10-08";
+const TERMS_VERSION = "2026-10-08.2";
 const agreeBox = (checked = false) => `<label class="agree"><input type="checkbox" name="agree" required${checked ? " checked" : ""}>
   <span>I'm 18 or older and I agree to the <a href="/terms/" target="_blank" rel="noopener">Terms of Enrollment</a>, including the <a href="/terms/#refunds" target="_blank" rel="noopener">refund rules</a>, and the <a href="/privacy/" target="_blank" rel="noopener">Privacy Policy</a>.</span></label>`;
 const legalLinks = `<p class="muted" style="font-size:13px;text-align:center;margin:8px 0 0"><a href="/terms/">Terms</a> · <a href="/privacy/">Privacy</a> · <a href="mailto:support@leadfarminghq.com">support@leadfarminghq.com</a></p>`;
@@ -478,7 +478,7 @@ function newPasswordView() {
   };
 }
 
-$("#logout").onclick = () => { view = "home"; sb.auth.signOut().then(() => ($("#banner").innerHTML = "")); };
+$("#logout").onclick = () => { view = "home"; termsLater = false; sb.auth.signOut().then(() => ($("#banner").innerHTML = "")); };
 
 sb.auth.onAuthStateChange((event, session) => {
   if (event === "USER_UPDATED") return; // new password saved; the form handles what's next
@@ -510,6 +510,47 @@ const tradeName = (id) => trades.find((t) => t.id === id)?.name || "—";
 const locked = () => me?.role !== "admin" && !me?.verifier && !me?.enrollment_paid;
 const lvl = () => (me?.role === "admin" ? 3 : me?.level || 0);
 const reviewer = () => me?.role === "admin" || me?.verifier;
+
+// Paid farmers who haven't accepted the current Terms (paid before the agree box existed, or the Terms changed)
+// see this once per sign-in. "Not now" lets them in; turning the Terms down offers a refund request instead.
+let termsLater = false;
+const needsTerms = () => me?.role !== "admin" && me?.enrollment_paid && me?.terms_version !== TERMS_VERSION && !termsLater;
+function termsView(declined = false) {
+  $("#nav").innerHTML = ""; $("#banner").innerHTML = "";
+  if (declined) {
+    app.innerHTML = `<div class="auth card" id="termsgate">
+      <h2 style="margin-top:0">You can ask for a refund instead</h2>
+      <p>You don't have to accept the Terms. We've let Alex know, and you can ask for your $500 back by email.</p>
+      <a class="btn" style="display:block;text-align:center;text-decoration:none" id="askrefund"
+        href="mailto:support@leadfarminghq.com?subject=${encodeURIComponent("Refund request: I don't accept the Terms")}&body=${encodeURIComponent("Account email: " + (me.email || ""))}">Email us for a refund</a>
+      <button class="btn ghost" style="width:100%;margin-top:10px" id="tback">Back to the Terms</button>${legalLinks}</div>`;
+    $("#tback").onclick = () => termsView();
+    return;
+  }
+  const first = !me.terms_version;
+  app.innerHTML = `<div class="auth card" id="termsgate">
+    <h2 style="margin-top:0">${first ? "Please accept the Terms" : "We updated the Terms"}</h2>
+    <p>${first ? "You paid before the portal asked you to agree to the Terms of Enrollment. They set the rules for your 90 days and your refund, so please read them and accept to continue."
+      : "The refund now subtracts only the referral fees contractors have actually paid you by day 90. Please read the Terms of Enrollment and accept to continue."}</p>
+    <form id="tf">${agreeBox()}
+      <div class="err" id="terr"></div>
+      <button class="btn" style="width:100%;margin-top:10px" id="taccept">Accept and continue</button></form>
+    <button class="btn ghost" style="width:100%;margin-top:10px" id="tlater">Not now</button>
+    <p class="muted" style="font-size:14px;text-align:center">Don't want to accept? <a href="#" id="tdecline">Ask for a refund instead</a></p>${legalLinks}</div>`;
+  $("#tf").onsubmit = async (e) => {
+    e.preventDefault();
+    const { error } = await sb.rpc("accept_terms", { p_version: TERMS_VERSION });
+    if (error) return ($("#terr").textContent = error.message);
+    me.terms_version = TERMS_VERSION; boot();
+  };
+  $("#tlater").onclick = () => { termsLater = true; boot(); };
+  $("#tdecline").onclick = async (e) => {
+    e.preventDefault();
+    const { error } = await sb.rpc("decline_terms");
+    if (error) return ($("#terr").textContent = error.message);
+    termsView(true);
+  };
+}
 
 // Unpaid accounts get only this screen; the database also refuses them any program data.
 function payView() {
@@ -551,6 +592,7 @@ function boot() {
   $("#top").hidden = false;
   $("#who").textContent = me?.full_name || me?.email || "";
   if (locked()) return payView();
+  if (needsTerms()) return termsView();
   const tabs = [["home","Home"],["learn","Learn"]];
   if (me?.role !== "admin" && me?.enrollment_paid) tabs.push(["program","90 days"]);
   tabs.push(["pipeline","Pipeline"],["contractors","Contractors"]);
@@ -699,7 +741,7 @@ const progressTable = (pr) => `<div class="tablewrap"><table><thead><tr><th>Step
     <td style="white-space:nowrap">Day ${s.deadline}<br><small class="muted">${onDay(pr.paid_at, s.deadline)}</small></td>
     <td>${esc(s.progress)}</td><td>${s.met ? `<span class="tag">Met</span>` : pr.day > s.deadline ? `<span class="tag warn">Missed</span>` : `<span class="muted">Open</span>`}</td></tr>`).join("")}
   ${pr.rules.map((r) => `<tr><td colspan="3"><b>${esc(r.name)}</b></td><td>${esc(r.progress)}</td><td>${r.met ? `<span class="tag">Met</span>` : `<span class="muted">Open</span>`}</td></tr>`).join("")}
-  ${pr.fees != null ? `<tr id="refundamt"><td colspan="3"><b>Referral fees earned</b><br><small class="muted">Jobs closed by day 90. The refund is $500 minus these.</small></td><td>${money(pr.fees)}</td>
+  ${pr.fees != null ? `<tr id="refundamt"><td colspan="3"><b>Referral fees received</b><br><small class="muted">Paid to you by day 90. The refund is $500 minus these.</small></td><td>${money(pr.fees)}</td>
     <td style="white-space:nowrap">${Number(pr.refund_amount) > 0 ? `Refund: <b>${money(pr.refund_amount)}</b>` : `<span class="tag">Paid for itself</span>`}</td></tr>` : ""}
   </tbody></table></div>`;
 
@@ -717,9 +759,9 @@ async function program() {
     if (last?.status === "pending") return `<p><span class="tag">Sent ${new Date(last.created_at).toLocaleDateString()}</span> Alex or a verifier is checking it and may call a few of your contractors or customers.</p>`;
     const denied = last?.status === "denied" ? `<p class="err">Your last package was turned down${last.review_note ? ": " + esc(last.review_note) : ""}.</p>` : "";
     if (late) return denied + `<p class="muted">The refund window closed on day 97 (${new Date(pr.submit_by).toLocaleDateString()}).</p>`;
-    if (Number(pr.refund_amount) <= 0) return denied + `<p>Your referral fees reached ${money(pr.fees)}, so the method paid for itself and no refund is owed.</p>`;
+    if (Number(pr.refund_amount) <= 0) return denied + `<p>The referral fees you've received reached ${money(pr.fees)}, so the method paid for itself and no refund is owed.</p>`;
     if (!pr.all_met) return denied + `<p class="muted">The button opens once every goal and rule above says Met. You have until ${new Date(pr.submit_by).toLocaleDateString()} (day 97) to send it.</p>`;
-    return denied + `<form id="pkf"><p style="margin:6px 0">Every goal is met, so you can get back <b>${money(pr.refund_amount)}</b> ($500 minus the ${money(pr.fees)} in referral fees you earned). Attach your proof: call-history screenshots, signed agreements or 20% texts, weekly comment screenshots and lead handoff texts. Each screenshot can prove only one thing.</p>
+    return denied + `<form id="pkf"><p style="margin:6px 0">Every goal is met, so you can get back <b>${money(pr.refund_amount)}</b> ($500 minus the ${money(pr.fees)} in referral fees you've received). Attach your proof: call-history screenshots, signed agreements or 20% texts, weekly comment screenshots and lead handoff texts. Each screenshot can prove only one thing.</p>
       <label>Anything the reviewer should know?</label><textarea name="note" rows="3"></textarea>
       <label>Evidence files</label><input name="files" type="file" multiple accept="image/*,.pdf">
       <div class="err" id="pkerr"></div>
@@ -842,7 +884,9 @@ function upsellForm(u = {}, cs) {
 
 // ---------- reviewers: 15-model lists and refund packages ----------
 async function programReviews() {
-  const [{ data: nq }, { data: rq }] = await Promise.all([sb.rpc("niche_queue"), sb.rpc("refund_queue")]);
+  const [{ data: nq }, { data: rq }, { data: dec }] = await Promise.all([sb.rpc("niche_queue"), sb.rpc("refund_queue"),
+    me?.role === "admin" ? sb.from("profiles").select("id,full_name,email,terms_declined_at,terms_accepted_at") : Promise.resolve({ data: [] })]);
+  const declined = (dec || []).filter((d) => d.terms_declined_at && (!d.terms_accepted_at || new Date(d.terms_declined_at) > new Date(d.terms_accepted_at)));
   const files = await Promise.all((rq || []).map((r) => Promise.all((r.files || []).map((f) =>
     sb.storage.from("proof").createSignedUrl(f, 3600).then(({ data }) => `<a href="${esc(data?.signedUrl || "#")}" target="_blank" rel="noopener">${esc(f.split("/").pop().replace(/^refund-\d+-/, ""))}</a>`)))));
   app.insertAdjacentHTML("beforeend", `<h2 style="font-size:18px;margin-top:28px">15 business models</h2>
@@ -858,7 +902,11 @@ async function programReviews() {
       <p style="margin:10px 0 4px"><b>Their CRM records</b> <small class="muted">Spot-check any contractor or customer. One fake item voids the refund.</small></p>
       <div class="row">${evidenceButtons(r.farmer_id)}</div>
       <div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn sm" data-rok="${r.id}" data-ramt="${r.progress?.refund_amount ?? 500}">Approve ${money(r.progress?.refund_amount ?? 500)} refund</button> <button class="btn ghost sm" data-rno="${r.id}">Deny</button></div></div>`).join("")
-      || `<div class="card muted">No refund packages waiting.</div>`}`);
+      || `<div class="card muted">No refund packages waiting.</div>`}
+    ${me?.role === "admin" ? `<h2 style="font-size:18px;margin-top:28px">Turned down the Terms</h2>
+    ${declined.map((d) => `<div class="card row" style="margin-bottom:10px" data-declined="${d.id}"><span style="margin-right:auto"><b>${esc(d.full_name || d.email)}</b> <small class="muted">${esc(d.email)} · ${new Date(d.terms_declined_at).toLocaleDateString()}</small><br>
+      <small class="muted">They were offered a refund by email. Refund them in Stripe if they ask.</small></span><a class="btn ghost sm" href="mailto:${esc(d.email)}">Email them</a></div>`).join("")
+      || `<div class="card muted">Nobody has turned down the Terms.</div>`}` : ""}`);
   (rq || []).forEach((r) => wireEvidence(r.farmer_id, r.full_name || r.email));
   const err = (e) => ($("#aperr").textContent = e.message);
   app.querySelectorAll("[data-nok],[data-nno]").forEach((b) => b.onclick = async () => {

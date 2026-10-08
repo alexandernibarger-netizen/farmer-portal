@@ -732,10 +732,10 @@ begin
   steps := steps || jsonb_build_object('n', 4, 'name', 'First Lead Sent', 'quota', '50 comments a day, 5 days a week (days 7 to 90); 300 leads to 100+ contractors by day 75', 'deadline', 75,
     'progress', v3 || ' of 12 comment weeks · ' || v1 || ' of 300 leads · ' || v2 || ' of 100 contractors', 'met', v3 >= 12 and v1 >= 300 and v2 >= 100);
 
-  -- referral fees earned on jobs closed by day 90 (paid or not, so holding off on "paid" can't grow the refund);
+  -- referral fees actually received by day 90 (fee_paid_at is stamped by the server when marked paid);
   -- the refund is $500 minus these
   select coalesce(sum(l.fee_amount), 0) into fees from public.leads l
-    where l.farmer_id = f and l.direction = 'outbound' and l.status = 'closed' and coalesce(l.closed_at, l.created_at) <= t0 + interval '90 days';
+    where l.farmer_id = f and l.direction = 'outbound' and l.status = 'closed' and l.fee_paid and l.fee_paid_at <= t0 + interval '90 days';
 
   -- rules: activity on 5 of every 7 days (13 weeks, days 0-90); quizzes for every level reached
   select count(*) filter (where days >= least(5, len)) into v1 from (
@@ -975,3 +975,13 @@ language sql security definer set search_path = public as $$
 $$;
 revoke execute on function public.accept_terms(text) from public, anon;
 grant execute on function public.accept_terms(text) to authenticated;
+
+-- ---------- terms declined ----------
+-- Paid farmers who turn down a new version of the Terms; Alex sees them in Approvals and handles the refund.
+alter table public.profiles add column if not exists terms_declined_at timestamptz;
+create or replace function public.decline_terms() returns void
+language sql security definer set search_path = public as $$
+  update public.profiles set terms_declined_at = now() where id = auth.uid();
+$$;
+revoke execute on function public.decline_terms() from public, anon;
+grant execute on function public.decline_terms() to authenticated;
