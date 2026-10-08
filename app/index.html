@@ -438,7 +438,7 @@ function authView(mode = "in") {
 // The enrollment agreement lives at /terms/; bump TERMS_VERSION whenever that page's version date changes.
 const TERMS_VERSION = "2026-10-08";
 const agreeBox = (checked = false) => `<label class="agree"><input type="checkbox" name="agree" required${checked ? " checked" : ""}>
-  <span>I'm 18 or older and I agree to the <a href="/terms/" target="_blank" rel="noopener">Terms of Enrollment</a>, including the <a href="/terms/#refunds" target="_blank" rel="noopener">refund rules</a>, and the <a href="/privacy/" target="_blank" rel="noopener">Privacy Policy</a>.</span></label>`;
+  <span>I'm 18 or older, and I acknowledge that I have read and agree to the <a href="/terms/" target="_blank" rel="noopener">Terms of Enrollment</a>, including the <a href="/terms/#refunds" target="_blank" rel="noopener">refund rules</a>, and the <a href="/privacy/" target="_blank" rel="noopener">Privacy Policy</a>.</span></label>`;
 const legalLinks = `<p class="muted" style="font-size:13px;text-align:center;margin:8px 0 0"><a href="/terms/">Terms</a> · <a href="/privacy/">Privacy</a> · <a href="mailto:support@leadfarminghq.com">support@leadfarminghq.com</a></p>`;
 function forgotView() {
   app.innerHTML = `<div class="auth card">
@@ -529,7 +529,7 @@ function payView() {
   if ($("#pay")) $("#pay").onclick = async (e) => {
     e.preventDefault();
     const href = e.currentTarget.href, box = $("#paywall [name=agree]");
-    if (!box.checked) { $("#perr").textContent = "Please read and agree to the Terms of Enrollment first."; return box.focus(); }
+    if (!box.checked) { $("#perr").textContent = "Please check the box to acknowledge that you have read and agree to the Terms of Enrollment first."; return box.focus(); }
     $("#perr").textContent = "";
     if (me.terms_version !== TERMS_VERSION) {
       const { error } = await sb.rpc("accept_terms", { p_version: TERMS_VERSION });
