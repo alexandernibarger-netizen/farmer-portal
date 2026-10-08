@@ -423,14 +423,24 @@ function authView(mode = "in") {
   $("#af").onsubmit = async (e) => {
     e.preventDefault();
     const f = Object.fromEntries(new FormData(e.target));
-    const { error } = mode === "in"
+    const btn = e.target.querySelector("button");
+    if (btn.disabled) return;
+    btn.disabled = true;
+    const { error } = await (mode === "in"
       ? await sb.auth.signInWithPassword({ email: f.email, password: f.password })
       : await sb.auth.signUp({ email: f.email, password: f.password,
           options: { emailRedirectTo: location.origin + location.pathname,
-            data: { full_name: f.full_name, phone: f.phone, recruiter_email: f.recruiter_email } } });
-    if (error) return ($("#aerr").textContent = error.message);
+            data: { full_name: f.full_name, phone: f.phone, recruiter_email: f.recruiter_email } } }));
+    btn.disabled = false;
+    if (error) return ($("#aerr").textContent = authErr(error));
     if (mode === "up") $("#aerr").textContent = "Check your email to confirm your account, then sign in.";
   };
+}
+// Email sends are rate limited; repeat taps only make the wait longer.
+function authErr(error) {
+  return error.code === "over_email_send_rate_limit" || error.status === 429
+    ? "We're sending a lot of emails right now. Please wait a few minutes and try once more, or message Alex to get set up."
+    : error.message;
 }
 function forgotView() {
   app.innerHTML = `<div class="auth card">
@@ -444,8 +454,12 @@ function forgotView() {
   $("#ff").onsubmit = async (e) => {
     e.preventDefault();
     const email = new FormData(e.target).get("email");
+    const btn = e.target.querySelector("button");
+    if (btn.disabled) return;
+    btn.disabled = true;
     const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
-    $("#ferr").textContent = error ? error.message : "If that email has an account, a reset link is on its way. Check your inbox.";
+    btn.disabled = false;
+    $("#ferr").textContent = error ? authErr(error) : "If that email has an account, a reset link is on its way. Check your inbox.";
   };
 }
 
