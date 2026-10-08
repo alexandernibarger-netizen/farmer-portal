@@ -1,0 +1,26 @@
+/* Shared look for the Terms and Privacy pages (matches the landing page). */
+:root{--ink:#2B3A2E;--muted:#55615A;--line:#E6EBE1;--soft:#F3F6EF;--mint:#EAF6E1;--accent:#2E7A12;--accent-d:#1E4F0B;color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:#fff;color:var(--ink);font:17px/1.6 Nunito,system-ui,sans-serif}
+a{color:var(--accent)}a:hover{color:var(--accent-d)}
+.top{display:flex;align-items:center;gap:16px;padding:14px 20px;max-width:1200px;margin:0 auto}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--ink);margin-right:auto;font-weight:900;font-size:22px}
+.login{padding:9px 16px;border:2px solid var(--line);border-bottom-width:4px;border-radius:14px;font-weight:900;text-decoration:none}
+main{max-width:780px;margin:0 auto;padding:24px 20px 64px}
+h1{font-weight:900;font-size:clamp(32px,5vw,44px);line-height:1.1;letter-spacing:-.5px;margin:12px 0 8px}
+h2{font-weight:900;font-size:24px;letter-spacing:-.3px;margin:40px 0 10px;scroll-margin-top:16px}
+h3{font-weight:900;font-size:19px;margin:24px 0 6px}
+p,li{margin:0 0 12px}
+ul,ol{padding-left:24px}
+.meta{color:var(--muted)}
+.box{background:var(--mint);border-radius:16px;padding:16px 20px;margin:20px 0}
+.toc{background:var(--soft);border-radius:16px;padding:16px 20px 6px;margin:20px 0}
+.toc ol{margin:0;columns:2;column-gap:32px}
+.tbl{overflow-x:auto;margin:16px 0}
+table{width:100%;border-collapse:collapse;font-size:16px}
+th,td{text-align:left;padding:10px 12px;border-bottom:2px solid var(--line);vertical-align:top}
+th{background:var(--soft);font-weight:900}
+footer{border-top:2px solid var(--line);padding:28px 20px;color:var(--muted);font-size:14px}
+footer .wrap{max-width:1200px;margin:0 auto;display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-between}
+@media (max-width:640px){.toc ol{columns:1}th,td{padding:8px}}
+@media print{.top,footer,.toc{display:none}}
