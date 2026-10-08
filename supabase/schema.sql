@@ -681,6 +681,7 @@ declare
   d int;
   steps jsonb := '[]';
   v1 int; v2 int; v3 int; ok boolean;
+  fees numeric := 0;
 begin
   if f <> auth.uid() and not public.is_verifier() then raise exception 'verifiers only'; end if;
   select * into p from public.profiles where id = f;
@@ -731,42 +732,12 @@ begin
   steps := steps || jsonb_build_object('n', 4, 'name', 'First Lead Sent', 'quota', '50 comments a day, 5 days a week (days 7 to 90); 300 leads to 100+ contractors by day 75', 'deadline', 75,
     'progress', v3 || ' of 12 comment weeks · ' || v1 || ' of 300 leads · ' || v2 || ' of 100 contractors', 'met', v3 >= 12 and v1 >= 300 and v2 >= 100);
 
-  -- 5: 30 paid referral fees from 20+ contractors in 10+ trades by day 90
-  select count(*), count(distinct l.contractor_id), count(distinct c.trade_id) into v1, v2, v3
-    from public.leads l left join public.contractors c on c.id = l.contractor_id
-    where l.farmer_id = f and l.direction = 'outbound' and l.status = 'closed' and l.fee_paid and l.fee_paid_at <= t0 + interval '90 days';
-  steps := steps || jsonb_build_object('n', 5, 'name', 'First Lead Closed', 'quota', '30 paid fees, 20+ contractors, 10+ trades', 'deadline', 90,
-    'progress', v1 || ' of 30 fees · ' || v2 || ' of 20 contractors · ' || v3 || ' of 10 trades', 'met', v1 >= 30 and v2 >= 20 and v3 >= 10);
+  -- referral fees earned on jobs closed by day 90 (paid or not, so holding off on "paid" can't grow the refund);
+  -- the refund is $500 minus these
+  select coalesce(sum(l.fee_amount), 0) into fees from public.leads l
+    where l.farmer_id = f and l.direction = 'outbound' and l.status = 'closed' and coalesce(l.closed_at, l.created_at) <= t0 + interval '90 days';
 
-  -- 6: contractors in 10 different trades each sending 3+ leads back by day 90
-  select count(distinct c.trade_id) into v1 from public.contractors c
-    where c.farmer_id = f and c.trade_id is not null and (select count(*) from public.leads l
-      where l.contractor_id = c.id and l.direction = 'inbound' and l.created_at <= t0 + interval '90 days') >= 3;
-  steps := steps || jsonb_build_object('n', 6, 'name', 'Reciprocal Active', 'quota', '10 contractors in 10 trades, each sending 3+ leads back', 'deadline', 90,
-    'progress', v1 || ' of 10 trades', 'met', v1 >= 10);
-
-  -- 7: anchors = 3+ jobs closed and paid + 1+ lead back by day 80; need 5 trades
-  -- 8: an anchor pitched in each of those 5 trades by day 85
-  with a as (select c.id, c.trade_id from public.contractors c
-    where c.farmer_id = f and c.trade_id is not null
-      and (select count(*) from public.leads l where l.contractor_id = c.id and l.direction = 'outbound' and l.status = 'closed'
-           and l.fee_paid and l.fee_paid_at <= t0 + interval '80 days') >= 3
-      and exists (select 1 from public.leads l where l.contractor_id = c.id and l.direction = 'inbound' and l.created_at <= t0 + interval '80 days'))
-  select count(distinct a.trade_id),
-    count(distinct a.trade_id) filter (where exists (select 1 from public.upsells u where u.contractor_id = a.id and u.created_at <= t0 + interval '85 days'))
-    into v1, v2 from a;
-  steps := steps || jsonb_build_object('n', 7, 'name', 'Anchor Status', 'quota', '5 anchors in 5 trades (3+ paid jobs and 1+ lead back each)', 'deadline', 80,
-    'progress', v1 || ' of 5 trades', 'met', v1 >= 5);
-  steps := steps || jsonb_build_object('n', 8, 'name', 'Upsell Pitched', 'quota', 'All 5 anchors pitched', 'deadline', 85,
-    'progress', v2 || ' of 5 pitched', 'met', v1 >= 5 and v2 >= 5);
-
-  -- 9: 1 upsell closed by day 90
-  select count(*) into v1 from public.upsells u
-    where u.farmer_id = f and u.status = 'closed' and u.closed_at <= t0 + interval '90 days';
-  steps := steps || jsonb_build_object('n', 9, 'name', 'Upsell Closed', 'quota', '1 upsell closed', 'deadline', 90,
-    'progress', v1 || ' of 1', 'met', v1 >= 1);
-
-  -- rules: activity on 5 of every 7 days (13 weeks, days 0-90); quizzes; level 3
+  -- rules: activity on 5 of every 7 days (13 weeks, days 0-90); quizzes for every level reached
   select count(*) filter (where days >= least(5, len)) into v1 from (
     select w, least(7, 91 - 7 * w) len, (select count(distinct floor(extract(epoch from x.t - t0) / 86400)) from (
         select created_at t from public.contractors where farmer_id = f
@@ -776,7 +747,8 @@ begin
         union all select h.changed_at from public.contractor_stage_history h join public.contractors c on c.id = h.contractor_id where c.farmer_id = f) x
       where x.t >= t0 + make_interval(days => 7 * w) and x.t < t0 + make_interval(days => least(7 * w + 7, 91))) days
     from generate_series(0, 12) w) y;
-  select count(*) into v2 from public.quiz_passes q where q.farmer_id = f and q.quiz in ('l1', 'l2', 'l3');
+  select count(distinct q.quiz) into v2 from public.quiz_passes q where q.farmer_id = f
+    and q.quiz in (select 'l' || g from generate_series(1, greatest(p.level, 1)) g);
 
   return jsonb_build_object(
     'enrolled', true, 'paid_at', t0, 'day', d,
@@ -784,9 +756,9 @@ begin
     'steps', steps,
     'rules', jsonb_build_array(
       jsonb_build_object('name', 'Portal activity on 5 of every 7 days', 'progress', v1 || ' of 13 weeks', 'met', v1 >= 13),
-      jsonb_build_object('name', 'Level 1, 2 and 3 quizzes aced', 'progress', v2 || ' of 3', 'met', v2 >= 3),
-      jsonb_build_object('name', 'Reached Level 3 (every level-up approved)', 'progress', 'Level ' || p.level, 'met', p.level >= 3)),
-    'all_met', not exists (select 1 from jsonb_array_elements(steps) s where not (s->>'met')::boolean) and v1 >= 13 and v2 >= 3 and p.level >= 3,
+      jsonb_build_object('name', 'Quizzes aced for every level reached', 'progress', v2 || ' of ' || greatest(p.level, 1), 'met', v2 >= greatest(p.level, 1))),
+    'all_met', not exists (select 1 from jsonb_array_elements(steps) s where not (s->>'met')::boolean) and v1 >= 13 and v2 >= greatest(p.level, 1),
+    'fees', fees, 'refund_amount', greatest(0, 500 - fees),
     'niche', p.niche, 'niche_note', p.niche_note,
     'comments_today', (select coalesce(sum(a.count), 0) from public.activities a
       where a.farmer_id = f and a.kind = 'comments' and a.created_at >= date_trunc('day', now())));
@@ -817,6 +789,7 @@ begin
   if not coalesce((pr->>'enrolled')::boolean, false) then raise exception 'Finish your enrollment first'; end if;
   if now() > (pr->>'submit_by')::timestamptz then raise exception 'The refund window closed on day 97'; end if;
   if not (pr->>'all_met')::boolean then raise exception 'Every quota has to be met before you can send the package'; end if;
+  if (pr->>'refund_amount')::numeric <= 0 then raise exception 'Your referral fees reached $500, so no refund is owed'; end if;
   if coalesce(cardinality(p_files), 0) = 0 then raise exception 'Attach your evidence files'; end if;
   if exists (select 1 from unnest(p_files) x where x not like auth.uid()::text || '/%') then
     raise exception 'Evidence files must be your own uploads';
