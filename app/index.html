@@ -207,6 +207,13 @@ nav button:hover:not(.on){background:var(--soft2)}
 .nextcard small{font-weight:900;letter-spacing:.08em;text-transform:uppercase;opacity:.9}
 .nextcard #nexttext{display:block;font-size:20px;line-height:1.3;margin-top:4px}
 .nextcard .btn{background:#fff;color:var(--accent);box-shadow:0 4px 0 #CFE9BD;margin-left:auto}
+.dash h3{font-size:16px;margin:22px 0 8px}.dash .stats{margin-bottom:0}
+.dash .stat .v{font-size:22px}.dash .stat small{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+.needs{display:flex;flex-direction:column;gap:8px}.needs .row{justify-content:space-between;flex-wrap:nowrap}
+.lvlbar{display:flex;height:14px;border-radius:7px;overflow:hidden;background:var(--line);margin:10px 0 8px}
+.lvlbar i:nth-child(1){background:var(--leaf2)}.lvlbar i:nth-child(2){background:var(--leaf)}.lvlbar i:nth-child(3){background:var(--gold)}.lvlbar i:nth-child(4){background:var(--rock)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted)}.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.dash td .tag{margin:0 4px 4px 0}
 .behind{border:2px solid #F5C66B;background:#FFF8E6;color:#5C3D00;border-radius:16px;padding:12px 16px;font-size:15px}
 .trail{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));row-gap:18px;justify-items:center;margin-top:16px}
 .node{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;font-size:12px;font-weight:800;color:var(--muted)}
@@ -611,6 +618,7 @@ function boot() {
 
 // ---------- farmer: home (level ladder + next step) ----------
 async function home() {
+  if (me.role === "admin") return adminHome();
   // pick up an approval that happened since sign-in
   const { data: fresh } = await sb.from("profiles").select("*").eq("id", me.id).single();
   if (fresh && fresh.level !== me.level) { me = fresh; await loadRef(); return boot(); }
@@ -647,6 +655,106 @@ async function home() {
   if ($("#askup")) $("#askup").onclick = () => requestForm(L + 1);
   if (me.role !== "admin") await homeExtras(cs, { L, aced, ready, pending, passes });
   if ($("#toquiz")) $("#toquiz").onclick = (e) => { e.preventDefault(); learnQuiz = "l" + L; view = "learn"; boot(); };
+}
+
+// ---------- admin: home dashboard (students + business) ----------
+async function adminHome() {
+  const { data: D, error } = await sb.rpc("admin_dashboard");
+  if (error || !D) return (app.innerHTML = `<p class="err">Couldn't load your dashboard${error ? ": " + esc(error.message) : ""}</p>`);
+  const fs = D.farmers || [], paid = fs.filter((f) => f.paid), W = D.waiting || {}, M = D.money || {}, K = D.work || {};
+  const sum = (a, f) => a.reduce((t, x) => t + Number(f(x) || 0), 0);
+  const weekAgo = Date.now() - 7 * 864e5, monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  const active = paid.filter((f) => f.last_active && new Date(f.last_active) >= weekAgo).length;
+  const termsOpen = paid.filter((f) => f.terms_version !== TERMS_VERSION);
+  const revenue = sum(paid, (f) => f.fee), net = revenue - Number(M.refunded || 0) - Number(M.bonuses_paid || 0);
+  const stat = (v, k, sub = "") => `<div class="card stat"><div class="v">${v}</div><div class="k">${esc(k)}</div>${sub ? `<small>${esc(sub)}</small>` : ""}</div>`;
+  const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+
+  // what's waiting on Alex
+  const needs = [
+    [W.level_ups, plural(W.level_ups, "level-up request"), "approvals"],
+    [W.refunds, plural(W.refunds, "refund package"), "approvals"],
+    [W.niches, plural(W.niches, "niche list") + " to review", "approvals"],
+    [W.questions, plural(W.questions, "teacher question"), "approvals"],
+    [Number(M.bonuses_owed) / 250, money(M.bonuses_owed) + " in $250 bonuses to pay out", "payouts"],
+    [Number(M.clawbacks_open) / 250, money(M.clawbacks_open) + " in clawbacks owed back to you", "payouts"],
+    [termsOpen.filter((f) => f.terms_declined_at).length, plural(termsOpen.filter((f) => f.terms_declined_at).length, "farmer") + " turned down the Terms", "approvals"],
+  ].filter(([n]) => n > 0);
+
+  // where each paid farmer stands on the 90-day quotas
+  const board = paid.map((f) => {
+    const pr = f.progress || {}, day = Math.min(pr.day ?? 0, 90), steps = pr.steps || [];
+    return { f, day, met: steps.filter((s) => s.met).length, total: steps.length,
+      behind: steps.filter((s) => !s.met && s.deadline <= (pr.day ?? 0)), soon: steps.filter((s) => !s.met && s.deadline > (pr.day ?? 0) && s.deadline - (pr.day ?? 0) <= 7) };
+  }).sort((a, b) => b.behind.length - a.behind.length || b.soon.length - a.soon.length || (a.f.full_name || "").localeCompare(b.f.full_name || ""));
+  const behindN = board.filter((x) => x.behind.length).length;
+
+  // enrollments over the last six months
+  const months = [...Array(6)].map((_, i) => { const d = new Date(new Date().getFullYear(), new Date().getMonth() - 5 + i, 1); return { d, n: 0, $: 0 }; });
+  for (const f of paid) { if (!f.enrolled_at) continue; const e = new Date(f.enrolled_at), m = months.find((x) => x.d.getFullYear() === e.getFullYear() && x.d.getMonth() === e.getMonth()); if (m) { m.n++; m.$ += Number(f.fee || 0); } }
+  const topM = Math.max(1, ...months.map((m) => m.n));
+  const lv = [1, 2, 3].map((n) => paid.filter((f) => f.level === n).length), lv0 = paid.length - lv[0] - lv[1] - lv[2];
+  const ago = (t) => { if (!t) return "never"; const d = Math.floor((Date.now() - new Date(t)) / 864e5); return d <= 0 ? "today" : d === 1 ? "yesterday" : d + " days ago"; };
+  const first = (me.full_name || "").trim().split(/\s+/)[0];
+  const hr = new Date().getHours();
+
+  app.innerHTML = `<div class="dash" id="admindash" style="max-width:1100px">
+    <h2 style="font-size:22px;margin:4px 0 0">Good ${hr < 12 ? "morning" : hr < 18 ? "afternoon" : "evening"}${first ? ", " + esc(first) : ""}</h2>
+    <p class="muted" style="margin:2px 0 0">${new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</p>
+
+    <h3>Needs you</h3>
+    <div class="card needs" id="needs">${needs.length ? needs.map(([, t, v]) => `<div class="row"><span>${esc(t)}</span><button class="btn sm" data-go="${v}">Open</button></div>`).join("")
+      : `<span class="muted">Nothing is waiting on you.</span>`}</div>
+
+    <h3>Students</h3>
+    <div class="stats" id="studentstats">
+      ${stat(fs.length, "Signed up")}
+      ${stat(paid.length, "Paid", paid.filter((f) => f.enrolled_at && new Date(f.enrolled_at) >= monthStart).length + " this month")}
+      ${stat(fs.length - paid.length, "Haven't paid yet", fs.length ? Math.round((paid.length / fs.length) * 100) + "% of signups paid" : "")}
+      ${stat(active, "Active this week", paid.length ? "of " + paid.length + " paid" : "")}
+      ${stat(behindN, "Behind on a quota", "missed a deadline")}
+      ${termsOpen.length ? stat(termsOpen.length, "Haven't accepted the Terms") : ""}
+    </div>
+    <div class="card" style="margin-top:10px" id="levels"><b>Levels</b><span class="muted" style="font-size:13px"> · paid farmers</span>
+      ${paid.length ? `<div class="lvlbar">${lv.map((n) => `<i style="width:${(n / paid.length) * 100}%"></i>`).join("")}<i style="width:${(lv0 / paid.length) * 100}%"></i></div>
+      <div class="legend">${lv.map((n, i) => `<span><i style="background:${["var(--leaf2)", "var(--leaf)", "var(--gold)"][i]}"></i>Level ${i + 1}: ${n}</span>`).join("")}${lv0 ? `<span><i style="background:var(--rock)"></i>Level 0: ${lv0}</span>` : ""}</div>`
+      : `<p class="muted" style="margin:6px 0 0">Nobody has paid yet.</p>`}</div>
+
+    <h3>Business</h3>
+    <div class="stats" id="bizstats">
+      ${stat(money(revenue), "Enrollment revenue", plural(paid.length, "enrollment"))}
+      ${stat(money(M.refunded), "Refunded", plural(Number(M.refunds_approved || 0), "approved refund"))}
+      ${stat(money(M.bonuses_paid), "$250 bonuses paid")}
+      ${stat(money(M.bonuses_owed), "Bonuses owed", Number(M.bonuses_pending) ? money(M.bonuses_pending) + " more once recruits pay" : "")}
+      ${stat(money(net), "Net revenue", "after refunds and bonuses")}
+    </div>
+    <div class="card" style="margin-top:10px" id="bymonth"><b>Enrollments by month</b>
+      <table style="margin-top:6px"><tbody>${months.map((m) => `<tr><td style="white-space:nowrap;width:1%">${m.d.toLocaleDateString(undefined, { month: "short", year: "numeric" })}</td>
+        <td><div class="bar" style="height:10px"><i style="width:${(m.n / topM) * 100}%"></i></div></td>
+        <td style="white-space:nowrap;width:1%">${m.n} · ${money(m.$)}</td></tr>`).join("")}</tbody></table></div>
+
+    <h3>What farmers are doing</h3>
+    <div class="stats" id="workstats">
+      ${stat(Number(K.contractors).toLocaleString(), "Contractors found", Number(K.agreed).toLocaleString() + " agreed to terms")}
+      ${stat(Number(K.calls).toLocaleString(), "Calls made", Number(K.comments).toLocaleString() + " neighbor comments")}
+      ${stat(Number(K.leads_sent).toLocaleString(), "Leads sent", Number(K.leads_closed).toLocaleString() + " closed")}
+      ${stat(money(K.fees_earned), "Referral fees earned", money(K.fees_collected) + " collected")}
+      ${Number(K.upsells_closed) ? stat(money(K.upsell_revenue), "Upsell revenue", plural(Number(K.upsells_closed), "upsell")) : ""}
+    </div>
+
+    <h3>90-day check</h3>
+    <div class="card tablewrap" id="quotaboard"><table><thead><tr><th>Farmer</th><th>Level</th><th>Day</th><th>Quotas met</th><th>Behind on</th><th>Due this week</th><th>Last active</th></tr></thead><tbody>
+    ${board.map((x) => `<tr><td><button class="linkbtn" data-fp="${x.f.id}"><b>${esc(x.f.full_name || x.f.email)}</b></button></td>
+      <td>${x.f.level}</td><td>${x.f.progress ? x.day + " of 90" : "—"}</td><td>${x.total ? x.met + " of " + x.total : "—"}</td>
+      <td>${x.behind.map((s) => `<span class="tag warn" title="${esc(s.progress)}">${esc(s.name)}</span>`).join("") || `<span class="muted">—</span>`}</td>
+      <td>${x.soon.map((s) => `<span class="tag" title="${esc(s.progress)}">${esc(s.name)} · day ${s.deadline}</span>`).join("") || `<span class="muted">—</span>`}</td>
+      <td style="white-space:nowrap">${ago(x.f.last_active)}</td></tr>`).join("")
+      || `<tr><td colspan="7" class="muted">Paid farmers show up here.</td></tr>`}</tbody></table></div></div>`;
+  app.querySelectorAll("[data-go]").forEach((b) => b.onclick = () => { view = b.dataset.go; boot(); });
+  app.querySelectorAll("[data-fp]").forEach((b) => b.onclick = () => {
+    const f = fs.find((x) => x.id === b.dataset.fp);
+    farmerPage({ ...f, enrollment_paid: f.paid });
+  });
 }
 
 function requestForm(to) {
