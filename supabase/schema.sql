@@ -36,7 +36,7 @@ create table public.profiles (
   role text not null default 'farmer' check (role in ('farmer','admin')),
   recruited_by uuid references public.profiles(id),
   enrolled_at timestamptz,
-  enrollment_fee numeric(10,2) not null default 500,
+  enrollment_fee numeric(10,2) not null default 499,
   enrollment_paid boolean not null default false,
   created_at timestamptz not null default now()
 );
@@ -404,7 +404,7 @@ select p.id, p.full_name, p.email, p.enrollment_paid, p.recruited_by,
   (select count(*) from public.leads l where l.farmer_id = p.id and l.status = 'closed') as leads_closed,
   (select coalesce(sum(fee_amount),0) from public.leads l where l.farmer_id = p.id and l.status = 'closed') as fees_earned,
   (select count(*) from public.recruiter_payouts r where r.recruiter_id = p.id) as recruits,
-  p.level, p.verifier
+  p.level, p.verifier, p.enrollment_fee
 from public.profiles p where p.role = 'farmer';
 
 -- ---------- lessons + quizzes (rows seeded from project files curriculum/lessons/seed.sql, not in this repo) ----------
@@ -575,7 +575,7 @@ grant execute on function public.get_quiz(text), public.submit_quiz(text, smalli
   public.ask_teacher(text, text), public.question_queue(), public.answer_question(uuid, text) to authenticated;
 
 -- ---------- 90-day refund program (migration 20261007_refund_program.sql) ----------
--- Day 0 = the day the $500 is paid (profiles.enrolled_at). Every quota counts only what was logged in the
+-- Day 0 = the day the enrollment is paid (profiles.enrolled_at). Every quota counts only what was logged in the
 -- portal by its deadline, using server timestamps, so nothing can be backdated or bulk-entered at the end.
 
 -- ---------- server-side timestamps ----------
@@ -733,7 +733,7 @@ begin
     'progress', v3 || ' of 12 comment weeks · ' || v1 || ' of 300 leads · ' || v2 || ' of 100 contractors', 'met', v3 >= 12 and v1 >= 300 and v2 >= 100);
 
   -- referral fees actually received by day 90 (fee_paid_at is stamped by the server when marked paid);
-  -- the refund is $500 minus these
+  -- the refund is the price they paid minus these
   select coalesce(sum(l.fee_amount), 0) into fees from public.leads l
     where l.farmer_id = f and l.direction = 'outbound' and l.status = 'closed' and l.fee_paid and l.fee_paid_at <= t0 + interval '90 days';
 
@@ -758,7 +758,7 @@ begin
       jsonb_build_object('name', 'Portal activity on 5 of every 7 days', 'progress', v1 || ' of 13 weeks', 'met', v1 >= 13),
       jsonb_build_object('name', 'Quizzes aced for every level reached', 'progress', v2 || ' of ' || greatest(p.level, 1), 'met', v2 >= greatest(p.level, 1))),
     'all_met', not exists (select 1 from jsonb_array_elements(steps) s where not (s->>'met')::boolean) and v1 >= 13 and v2 >= greatest(p.level, 1),
-    'fees', fees, 'refund_amount', greatest(0, 500 - fees),
+    'price', p.enrollment_fee, 'fees', fees, 'refund_amount', greatest(0, p.enrollment_fee - fees),
     'niche', p.niche, 'niche_note', p.niche_note,
     'comments_today', (select coalesce(sum(a.count), 0) from public.activities a
       where a.farmer_id = f and a.kind = 'comments' and a.created_at >= date_trunc('day', now())));
@@ -789,7 +789,7 @@ begin
   if not coalesce((pr->>'enrolled')::boolean, false) then raise exception 'Finish your enrollment first'; end if;
   if now() > (pr->>'submit_by')::timestamptz then raise exception 'The refund window closed on day 97'; end if;
   if not (pr->>'all_met')::boolean then raise exception 'Every quota has to be met before you can send the package'; end if;
-  if (pr->>'refund_amount')::numeric <= 0 then raise exception 'Your referral fees reached $500, so no refund is owed'; end if;
+  if (pr->>'refund_amount')::numeric <= 0 then raise exception 'Your referral fees reached what you paid, so no refund is owed'; end if;
   if coalesce(cardinality(p_files), 0) = 0 then raise exception 'Attach your evidence files'; end if;
   if exists (select 1 from unnest(p_files) x where x not like auth.uid()::text || '/%') then
     raise exception 'Evidence files must be your own uploads';

@@ -352,7 +352,7 @@ nav button:hover:not(.on){background:var(--soft2)}
 
 <script type="module">
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-const C = window.CRM_CONFIG;
+const C = { PRICE: 499, ...window.CRM_CONFIG };  // PRICE fallback covers a cached older config.js
 let recovering = /type=recovery/.test(location.hash + location.search);
 let linkError = new URLSearchParams(location.hash.slice(1)).get("error_description");
 const sb = createClient(C.SUPABASE_URL, C.SUPABASE_KEY);
@@ -520,7 +520,7 @@ function termsView(declined = false) {
   if (declined) {
     app.innerHTML = `<div class="auth card" id="termsgate">
       <h2 style="margin-top:0">You can ask for a refund instead</h2>
-      <p>You don't have to accept the Terms. We've let Alex know, and you can ask for your $500 back by email.</p>
+      <p>You don't have to accept the Terms. We've let Alex know, and you can ask for your ${money(me.enrollment_fee ?? C.PRICE)} back by email.</p>
       <a class="btn" style="display:block;text-align:center;text-decoration:none" id="askrefund"
         href="mailto:support@leadfarminghq.com?subject=${encodeURIComponent("Refund request: I don't accept the Terms")}&body=${encodeURIComponent("Account email: " + (me.email || ""))}">Email us for a refund</a>
       <button class="btn ghost" style="width:100%;margin-top:10px" id="tback">Back to the Terms</button>${legalLinks}</div>`;
@@ -558,10 +558,10 @@ function payView() {
   const link = C.PAYMENT_LINK && `${C.PAYMENT_LINK}?client_reference_id=${encodeURIComponent(me.id)}&prefilled_email=${encodeURIComponent(me.email || "")}`;
   app.innerHTML = `<div class="auth card" id="paywall">
     <h2 style="margin-top:0">Finish your enrollment</h2>
-    <p>Welcome${me.full_name ? ", " + esc(me.full_name) : ""}. The ${esc(C.PROGRAM_NAME)} opens once your one-time $500 enrollment is paid.</p>
+    <p>Welcome${me.full_name ? ", " + esc(me.full_name) : ""}. The ${esc(C.PROGRAM_NAME)} opens once your one-time ${money(C.PRICE)} enrollment is paid.</p>
     ${link ? `${agreeBox(me.terms_version === TERMS_VERSION)}
-    <a class="btn" style="display:block;text-align:center;text-decoration:none;margin-top:10px" id="pay" href="${esc(link)}">Pay $500 by card</a>` : ""}
-    ${C.ZELLE_TO ? `<p class="muted">Or Zelle $500 to <b>${esc(C.ZELLE_TO)}</b> with <b>${esc(me.email)}</b> in the memo. We'll unlock your account once it arrives.</p>` : ""}
+    <a class="btn" style="display:block;text-align:center;text-decoration:none;margin-top:10px" id="pay" href="${esc(link)}">Pay ${money(C.PRICE)} by card</a>` : ""}
+    ${C.ZELLE_TO ? `<p class="muted">Or Zelle ${money(C.PRICE)} to <b>${esc(C.ZELLE_TO)}</b> with <b>${esc(me.email)}</b> in the memo. We'll unlock your account once it arrives.</p>` : ""}
     <p class="muted" style="font-size:14px">Already paid? It can take a minute to show up.</p>
     <button class="btn ghost" style="width:100%" id="recheck">Check again</button>
     <div class="err" id="perr"></div>${legalLinks}</div>`;
@@ -741,7 +741,7 @@ const progressTable = (pr) => `<div class="tablewrap"><table><thead><tr><th>Step
     <td style="white-space:nowrap">Day ${s.deadline}<br><small class="muted">${onDay(pr.paid_at, s.deadline)}</small></td>
     <td>${esc(s.progress)}</td><td>${s.met ? `<span class="tag">Met</span>` : pr.day > s.deadline ? `<span class="tag warn">Missed</span>` : `<span class="muted">Open</span>`}</td></tr>`).join("")}
   ${pr.rules.map((r) => `<tr><td colspan="3"><b>${esc(r.name)}</b></td><td>${esc(r.progress)}</td><td>${r.met ? `<span class="tag">Met</span>` : `<span class="muted">Open</span>`}</td></tr>`).join("")}
-  ${pr.fees != null ? `<tr id="refundamt"><td colspan="3"><b>Referral fees received</b><br><small class="muted">Paid to you by day 90. The refund is $500 minus these.</small></td><td>${money(pr.fees)}</td>
+  ${pr.fees != null ? `<tr id="refundamt"><td colspan="3"><b>Referral fees received</b><br><small class="muted">Paid to you by day 90. The refund is the ${money(pr.price)} you paid minus these.</small></td><td>${money(pr.fees)}</td>
     <td style="white-space:nowrap">${Number(pr.refund_amount) > 0 ? `Refund: <b>${money(pr.refund_amount)}</b>` : `<span class="tag">Paid for itself</span>`}</td></tr>` : ""}
   </tbody></table></div>`;
 
@@ -761,7 +761,7 @@ async function program() {
     if (late) return denied + `<p class="muted">The refund window closed on day 97 (${new Date(pr.submit_by).toLocaleDateString()}).</p>`;
     if (Number(pr.refund_amount) <= 0) return denied + `<p>The referral fees you've received reached ${money(pr.fees)}, so the method paid for itself and no refund is owed.</p>`;
     if (!pr.all_met) return denied + `<p class="muted">The button opens once every goal and rule above says Met. You have until ${new Date(pr.submit_by).toLocaleDateString()} (day 97) to send it.</p>`;
-    return denied + `<form id="pkf"><p style="margin:6px 0">Every goal is met, so you can get back <b>${money(pr.refund_amount)}</b> ($500 minus the ${money(pr.fees)} in referral fees you've received). Attach your proof: call-history screenshots, signed agreements or 20% texts, weekly comment screenshots and lead handoff texts. Each screenshot can prove only one thing.</p>
+    return denied + `<form id="pkf"><p style="margin:6px 0">Every goal is met, so you can get back <b>${money(pr.refund_amount)}</b> (the ${money(pr.price)} you paid minus the ${money(pr.fees)} in referral fees you've received). Attach your proof: call-history screenshots, signed agreements or 20% texts, weekly comment screenshots and lead handoff texts. Each screenshot can prove only one thing.</p>
       <label>Anything the reviewer should know?</label><textarea name="note" rows="3"></textarea>
       <label>Evidence files</label><input name="files" type="file" multiple accept="image/*,.pdf">
       <div class="err" id="pkerr"></div>
@@ -771,7 +771,7 @@ async function program() {
     <div class="card" style="margin-bottom:12px"><div class="row"><h2 style="font-size:20px;margin:0;margin-right:auto">Day ${day} of 90</h2>
       <span class="muted">Started ${new Date(pr.paid_at).toLocaleDateString()} · refund package due by ${new Date(pr.submit_by).toLocaleDateString()}</span></div>
       <div class="bar"><i style="width:${(day / 90) * 100}%"></i></div>
-      <p style="margin:10px 0 0;font-size:14px">Hit every goal below by its day. If your referral fees haven't reached $500 by day 90, you can send one package and get back $500 minus what you earned. Only what you log here on the day you do it counts, so log each contractor, call and lead as it happens. Bringing in friends is not part of it.</p></div>
+      <p style="margin:10px 0 0;font-size:14px">Hit every goal below by its day. If your referral fees haven't paid back your ${money(pr.price ?? C.PRICE)} by day 90, you can send one package and get back what you paid minus the fees you received. Only what you log here on the day you do it counts, so log each contractor, call and lead as it happens. Bringing in friends is not part of it.</p></div>
     ${s0.progress !== "Approved" ? `<div class="card" id="nichecard" style="margin-bottom:12px"><b>Step 0: your 15 business models</b>
       ${s0.progress === "Waiting for review" ? `<p class="muted" style="margin:6px 0 0">Sent. Waiting for Alex or a verifier to approve it.</p>`
       : `<p style="margin:6px 0">List 15 different, non-overlapping business models in your niche, one per line. Due day 3 (${onDay(pr.paid_at, 3)}).</p>
@@ -901,7 +901,7 @@ async function programReviews() {
       <p style="margin:10px 0 4px"><b>Their files</b><br>${files[i].join("<br>") || `<span class="muted">none</span>`}</p>
       <p style="margin:10px 0 4px"><b>Their CRM records</b> <small class="muted">Spot-check any contractor or customer. One fake item voids the refund.</small></p>
       <div class="row">${evidenceButtons(r.farmer_id)}</div>
-      <div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn sm" data-rok="${r.id}" data-ramt="${r.progress?.refund_amount ?? 500}">Approve ${money(r.progress?.refund_amount ?? 500)} refund</button> <button class="btn ghost sm" data-rno="${r.id}">Deny</button></div></div>`).join("")
+      <div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn sm" data-rok="${r.id}" data-ramt="${r.progress?.refund_amount ?? r.progress?.price}">Approve ${money(r.progress?.refund_amount ?? r.progress?.price)} refund</button> <button class="btn ghost sm" data-rno="${r.id}">Deny</button></div></div>`).join("")
       || `<div class="card muted">No refund packages waiting.</div>`}
     ${me?.role === "admin" ? `<h2 style="font-size:18px;margin-top:28px">Turned down the Terms</h2>
     ${declined.map((d) => `<div class="card row" style="margin-bottom:10px" data-declined="${d.id}"><span style="margin-right:auto"><b>${esc(d.full_name || d.email)}</b> <small class="muted">${esc(d.email)} · ${new Date(d.terms_declined_at).toLocaleDateString()}</small><br>
@@ -930,7 +930,7 @@ async function programReviews() {
 
 // ---------- farmer: Home extras (alerts, Today list, referrals) ----------
 const ago = (t) => (Date.now() - new Date(t).getTime()) / DAY;
-const payoutLabel = (r) => r.status === "pending" ? "Waiting on their $500" : r.status === "owed" ? "$250 owed to you"
+const payoutLabel = (r) => r.status === "pending" ? "Waiting on their enrollment" : r.status === "owed" ? "$250 owed to you"
   : r.status === "void" ? "Cancelled (they were refunded)"
   : r.clawback_at ? (r.clawback_settled_at ? "Clawed back" : "Being clawed back (they were refunded)") : "$250 paid";
 
@@ -1501,13 +1501,13 @@ async function admin() {
     <div class="stats">
       <div class="card stat"><div class="v">${(fs||[]).length}</div><div class="k">Farmers</div></div>
       <div class="card stat"><div class="v">${paid}</div><div class="k">Paid enrollment</div></div>
-      <div class="card stat"><div class="v">${money(paid * 500)}</div><div class="k">Enrollment revenue</div></div>
+      <div class="card stat"><div class="v">${money((fs || []).filter((f) => f.enrollment_paid).reduce((t, f) => t + Number(f.enrollment_fee ?? 0), 0))}</div><div class="k">Enrollment revenue</div></div>
       <div class="card stat"><div class="v">${(fs||[]).reduce((a,f)=>a+Number(f.active_network),0)}</div><div class="k">Contractors in all networks</div></div>
     </div>
     <div class="card tablewrap"><table><thead><tr><th>Farmer</th><th>Recruited by</th><th>Enrollment</th><th>Level</th><th>Verifier</th><th>Network</th><th>Leads (closed)</th><th>Fees earned</th><th>Recruits</th></tr></thead><tbody>
     ${(fs || []).map((f) => `<tr><td><button class="linkbtn" data-fp="${f.id}"><b>${esc(f.full_name || f.email)}</b></button><br><small class="muted">${esc(f.email)}</small></td>
       <td>${esc(byId[f.recruited_by]?.full_name || "")}</td>
-      <td>${f.enrollment_paid ? '<span class="tag">paid</span>' : `<button class="btn sm" data-pay="${f.id}">Mark $500 paid</button>`}</td>
+      <td>${f.enrollment_paid ? '<span class="tag">paid</span>' : `<button class="btn sm" data-pay="${f.id}">Mark ${money(C.PRICE)} paid</button>`}</td>
       <td><select data-lvl="${f.id}" style="width:auto">${[0,1,2,3].map((n) => `<option ${n === f.level ? "selected" : ""}>${n}</option>`).join("")}</select></td>
       <td><input type="checkbox" data-ver="${f.id}" ${f.verifier ? "checked" : ""} style="width:auto"></td>
       <td>${f.active_network} / ${f.contractors}</td><td>${f.leads} (${f.leads_closed})</td><td>${money(f.fees_earned)}</td><td>${f.recruits}</td></tr>`).join("")

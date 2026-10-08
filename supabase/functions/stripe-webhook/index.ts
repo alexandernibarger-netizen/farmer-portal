@@ -1,4 +1,4 @@
-// Stripe webhook: when a farmer finishes the $500 Payment Link checkout, mark their enrollment paid.
+// Stripe webhook: when a farmer finishes the $499 Payment Link checkout, mark their enrollment paid.
 // The portal opens the Payment Link with ?client_reference_id=<farmer's user id>.
 // Requires the STRIPE_WEBHOOK_SECRET function secret (whsec_...).
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -36,11 +36,11 @@ Deno.serve(async (req) => {
   const farmerId = ref && /^[0-9a-f-]{36}$/i.test(ref) ? ref : null;
   const email: string | null = session.customer_details?.email ?? null;
   if (session.payment_status !== "paid") return new Response("not paid", { status: 200 });
-  // Only the $500 enrollment counts (amount_total is in cents)
-  if ((session.amount_total ?? 0) < 50000) return new Response("not an enrollment payment", { status: 200 });
+  // Only the enrollment counts: $499, or $500 from the old link (amount_total is in cents)
+  if ((session.amount_total ?? 0) < 49900) return new Response("not an enrollment payment", { status: 200 });
 
   const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-  let q = db.from("profiles").update({ enrollment_paid: true });
+  let q = db.from("profiles").update({ enrollment_paid: true, enrollment_fee: session.amount_total / 100 });  // the refund cap is what they paid
   q = farmerId ? q.eq("id", farmerId) : q.eq("email", (email ?? "").toLowerCase());
   const { data, error } = await q.select("id");
   if (error) return new Response(error.message, { status: 500 });
