@@ -48,6 +48,8 @@ th{color:var(--muted);font-weight:500;font-size:12px;text-transform:uppercase;le
 dialog{border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);width:min(560px,94vw);padding:20px}
 dialog::backdrop{background:rgba(0,0,0,.4)}
 .auth{max-width:380px;margin:8vh auto}
+.agree{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.45;color:var(--ink);margin:14px 0 4px}
+.agree input{width:auto;margin:3px 0 0;flex:none}
 .banner{max-width:1400px;margin:16px auto 0;padding:0 20px}.banner .card{display:flex;gap:12px;align-items:center;flex-wrap:wrap;border-color:var(--accent)}
 .err{color:var(--warn);font-size:14px;min-height:1.2em;margin-top:8px}
 .trades{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:16px}
@@ -411,12 +413,13 @@ function authView(mode = "in") {
       <label>Email</label><input name="email" type="email" required>
       <label>Password</label><input name="password" type="password" minlength="8" required>
       ${mode === "in" ? `<p style="margin:6px 0 0;font-size:13px;text-align:right"><a href="#" id="fg">Forgot password?</a></p>` : ""}
+      ${mode === "up" ? agreeBox() : ""}
       <div class="err" id="aerr">${linkError ? esc(linkError) + ". Use Forgot password? to get a new link." : ""}</div>
       <button class="btn" style="width:100%;margin-top:8px">${mode === "in" ? "Sign in" : "Sign up"}</button>
     </form>
     <p class="muted" style="font-size:14px">${mode === "in"
       ? `New farmer? <a href="#" id="sw">Create an account</a>`
-      : `Already have an account? <a href="#" id="sw">Sign in</a>`}</p></div>`;
+      : `Already have an account? <a href="#" id="sw">Sign in</a>`}</p>${legalLinks}</div>`;
   $("#sw").onclick = (e) => { e.preventDefault(); authView(mode === "in" ? "up" : "in"); };
   linkError = null;
   if ($("#fg")) $("#fg").onclick = (e) => { e.preventDefault(); authView("forgot"); };
@@ -432,6 +435,11 @@ function authView(mode = "in") {
     if (mode === "up") $("#aerr").textContent = "Check your email to confirm your account, then sign in.";
   };
 }
+// The enrollment agreement lives at /terms/; bump TERMS_VERSION whenever that page's version date changes.
+const TERMS_VERSION = "2026-10-08";
+const agreeBox = (checked = false) => `<label class="agree"><input type="checkbox" name="agree" required${checked ? " checked" : ""}>
+  <span>I'm 18 or older and I agree to the <a href="/terms/" target="_blank" rel="noopener">Terms of Enrollment</a>, including the <a href="/terms/#refunds" target="_blank" rel="noopener">refund rules</a>, and the <a href="/privacy/" target="_blank" rel="noopener">Privacy Policy</a>.</span></label>`;
+const legalLinks = `<p class="muted" style="font-size:13px;text-align:center;margin:8px 0 0"><a href="/terms/">Terms</a> · <a href="/privacy/">Privacy</a> · <a href="mailto:support@leadfarminghq.com">support@leadfarminghq.com</a></p>`;
 function forgotView() {
   app.innerHTML = `<div class="auth card">
     <h2 style="margin-top:0">Reset your password</h2>
@@ -510,12 +518,26 @@ function payView() {
   app.innerHTML = `<div class="auth card" id="paywall">
     <h2 style="margin-top:0">Finish your enrollment</h2>
     <p>Welcome${me.full_name ? ", " + esc(me.full_name) : ""}. The ${esc(C.PROGRAM_NAME)} opens once your one-time $500 enrollment is paid.</p>
-    ${link ? `<a class="btn" style="display:block;text-align:center;text-decoration:none" id="pay" href="${esc(link)}">Pay $500 by card</a>` : ""}
+    ${link ? `${agreeBox(me.terms_version === TERMS_VERSION)}
+    <a class="btn" style="display:block;text-align:center;text-decoration:none;margin-top:10px" id="pay" href="${esc(link)}">Pay $500 by card</a>` : ""}
     ${C.ZELLE_TO ? `<p class="muted">Or Zelle $500 to <b>${esc(C.ZELLE_TO)}</b> with <b>${esc(me.email)}</b> in the memo. We'll unlock your account once it arrives.</p>` : ""}
     <p class="muted" style="font-size:14px">Already paid? It can take a minute to show up.</p>
     <button class="btn ghost" style="width:100%" id="recheck">Check again</button>
-    <div class="err" id="perr"></div></div>`;
+    <div class="err" id="perr"></div>${legalLinks}</div>`;
   $("#recheck").onclick = () => recheck();
+  // Paying needs the box checked; record which terms version they agreed to before sending them to Stripe.
+  if ($("#pay")) $("#pay").onclick = async (e) => {
+    e.preventDefault();
+    const href = e.currentTarget.href, box = $("#paywall [name=agree]");
+    if (!box.checked) { $("#perr").textContent = "Please read and agree to the Terms of Enrollment first."; return box.focus(); }
+    $("#perr").textContent = "";
+    if (me.terms_version !== TERMS_VERSION) {
+      const { error } = await sb.rpc("accept_terms", { p_version: TERMS_VERSION });
+      if (error) return ($("#perr").textContent = error.message);
+      me.terms_version = TERMS_VERSION;
+    }
+    location.href = href;
+  };
 }
 async function recheck(quiet = false) {
   const { data } = await sb.from("profiles").select("*").eq("id", me.id).single();
