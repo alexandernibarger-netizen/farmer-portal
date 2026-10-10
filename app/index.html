@@ -344,6 +344,32 @@ nav button:hover:not(.on){background:var(--soft2)}
 .tpl .pv{height:96px;border-radius:8px;display:flex;overflow:hidden;border:1px solid rgba(127,127,127,.25)}
 .tpl .pv i{display:block}
 .tpl b{font-size:15px}.tpl small{color:var(--muted);font-size:13px}
+/* First-login tour: spotlight + card */
+.tour-hole{position:fixed;z-index:50;border-radius:16px;box-shadow:0 0 0 4px #F5B700,0 0 0 9px rgba(245,183,0,.35),0 0 0 200vmax rgba(18,28,16,.62);pointer-events:none;transition:left .2s,top .2s,width .2s,height .2s}
+.tour-shade{position:fixed;inset:0;z-index:50;background:rgba(18,28,16,.62)}
+.tour-block{position:fixed;inset:0;z-index:49}
+.tour-card{position:fixed;z-index:51;width:336px;max-width:calc(100vw - 24px);background:var(--card);color:var(--ink);border:2px solid var(--line);border-radius:20px;padding:16px 18px 14px;box-shadow:0 18px 40px rgba(0,0,0,.28);text-align:left}
+.tour-card .tc-top{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.tour-card .tc-top svg{width:38px;flex:none}
+.tour-card .tc-pages{display:flex;gap:4px}
+.tour-card .tc-pages i{flex:1;height:6px;border-radius:99px;background:var(--lock,var(--line))}
+.tour-card .tc-pages i.done{background:var(--brand,var(--accent))}
+.tour-card .tc-pages i.cur{background:#F5B700}
+.tour-card .tc-where{font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.tour-card h4{margin:2px 0 6px;font-size:18px;font-weight:900;line-height:1.25}
+.tour-card p{margin:0 0 10px}
+.tour-card .tc-when{display:inline-flex;font-size:12.5px;font-weight:800;background:#FFF1CC;color:#7A5200;border-radius:99px;padding:3px 10px;margin-bottom:12px}
+.tour-card .tc-btns{display:flex;align-items:center;gap:8px}
+.tour-card .tc-skip{margin-right:auto;background:none;border:0;color:var(--muted);font:inherit;font-size:14px;font-weight:700;cursor:pointer;padding:0}
+.tour-card .tc-n{font-size:13px;color:var(--muted);font-weight:800;margin-right:4px;white-space:nowrap}
+.tour-card.modal{left:50%!important;top:50%!important;transform:translate(-50%,-50%);width:440px;text-align:center;padding:26px 26px 20px}
+.tour-card.modal .tc-top{justify-content:center}.tour-card.modal .tc-top svg{width:96px}
+.tour-card.modal h4{font-size:24px}.tour-card.modal .tc-btns{flex-direction:column;align-items:stretch;gap:10px}
+.tour-card.modal .tc-skip{margin:0;align-self:center}
+.tour-card .tc-arrow{position:absolute;width:16px;height:16px;background:var(--card);border-left:2px solid var(--line);border-top:2px solid var(--line);transform:rotate(45deg)}
+.tour-ghost{opacity:.55;pointer-events:none}.tour-ghost svg{filter:grayscale(1)}.tour-ghost .lk{margin-left:auto;font-size:12px}
+@media (max-width:640px){.tour-card:not(.modal){left:10px!important;right:10px;top:auto!important;bottom:84px;width:auto}.tour-card .tc-arrow{display:none}}
+@media (prefers-reduced-motion:reduce){.tour-hole{transition:none}}
 </style>
 </head>
 <body>
@@ -613,7 +639,7 @@ function boot() {
   $("#nav").innerHTML = tabs.map(([k,l]) => `<button data-v="${k}" class="${k===view?"on":""}">${NAV_ICONS[k] || ""}<span>${l}</span></button>`).join("");
   $("#nav").onclick = (e) => { const b = e.target.closest("button"); if (b?.dataset.v) { view = b.dataset.v; boot(); } };
   approvalsBadge();
-  ({ home, learn, program, pipeline, contractors, leads, upsells, money: moneyView, welcome: welcomeLines, settings: settingsView, approvals, admin, payouts, tradesView: tradesView })[view === "trades" ? "tradesView" : view]();
+  return ({ home, learn, program, pipeline, contractors, leads, upsells, money: moneyView, welcome: welcomeLines, settings: settingsView, approvals, admin, payouts, tradesView: tradesView })[view === "trades" ? "tradesView" : view]();
 }
 
 // ---------- farmer: home (level ladder + next step) ----------
@@ -654,6 +680,7 @@ async function home() {
   if ($("#copyref")) $("#copyref").onclick = () => { $("#reflink").select(); navigator.clipboard?.writeText($("#reflink").value).catch(() => {}); $("#copyref").textContent = "Copied"; };
   if ($("#askup")) $("#askup").onclick = () => requestForm(L + 1);
   if (me.role !== "admin") await homeExtras(cs, { L, aced, ready, pending, passes });
+  if (!reviewer() && L >= 1 && (me.tour_level || 0) < L && !tour) startTour(me.tour_level ? "levelup" : "full");
   if ($("#toquiz")) $("#toquiz").onclick = (e) => { e.preventDefault(); learnQuiz = "l" + L; view = "learn"; boot(); };
 }
 
@@ -890,7 +917,7 @@ async function program() {
       <br><small class="muted">50 a day on 5 days of every week, from day 7 to day 90. Log them the same day.</small></span>
       <input id="comn" type="number" min="1" max="1000" placeholder="How many" style="width:120px"><button class="btn" id="comadd">Log comments</button>
       <div class="err" id="comerr" style="width:100%"></div></div>
-    <div class="card" style="margin-bottom:12px">${progressTable(pr)}</div>
+    <div class="card" id="progcard" style="margin-bottom:12px">${progressTable(pr)}</div>
     <div class="card" id="pkcard"><b>Refund package</b>${packageCard()}
       <p class="muted" style="font-size:13px;margin:10px 0 6px">Your CRM records, as the reviewer will see them:</p><div class="row">${evidenceButtons("me")}</div>
       <p class="muted" style="font-size:13px;margin:10px 0 0">One fake or edited item voids the refund for good.</p></div></div>`;
@@ -1073,6 +1100,7 @@ async function todayList(cs) {
 
 // One greeting per visit, in turn, from the lines Alex keeps in the Welcome tab
 const greetingFrom = (lines) => {
+  if (!me.tour_level && !reviewer()) return `Welcome, ${firstName()}.`;  // first visit
   if (!lines?.length) return `Welcome back, ${firstName()}.`;
   const key = "lf-greet-" + me.id;
   let i = 0;
@@ -1094,6 +1122,8 @@ function nextStep({ L, aced, ready, pending }, pr, items) {
   if (open) return { text: `Keep working on step ${open.n}, ${open.name}: ${open.quota}. You're at ${open.progress}.`, go: "program", btn: "Open 90 days" };
   return { text: "Log today's calls and comments so your streak stays alive.", go: "program", btn: "Open 90 days" };
 }
+
+const MASCOT = `<svg class="mascot" viewBox="0 0 96 110" aria-hidden="true"><ellipse cx="48" cy="104" rx="30" ry="5" fill="var(--line)"/><path d="M22 70c0-20 11-34 26-34s26 14 26 34v18c0 8-6 14-14 14H36c-8 0-14-6-14-14z" fill="#F5B700"/><path d="M22 76c8 4 44 4 52 0v12c0 8-6 14-14 14H36c-8 0-14-6-14-14z" fill="#E0A100"/><circle cx="38" cy="62" r="7" fill="#fff"/><circle cx="58" cy="62" r="7" fill="#fff"/><circle cx="39.5" cy="63" r="3.4" fill="#2B3A2E"/><circle cx="59.5" cy="63" r="3.4" fill="#2B3A2E"/><path d="M42 74c3 3 9 3 12 0" stroke="#8B5E3C" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M18 40c4-9 18-14 30-14s26 5 30 14c-10 3-50 3-60 0z" fill="#C98B4D"/><path d="M30 30c2-12 10-18 18-18s16 6 18 18c-10 2-26 2-36 0z" fill="#D9A066"/><path d="M48 12V4" stroke="#3E8E22" stroke-width="3" stroke-linecap="round"/><path d="M48 7c-5 0-7-3-7-6 4 0 7 2 7 6z" fill="#5BB82E"/></svg>`;
 
 async function homeExtras(cs, ctx) {
   const [{ items, ls, pr }, { data: notes }, { data: refs }, { data: lines }] = await Promise.all([
@@ -1132,7 +1162,6 @@ async function homeExtras(cs, ctx) {
         ${m ? `<div class="bar" style="margin-top:8px"><i style="width:${Math.min(100, (+m[1] / +m[2]) * 100)}%"></i></div>` : ""}</div>
         <b style="color:var(--accent);white-space:nowrap">${esc(m ? m[1] + " / " + m[2] : cs0.progress)}</b></div>` : ""}</section>`;
   }
-  const MASCOT = `<svg class="mascot" viewBox="0 0 96 110" aria-hidden="true"><ellipse cx="48" cy="104" rx="30" ry="5" fill="var(--line)"/><path d="M22 70c0-20 11-34 26-34s26 14 26 34v18c0 8-6 14-14 14H36c-8 0-14-6-14-14z" fill="#F5B700"/><path d="M22 76c8 4 44 4 52 0v12c0 8-6 14-14 14H36c-8 0-14-6-14-14z" fill="#E0A100"/><circle cx="38" cy="62" r="7" fill="#fff"/><circle cx="58" cy="62" r="7" fill="#fff"/><circle cx="39.5" cy="63" r="3.4" fill="#2B3A2E"/><circle cx="59.5" cy="63" r="3.4" fill="#2B3A2E"/><path d="M42 74c3 3 9 3 12 0" stroke="#8B5E3C" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M18 40c4-9 18-14 30-14s26 5 30 14c-10 3-50 3-60 0z" fill="#C98B4D"/><path d="M30 30c2-12 10-18 18-18s16 6 18 18c-10 2-26 2-36 0z" fill="#D9A066"/><path d="M48 12V4" stroke="#3E8E22" stroke-width="3" stroke-linecap="round"/><path d="M48 7c-5 0-7-3-7-6 4 0 7 2 7 6z" fill="#5BB82E"/></svg>`;
   const SPEAKER = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10v4h4l5 4V6L8 10z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8.5 8.5 0 0 1 0 12"/></svg>`;
   $(".homemain").insertAdjacentHTML("afterbegin", `
     <section class="welcome" id="welcome" aria-label="Welcome">${MASCOT}<div class="bubble">
@@ -1221,7 +1250,10 @@ function settingsView() {
     <div class="tpls" role="group" aria-label="Dashboard look">${TEMPLATES.map(([k, name, about, c]) => `<button class="tpl" data-tpl="${k}" aria-pressed="${k === cur}">
       <span class="pv" aria-hidden="true"><i style="width:28%;background:${c[0]}"></i><i style="flex:1;background:${c[1]};padding:10px;display:flex;flex-direction:column;gap:6px"><i style="height:14px;width:60%;border-radius:4px;background:${c[2]}"></i><i style="height:28px;border-radius:4px;background:${c[0]};opacity:.55"></i><i style="height:14px;width:80%;border-radius:4px;background:${c[2]};opacity:.6"></i></i></span>
       <b>${esc(name)}${k === "farm" ? ` <span class="tag">Default</span>` : ""}</b><small>${esc(about)}</small></button>`).join("")}</div>
-    <div class="err" id="tplerr"></div></div></div>`;
+    <div class="err" id="tplerr"></div></div>
+    <div class="card" id="replaycard" style="margin-top:12px"><b style="font-size:17px">Portal tour</b><p class="muted" style="margin:4px 0 10px">Walk through every page again.</p>
+      <button class="btn ghost" id="replay">Replay the tour</button></div></div>`;
+  $("#replay").onclick = () => startTour("full");
   app.querySelectorAll("[data-tpl]").forEach((b) => b.onclick = async () => {
     const t = b.dataset.tpl, prev = document.documentElement.dataset.template;
     applyTemplate(t);
@@ -1230,6 +1262,222 @@ function settingsView() {
     if (error) { applyTemplate(prev); settingsView(); return ($("#tplerr").textContent = "Couldn't save your choice: " + error.message); }
     me.dashboard_template = t;
   });
+}
+
+// ---------- farmer: first-login tour (and short tours after each level-up) ----------
+// profiles.tour_level = the highest level whose tour the farmer has seen (0 = never toured)
+function tourSteps(kind) {
+  const L = lvl(), first = firstName();
+  const lv2 = [
+    { view: "leads", page: "Leads", sel: '#nav [data-v="leads"]', title: L > 2 ? "Leads" : "New: Leads", when: "Steps 4 to 6",
+      body: "Every homeowner job you pass to a contractor, and every job a contractor sends you, gets logged here." },
+    { view: "leads", page: "Leads", sel: "dialog[open]", open: "lead", title: "Log a lead the day you send it", when: "Step 4 · 300 by day 75",
+      body: "Pick the direction, the contractor, and what the job is. Mark it <b>closed</b> with the job value when it's done and <b>Fee paid</b> once your 20% arrives. That moves the contractor to step 5 on its own." },
+    { view: "money", page: "Money", sel: '#nav [data-v="money"]', title: L > 2 ? "Money" : "New: Money", when: "Step 5 onward",
+      body: "Your fees by month and who still owes you. Press <b>Paid</b> when a fee comes in." },
+  ];
+  const lv3 = [
+    { view: "upsells", page: "Upsells", sel: '#nav [data-v="upsells"]', title: L > 3 ? "Upsells" : "New: Upsells", when: "Steps 8 and 9",
+      body: "When an anchor is ready, log your pitch here (step 8) and mark it closed with the amount when they buy (step 9)." },
+    { view: "pipeline", page: "Pipeline", sel: ".board", scrollBoard: true, title: "Stages 7 to 9 are open", when: "Steps 7 to 9",
+      body: "Anchor Status, Upsell Pitched and Upsell Closed are now on your board. Move a contractor to Anchor once they've closed 3 jobs and sent you a lead." },
+  ];
+  if (kind === "levelup") {
+    const steps = [...((me.tour_level || 0) < 2 && L >= 2 ? lv2 : []), ...(L >= 3 ? lv3 : [])];
+    const pages = [...new Set(steps.map((x) => x.page))];
+    return steps.map((x) => ({ ...x, pages }));
+  }
+  const later = L >= 2 ? [...lv2.map((x) => ({ ...x, page: "Coming later" })), ...(L >= 3 ? lv3.map((x) => ({ ...x, page: "Coming later" })) : [
+    { view: "contractors", page: "Coming later", sel: '[data-ghost="lv3"]', ghosts: true, title: "Level 3: grow your income further", when: "Level 3",
+      body: "One more page opens at Level 3. What's inside stays a surprise until you get there." }])] : [
+    { view: "contractors", page: "Coming later", sel: '[data-ghost="leads"]', ghosts: true, title: "Leads opens at Level 2", when: "Steps 4 to 6 · Level 2",
+      body: "You won't need this until step 4, <b>First Lead Sent</b>, when you start passing homeowner jobs from your neighbor comments to contractors who agreed to terms. You'll log every lead you send, and every lead a contractor sends back (step 6)." },
+    { view: "contractors", page: "Coming later", sel: '[data-ghost="money"]', ghosts: true, title: "Money opens at Level 2", when: "Level 2",
+      body: "Fees collected, who still owes you, and fees by month. It starts filling the first time a contractor closes a job from your lead and pays you your 20%." },
+    { view: "contractors", page: "Coming later", sel: '[data-ghost="lv3"]', ghosts: true, title: "Level 3: grow your income further", when: "Level 3",
+      body: "One more page opens at Level 3. What's inside stays a surprise until you get there, so focus on steps 0 to 4 for now." }];
+  const ours = L === 1 ? "Steps 0 to 4 for now" : "Your level's steps";
+  return [
+    { modal: true, view: "home", title: `Welcome to the farm, ${esc(first)}!`, primary: "Show me around", secondary: "Skip for now",
+      body: "You're in. This quick tour walks you through every page and what each one tracks, so you know where to log things from day one. It takes about two minutes, and you can replay it from Settings any time." },
+    { view: "home", page: "Home", sel: '#nav [data-v="home"]', title: "Home is where every day starts", when: "Every day",
+      body: "Open the portal and start here. It tells you what's due, what's overdue, and what to do next." },
+    { view: "home", page: "Home", sel: "#welcome", title: "Your daily briefing", when: "Every day",
+      body: "Each visit I sum up your alerts, anything overdue, and your next step. Tap <b>Read it to me</b> to hear it out loud." },
+    { view: "home", page: "Home", sel: ".nextcard", title: "Your next step", when: "Every day",
+      body: "This always shows the one thing to do right now. Not sure what to work on? Press this button and it takes you there." },
+    { view: "home", page: "Home", sel: "#trail", title: "Your 90-day trail", when: ours,
+      body: "These are the steps for your level, starting with step 0: picking your niche. The big dot is the step you're on, with its goal and deadline underneath. A check means it's met, and more steps appear as you level up." },
+    { view: "home", page: "Home", sel: "#today", title: "Today's follow-ups", when: "Fills up from step 2",
+      body: "Contractors to call back and leads to check on show up here on their own. Tap one to open it." },
+    { view: "home", page: "Home", sel: "#next", title: "How you level up", when: L === 1 ? "Step 3 opens Level 2" : "Every level",
+      body: `You're on Level ${L}. ${L === 1 ? "To open Level 2: get one contractor to <b>Terms Agreed</b> (step 3) and ace the Level 1 quiz. Then a <b>Request level 2</b> button appears here." : "Reach the goal on this card and ace your level's quiz, then a request button appears here."} Attach your proof and Alex or a verifier approves it.` },
+    { view: "home", page: "Home", sel: "#homeside .card:has(.week)", title: "Log something 5 days a week", when: "Day 1 to day 90",
+      body: "Each day you log work, a dot fills in. Logging on at least 5 of every 7 days is one of the refund rules, so keep this row full." },
+    { view: "home", page: "Home", sel: "#refcard", title: "Introduce a friend (optional)", when: "Any time",
+      body: "Share your link. When someone you introduce enrolls, you earn $250. It's never required for anything in the program." },
+    { view: "learn", page: "Learn", sel: '#nav [data-v="learn"]', title: "Learn: lessons and quizzes", when: "Before each level",
+      body: "Short picture lessons, then one quiz per level. This is where you learn how to do each step before you do it." },
+    { view: "learn", page: "Learn", sel: ".lessons", title: "Start with these", when: L === 1 ? "Steps 0 to 3" : "Your level",
+      body: L === 1 ? "The Level 1 lessons cover picking your niche, finding contractors, the phone script, and getting the 20% agreement. Go top to bottom." : "The lessons for your level. Go top to bottom." },
+    { view: "learn", page: "Learn", sel: "#quizcard", title: "The quiz needs 100%", when: "Before each level-up",
+      body: "Every question has to be right before you can request the next level. Miss one and it shows which lessons to review. Retake it as often as you like." },
+    { view: "learn", page: "Learn", sel: "#askcard", title: "Ask a teacher", when: "After you ace the quiz",
+      body: "Once you ace a level's quiz, you can send questions about it to Alex, Vincent or Julian. Their answers show up right here." },
+    { view: "program", page: "90 days", sel: '#nav [data-v="program"]', title: "90 days: your goals and deadlines", when: "Day 0 to day 97",
+      body: `This page tracks every goal of the 90-day program. Hit them all and, if your fees haven't paid back your ${money(C.PRICE)} yet, you can get the difference back.` },
+    { view: "program", page: "90 days", sel: "#nichecard", title: "Your first task: step 0", when: "Step 0 · due day 3",
+      body: "List 15 different business models in your niche, one per line, and press <b>Send my 15</b>. Alex or a verifier checks that they don't overlap." },
+    { view: "program", page: "90 days", sel: "#comcard", title: "Log your neighbor comments", when: "Step 4 · from day 7",
+      body: "From day 7, comment like a neighbor on Nextdoor and Facebook: 50 a day, 5 days a week. Type how many you posted and press <b>Log comments</b> the same day." },
+    { view: "program", page: "90 days", sel: "#progcard", title: "Every goal and its due date", when: ours,
+      body: "Each row is a step with its goal, deadline and your progress. Only what you log on the day you do it counts, so log as you go." },
+    { view: "program", page: "90 days", sel: "#pkcard", title: "Your refund package", when: "When every row says Met",
+      body: "This button opens once every goal is met. You'll have until day 97 to send it, and your CRM records go with it automatically." },
+    { view: "pipeline", page: "Pipeline", sel: '#nav [data-v="pipeline"]', title: "Pipeline: contractors stage by stage", when: "Every step",
+      body: "Every contractor is a card that moves left to right as the relationship grows." },
+    { view: "pipeline", page: "Pipeline", sel: ".board", title: L === 1 ? "Stages 1 to 3 for now" : "Your stages", when: "Steps 1 to 3",
+      body: "<b>Identified</b>: you found them (step 1). <b>Outreach Made</b>: you called (step 2). <b>Terms Agreed</b>: they said yes to 20% (step 3). More stages open as you level up." },
+    { view: "pipeline", page: "Pipeline", sel: "main #add", title: "Add every contractor you find", when: "Step 1 · 300 by day 14",
+      body: "Log each contractor the day you find them. The goal is 300 contractors, 20 in each of your 15 trades." },
+    { view: "pipeline", page: "Pipeline", sel: "dialog[open]", open: "add", title: "What to fill in", when: "Step 1",
+      body: "Business name, trade, contact and phone, plus the link to the post or profile where you found them. That link is your proof for step 1." },
+    { view: "pipeline", page: "Pipeline", sel: "#calls", open: "sample", title: "Log every call", when: "Steps 2 and 3 · by day 21 and 45",
+      body: "After each call, pick the outcome and press <b>Log a call</b>. A call moves them to Outreach Made, and <b>agreed</b> moves them to Terms Agreed. When they agree, send the 20% text and tick the box. <i>(This is an example contractor. It isn't saved.)</i>" },
+    { view: "contractors", page: "Contractors", sel: '#nav [data-v="contractors"]', title: "Contractors: your network by trade", when: "Steps 1 to 3",
+      body: "The same contractors as Pipeline, sorted by trade so you can see where your network is thin." },
+    { view: "contractors", page: "Contractors", sel: ".trades", title: "10 in every trade", when: "Step 3 · 150 by day 45",
+      body: "One card per trade. It fills as contractors reach Terms Agreed. The goal is 10 signed in each of the 15 trades, 150 in total." },
+    { view: "contractors", page: "Contractors", sel: "main .tablewrap", title: "Your full list", when: "Any time",
+      body: "Every contractor in one table. Tap a row to edit it or log a call." },
+    ...later,
+    { view: "settings", page: "Settings", sel: "#replaycard", title: "Settings", when: "Any time",
+      body: "Pick how your portal looks. And if you ever want this tour again, press <b>Replay the tour</b>." },
+    { modal: true, done: true, view: "settings", title: `You're ready, ${esc(first)}`, primary: L === 1 ? "Start step 0" : "Go to Home", secondary: L === 1 ? "Back to Home" : "",
+      body: L === 1 ? "Your first job is step 0: list your 15 business models on the 90 days page. It's due by day 3. Do the Level 1 lessons alongside it." : "Your next step is waiting on Home." },
+  ].map((x) => ({ ...x, pages: ["Home", "Learn", "90 days", "Pipeline", "Contractors", "Coming later", "Settings"] }));
+}
+
+let tour = null;
+async function startTour(kind) {
+  const steps = tourSteps(kind).filter((x) => !(x.view === "program" && !(me.role !== "admin" && me.enrollment_paid)));
+  if (!steps.length) return markToured();
+  tour = { steps, i: 0, kind };
+  document.body.insertAdjacentHTML("beforeend", `<div class="tour-block"></div>`);
+  addEventListener("keydown", tourKey); addEventListener("resize", tourPlace);
+  await tourGo(0);
+}
+function tourKey(e) { if (e.key === "Escape") endTour(); else if (e.key === "ArrowRight") tourGo(tour.i + 1); else if (e.key === "ArrowLeft" && tour.i > 0) tourGo(tour.i - 1); }
+async function markToured() {
+  if ((me.tour_level || 0) >= lvl()) return;
+  me.tour_level = lvl();
+  await sb.from("profiles").update({ tour_level: me.tour_level }).eq("id", me.id);
+}
+function tourClear() {
+  document.querySelectorAll(".tour-hole,.tour-shade,.tour-card").forEach((e) => e.remove());
+}
+function endTour(go) {
+  if (!tour) return;
+  tourClear(); document.querySelectorAll(".tour-block,.tour-ghost").forEach((e) => e.remove());
+  if (dlg.open) dlg.close();
+  removeEventListener("keydown", tourKey); removeEventListener("resize", tourPlace);
+  tour = null; markToured();
+  view = go || "home"; boot();
+}
+const tourWait = async (sel) => { for (let k = 0; k < 40; k++) { const el = $(sel); if (el) return el; await new Promise((r) => setTimeout(r, 75)); } return null; };
+async function tourGo(i) {
+  if (!tour) return;
+  if (i >= tour.steps.length) return endTour();
+  const s = tour.steps[i]; tour.i = i;
+  tourClear();
+  if (dlg.open) dlg.close();
+  if (s.view !== view || !app.children.length) { view = s.view; await boot(); }
+  if (!tour) return;
+  if (s.ghosts && !$('[data-ghost]')) {
+    const set = $('#nav [data-v="settings"]'), lock = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>`;
+    for (const [k, label, lv] of [["leads", "Leads", 2], ["money", "Money", 2], ["lv3", "Level 3", 3]])
+      set.insertAdjacentHTML("beforebegin", `<button class="tour-ghost" data-ghost="${k}" tabindex="-1">${lock}<span>${label}</span><span class="lk">Lv ${lv}</span></button>`);
+  }
+  if (!s.ghosts) document.querySelectorAll(".tour-ghost").forEach((e) => e.remove());
+  if (s.open === "add") contractorForm();
+  if (s.open === "lead") leadForm({}, await myContractors());
+  if (s.open === "sample") {
+    // an example contractor, drawn locally and never saved, so a farmer with no contractors still sees the call log
+    contractorForm();
+    const f = $("#cf");
+    f.querySelector("h3").textContent = "Example: Rivera Plumbing";
+    for (const [k, v] of [["business_name", "Rivera Plumbing"], ["contact_name", "Luis Rivera"], ["phone", "(512) 555-0142"], ["city", "Austin"], ["source_link", "https://nextdoor.com/p/example"], ["found_via", "Nextdoor"], ["stage", "2"], ["notes", "Said call back Thursday after 3pm"]])
+      f.querySelector(`[name=${k}]`).value = v;
+    $("#cerr").insertAdjacentHTML("beforebegin", `<div id="calls"><h4 style="margin:16px 0 4px">Calls</h4>
+      <div class="row" style="font-size:14px;gap:8px"><span class="muted">Today, 10:12 AM</span><span>call back</span></div>
+      <div class="row" style="margin-top:8px"><select style="width:auto" disabled><option>agreed</option></select>
+      <label style="margin:0;display:flex;gap:6px;align-items:center"><input type="checkbox" checked disabled style="width:auto"> Sent the 20% text</label>
+      <button type="button" class="btn sm" disabled>Log a call</button></div></div>`);
+  }
+  if (s.open) dlg.querySelector("form").inert = true;  // shown, not usable, while the tour is on it
+  if (s.scrollBoard) { const b = $(".board"); if (b) b.scrollLeft = b.scrollWidth; }
+  const el = s.sel ? await tourWait(s.sel) : null;
+  if (!tour || tour.i !== i) return;
+  if (s.sel && !el) return tourGo(i + (tour.dir < 0 ? -1 : 1));  // part not on this farmer's page: skip it
+  tourDraw(s, el);
+}
+function tourDraw(s, el) {
+  const host = dlg.open ? dlg : document.body;  // an open dialog sits on top of everything else
+  if (host === dlg) dlg.style.overflow = "visible";
+  const numbered = tour.steps.filter((x) => !x.modal), n = numbered.indexOf(s) + 1, pi = s.pages.indexOf(s.page);
+  const card = document.createElement("div");
+  card.className = "tour-card" + (s.modal ? " modal" : "");
+  card.setAttribute("role", "dialog"); card.setAttribute("aria-label", "Portal tour");
+  card.innerHTML = `<div class="tc-top">${MASCOT}${s.modal ? "" : `<div style="flex:1"><div class="tc-where">${esc(s.page)}</div>
+      ${s.pages.length > 1 ? `<div class="tc-pages">${s.pages.map((_, k) => `<i class="${k < pi ? "done" : k === pi ? "cur" : ""}"></i>`).join("")}</div>` : ""}</div>`}</div>
+    <h4>${s.title}</h4><p>${s.body}</p>${s.when ? `<div class="tc-when">${esc(s.when)}</div>` : ""}
+    <div class="tc-btns">${s.modal ? `<button class="btn" data-t="next">${s.primary}</button>${s.secondary ? `<button class="tc-skip" data-t="alt">${s.secondary}</button>` : ""}`
+      : `<button class="tc-skip" data-t="skip">Skip tour</button><span class="tc-n">${n} of ${numbered.length}</span>${n > 1 ? `<button class="btn ghost sm" data-t="back">Back</button>` : ""}<button class="btn sm" data-t="next">${n === numbered.length && tour.i === tour.steps.length - 1 ? "Got it" : "Next"}</button>`}</div>`;
+  host.append(card);
+  card.onclick = (e) => {
+    const t = e.target.closest("[data-t]")?.dataset.t;
+    if (t === "skip") endTour();
+    if (t === "back") { tour.dir = -1; tourGo(tour.i - 1); }
+    if (t === "next") { tour.dir = 1; s.done ? endTour(lvl() === 1 ? "program" : "home") : tourGo(tour.i + 1); }
+    if (t === "alt") s.done ? endTour("home") : endTour();
+  };
+  card.querySelector('[data-t="next"]').focus({ preventScroll: true });
+  tour.el = el; tour.card = card;
+  if (!el) return host.insertAdjacentHTML("beforeend", `<div class="tour-shade"></div>`);
+  const hole = document.createElement("div"); hole.className = "tour-hole"; host.append(hole);
+  tour.hole = hole;
+  const phone = innerWidth <= 640;
+  el.scrollIntoView({ block: phone ? "start" : "center", inline: "center" });
+  if (phone && !el.closest("nav")) scrollBy(0, el.getBoundingClientRect().top - ($("header")?.getBoundingClientRect().bottom || 0) - 16);
+  tourPlace();
+}
+function tourPlace() {
+  if (!tour?.el || !tour.hole) return;
+  const { el, card, hole } = tour, pad = 8;
+  let r = el.getBoundingClientRect();
+  const cw = card.offsetWidth, ch = card.offsetHeight, vw = innerWidth, vh = innerHeight, phone = vw <= 640;
+  const right = (q) => q.right + pad + 24 + cw < vw, below = (q) => q.bottom + pad + 22 + ch < vh, above = (q) => q.top - pad - 22 - ch > 0;
+  if (!phone && !dlg.open && !right(r) && !below(r) && !above(r)) {
+    // make room underneath; a section taller than that gets only its top part lit up
+    scrollBy(0, r.top - 24); const q = el.getBoundingClientRect();
+    r = { left: q.left, right: q.right, width: q.width, top: q.top, bottom: Math.min(q.bottom, vh - ch - 40) };
+    r.height = r.bottom - r.top;
+  }
+  Object.assign(hole.style, { left: r.left - pad + "px", top: r.top - pad + "px", width: r.width + pad * 2 + "px", height: r.height + pad * 2 + "px" });
+  card.querySelector(".tc-arrow")?.remove();
+  if (phone) return Object.assign(card.style, { left: "", top: "" });
+  const mid = (a, size, lim) => Math.min(Math.max(12, a - size / 2), lim - size - 12);
+  let x, y, side;
+  if (right(r)) { x = r.right + pad + 22; y = mid(r.top + r.height / 2, ch, vh); side = "left"; }
+  else if (below(r)) { x = mid(r.left + r.width / 2, cw, vw); y = r.bottom + pad + 20; side = "top"; }
+  else if (above(r)) { x = mid(r.left + r.width / 2, cw, vw); y = r.top - pad - 20 - ch; side = "bottom"; }
+  else { x = Math.max(12, r.left - pad - 22 - cw); y = mid(r.top + 40, ch, vh); side = "right"; }
+  Object.assign(card.style, { left: x + "px", top: y + "px" });
+  const a = document.createElement("span"); a.className = "tc-arrow";
+  const ax = Math.min(cw - 30, Math.max(14, r.left + r.width / 2 - x - 8)), ay = Math.min(ch - 30, Math.max(14, r.top + r.height / 2 - y - 8));
+  Object.assign(a.style, side === "left" ? { left: "-9px", top: ay + "px", transform: "rotate(-45deg)" } : side === "top" ? { top: "-9px", left: ax + "px" }
+    : side === "bottom" ? { bottom: "-9px", left: ax + "px", transform: "rotate(225deg)" } : { right: "-9px", top: "24px", transform: "rotate(135deg)" });
+  card.append(a);
 }
 
 // ---------- farmer: money (fees by month, who owes you, upsells) ----------
