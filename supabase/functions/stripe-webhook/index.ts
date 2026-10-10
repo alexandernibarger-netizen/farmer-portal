@@ -1,6 +1,7 @@
 // Stripe webhook: when a farmer finishes the $499 Payment Link checkout, mark their enrollment paid.
 // The portal opens the Payment Link with ?client_reference_id=<farmer's user id>.
 // Requires the STRIPE_WEBHOOK_SECRET function secret (whsec_...).
+// Optional TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID secrets: every paid checkout also pings Alex on Telegram.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -16,6 +17,24 @@ async function validSignature(payload: string, header: string, secret: string): 
   const mac = new Uint8Array(await crypto.subtle.sign("HMAC", key, enc.encode(`${t}.${payload}`)));
   const expected = Array.from(mac, (b) => b.toString(16).padStart(2, "0")).join("");
   return sigs.some((s) => s.length === expected.length && [...s].every((c, i) => c === expected[i]));
+}
+
+// Best effort: a Telegram outage must never make Stripe retry the payment
+async function telegram(text: string) {
+  const token = Deno.env.get("TELEGRAM_BOT_TOKEN");
+  const chatId = Deno.env.get("TELEGRAM_CHAT_ID");
+  if (!token || !chatId) return;
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, text, disable_web_page_preview: true }),
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) console.warn("Telegram send failed", res.status, await res.text());
+  } catch (e) {
+    console.warn("Telegram send failed", e);
+  }
 }
 
 Deno.serve(async (req) => {
@@ -36,14 +55,25 @@ Deno.serve(async (req) => {
   const farmerId = ref && /^[0-9a-f-]{36}$/i.test(ref) ? ref : null;
   const email: string | null = session.customer_details?.email ?? null;
   if (session.payment_status !== "paid") return new Response("not paid", { status: 200 });
+  const amount = `$${((session.amount_total ?? 0) / 100).toFixed(2)}`;
+  const payer = [session.customer_details?.name, email].filter(Boolean).join(" · ") || "unknown payer";
   // Only the enrollment counts: $499, or $500 from the old link (amount_total is in cents)
-  if ((session.amount_total ?? 0) < 49900) return new Response("not an enrollment payment", { status: 200 });
+  if ((session.amount_total ?? 0) < 49900) {
+    await telegram(`💰 Stripe payment: ${amount}\n${payer}\n(not an enrollment, nothing unlocked)`);
+    return new Response("not an enrollment payment", { status: 200 });
+  }
 
   const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
   let q = db.from("profiles").update({ enrollment_paid: true, enrollment_fee: session.amount_total / 100 });  // the refund cap is what they paid
   q = farmerId ? q.eq("id", farmerId) : q.eq("email", (email ?? "").toLowerCase());
   const { data, error } = await q.select("id");
-  if (error) return new Response(error.message, { status: 500 });
+  if (error) {
+    await telegram(`💰 Stripe payment: ${amount}\n${payer}\n⚠️ Unlock failed: ${error.message}. Stripe will retry.`);
+    return new Response(error.message, { status: 500 });
+  }
   if (!data?.length) console.warn("No farmer matched checkout", session.id, farmerId, email);
+  await telegram(data?.length
+    ? `💰 New enrollment: ${amount}\n${payer}\n✅ Portal unlocked automatically.`
+    : `💰 New enrollment: ${amount}\n${payer}\n⚠️ No portal account matched, unlock them by hand.`);
   return new Response(JSON.stringify({ updated: data?.length ?? 0 }), { headers: { "Content-Type": "application/json" } });
 });
