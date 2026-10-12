@@ -62,6 +62,33 @@ function territory(pick = 0, stage = 4) {
     T(198, 160, "Every town needs", { a: "start", fs: 8.5, c: "tm" }) + T(198, 172, nm + ":", { a: "start", fs: 8.5, b: 1 }) + T(198, 184, "10 contractors", { a: "start", fs: 8.5, c: "tm" });
   return S(s, "A 50 mile circle around a home base with 10 towns inside, each holding the same 15 niches; " + nm + " is lit up in every town");
 }
+// A farmer's own map on Home: towns[i] = { name, cov: [15 values] }, 0 = empty, 1 = contractor found, 2 = signed (Terms Agreed)
+function farmlandMap(towns) {
+  const cx = 96, cy = 100, R = 90, f = (n) => n.toFixed(1), rad = (d) => d * Math.PI / 180;
+  const pos = [[0, 0, 17]].concat([...Array(9)].map((_, i) => [Math.cos(rad(-90 + i * 40)) * 59, Math.sin(rad(-90 + i * 40)) * 59, 18]));
+  let s = `<circle cx="${cx}" cy="${cy}" r="${R}" class="zone"/>`, found = 0, signed = 0;
+  pos.forEach(([x, y, r], t) => {
+    const tw = towns[t], X = cx + x, Y = cy + y;
+    if (!tw) { s += `<circle cx="${f(X)}" cy="${f(Y)}" r="${r}" class="ghost"/>`; return; }
+    const cov = tw.cov || [];
+    let g = `<circle cx="${f(X)}" cy="${f(Y)}" r="${r}" class="${t ? "town" : "townh"}"/>`;
+    for (let k = 0; k < 15; k++) {
+      const ring = k < 5 ? 0 : 1, i = ring ? k - 5 : k, n = ring ? 10 : 5, d = (ring ? .68 : .3) * r, a = (i / n) * 2 * Math.PI - Math.PI / 2 + (ring ? .3 : 0), v = cov[k] || 0;
+      if (v) found++; if (v === 2) signed++;
+      g += `<circle cx="${f(X + Math.cos(a) * d)}" cy="${f(Y + Math.sin(a) * d)}" r="${v === 2 ? 2.6 : v ? 2.1 : 1.4}" class="${v === 2 ? "gold" : v ? "leaf" : "leaf2 dim"}"/>`;
+    }
+    const esc = (x) => String(x).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+    s += `<g><title>${esc(tw.name)}: ${cov.filter(Boolean).length} of 15 niches have a contractor</title>${g}</g>`;
+  });
+  const spots = 150;
+  s += T(198, 34, found + " of " + spots, { a: "start", fs: 14, b: 1 }) + T(198, 48, "spots have a contractor", { a: "start", fs: 9, c: "tm" }) +
+    T(198, 74, signed + " signed", { a: "start", fs: 11, b: 1 }) + T(198, 87, "(Terms Agreed or later)", { a: "start", fs: 8.5, c: "tm" }) +
+    `<circle cx="203" cy="122" r="3.2" class="gold"/>` + T(212, 125, "Signed", { a: "start", fs: 9 }) +
+    `<circle cx="203" cy="140" r="2.8" class="leaf"/>` + T(212, 143, "Found, not signed", { a: "start", fs: 9 }) +
+    `<circle cx="203" cy="158" r="2" class="leaf2 dim"/>` + T(212, 161, "Empty spot", { a: "start", fs: 9 }) +
+    T(198, 184, "Center = home base", { a: "start", fs: 8.5, c: "tm" });
+  return S(s, `Your farmland: ${found} of ${spots} spots have a contractor, ${signed} signed`);
+}
 const DIAGRAMS = {
   territory: (pick, stage) => territory(pick, stage),
 
@@ -335,4 +362,4 @@ const DIAGRAMS = {
     OT(252, 190, "One level only. No chains.", { fs: 8.5 }),
     "A fruit tree whose fruit is contractor fees on real jobs, with a small flower beside it for the optional $250 bonus")
 };
-if (typeof module !== "undefined") module.exports = { DIAGRAMS, TERRITORY_NICHES };
+if (typeof module !== "undefined") module.exports = { DIAGRAMS, TERRITORY_NICHES, farmlandMap };
