@@ -67,7 +67,7 @@ dialog::backdrop{background:rgba(0,0,0,.4)}
 .qa{border-top:1px solid var(--line);margin-top:10px;padding-top:10px;font-size:14px}
 .player{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:12px}.player .bar{height:10px;border-radius:99px}
 .player .lcard{font-size:18px;line-height:1.5;margin:14px 0}.metaphor{font-style:italic;color:var(--muted);margin:10px 0 0}
-.ldiagram{margin-bottom:12px}.player>.btn{align-self:flex-start}
+.ldiagram{margin-bottom:12px}.nichepick{display:flex;flex-wrap:wrap;gap:6px;margin:-4px 0 10px}.nichepick .chipbtn{font-size:13px;padding:4px 10px}.player>.btn{align-self:flex-start}
 .welcome{border-color:var(--accent);background:linear-gradient(180deg,var(--soft),var(--card) 70%)}
 .behind{margin-top:10px;font-size:14px}
 .nextstep{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
@@ -87,6 +87,10 @@ dialog::backdrop{background:rgba(0,0,0,.4)}
 .result.pass{border-color:var(--good)}.result.fail{border-color:var(--bad)}
 .dg .sky{fill:var(--sky)}
 .dg .meadow{fill:var(--meadow)}
+.dg .zone{fill:var(--meadow);stroke:var(--soil2);stroke-width:1.5;stroke-dasharray:5 4}
+.dg .town{fill:var(--paper);stroke:var(--leaf);stroke-width:1.2}
+.dg .townh{fill:var(--paper);stroke:var(--gold-d);stroke-width:2}
+.dg .dim{opacity:.45}
 .dg .soil{fill:var(--soil)}
 .dg .soil2{fill:var(--soil2)}
 .dg .rocky{fill:var(--soil2)}
@@ -1716,17 +1720,22 @@ async function learn() {
   };
 }
 
+let nichePick = 0;
 // One card at a time, then a practice question
 function lessonView(list, li, step = 0) {
   const l = list[li], d = l.data, n = d.cards.length;
+  const map = d.diagram === "territory" && typeof TERRITORY_NICHES !== "undefined"; // the map builds up card by card; tap a niche to light it in every town
   const back = `<button class="btn ghost sm" id="lback">← All lessons</button>`;
   if (step < n) {
     app.innerHTML = `<div class="player">${back}<div class="bar"><i style="width:${(step / (n + 1)) * 100}%"></i></div>
-      <div class="card"><div class="ldiagram">${svgOf(d)}</div><small class="muted">${esc(d.step)} · ${esc(d.title)}</small>
+      <div class="card"><div class="ldiagram">${map ? DIAGRAMS.territory(nichePick, Math.min(step + 1, 4)) : svgOf(d)}</div>
+      ${map && step >= 3 ? `<div class="nichepick" role="group" aria-label="Find a niche in every town">${TERRITORY_NICHES.map((x, i) => `<button class="chipbtn ${i === nichePick ? "on" : ""}" data-n="${i}" aria-pressed="${i === nichePick}">${esc(x)}</button>`).join("")}</div>` : ""}
+      <small class="muted">${esc(d.step)} · ${esc(d.title)}</small>
       ${step === 0 ? `<p class="metaphor">${esc(d.metaphor)}</p>` : ""}<p class="lcard">${esc(d.cards[step])}</p>
       <div class="row" style="justify-content:space-between"><span class="muted" style="font-size:13px">${step + 1} of ${n}</span>
       <span class="row">${step ? `<button class="btn ghost" id="lprev">Back</button>` : ""}<button class="btn" id="lnext">Next</button></span></div></div></div>`;
     $("#lnext").onclick = () => lessonView(list, li, step + 1);
+    app.querySelectorAll("[data-n]").forEach((b) => b.onclick = () => { nichePick = +b.dataset.n; lessonView(list, li, step); });
     if ($("#lprev")) $("#lprev").onclick = () => lessonView(list, li, step - 1);
   } else {
     const c = d.check;

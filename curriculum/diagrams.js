@@ -41,7 +41,30 @@ const house = (x, y, c = "paper") => `<path d="M${x - 16} ${y}v-20l16-14l16 14v2
 const truck = (x, y) => `<rect x="${x - 24}" y="${y - 22}" width="30" height="16" rx="2" class="shirt2"/><path d="M${x + 6} ${y - 18}h10l6 7v5h-16z" class="shirt2"/><circle cx="${x - 14}" cy="${y - 5}" r="5" class="ink"/><circle cx="${x + 13}" cy="${y - 5}" r="5" class="ink"/>`;
 const fence = (x1, x2, y) => { let s = `<path d="M${x1} ${y - 18}H${x2}M${x1} ${y - 8}H${x2}" class="rail"/>`; for (let x = x1; x <= x2; x += 14) s += `<rect x="${x - 2}" y="${y - 24}" width="4" height="24" class="trunk"/>`; return s; };
 
+// Territory map: a 50-mile circle around home base, 10 towns, the same 15 niches in each.
+// stage 1 = home base pin, 2 = + circle, 3 = + towns, 4 = + niches (pick = niche lit up in every town)
+const TERRITORY_NICHES = ["Plumbing", "Electrical", "HVAC", "Roofing", "Gutters", "Painting", "Drywall", "Concrete", "Fencing", "Flooring", "Landscaping", "Pest control", "Pools", "Garage doors", "Handyman"];
+function territory(pick = 0, stage = 4) {
+  const cx = 96, cy = 100, R = 90, f = (n) => n.toFixed(1), rad = (d) => d * Math.PI / 180;
+  const towns = [[0, 0, 17, 1]].concat([...Array(9)].map((_, i) => [Math.cos(rad(-90 + i * 40)) * 59, Math.sin(rad(-90 + i * 40)) * 59, 18]));
+  let s = "";
+  if (stage >= 2) s += `<circle cx="${cx}" cy="${cy}" r="${R}" class="zone"/><path d="M${cx} ${cy}L${f(cx + Math.cos(rad(10)) * R)} ${f(cy + Math.sin(rad(10)) * R)}" class="ghost"/>`;
+  if (stage >= 3) towns.forEach(([x, y, r, h]) => { s += `<circle cx="${f(cx + x)}" cy="${f(cy + y)}" r="${r}" class="${h ? "townh" : "town"}"/>`; });
+  if (stage >= 4) towns.forEach(([x, y, r]) => TERRITORY_NICHES.forEach((_, k) => {
+    const ring = k < 5 ? 0 : 1, i = ring ? k - 5 : k, n = ring ? 10 : 5, d = (ring ? .68 : .3) * r, a = (i / n) * 2 * Math.PI - Math.PI / 2 + (ring ? .3 : 0);
+    s += `<circle cx="${f(cx + x + Math.cos(a) * d)}" cy="${f(cy + y + Math.sin(a) * d)}" r="${k === pick ? 2.6 : 1.5}" class="${k === pick ? "gold" : "leaf2 dim"}"/>`;
+  }));
+  s += `<path d="M${cx} ${cy + 1}l-5 -9a6 6 0 1 1 10 0z" class="bloom"/><circle cx="${cx}" cy="${cy - 10}" r="2" class="paper"/>`;
+  const nm = TERRITORY_NICHES[pick].toLowerCase();
+  const lines = ["1. Home base", "2. 50-mile circle", "3. 10 towns inside", "4. 15 niches each"];
+  s += lines.map((t, i) => T(198, 30 + i * 18, t, { a: "start", fs: 9.5, c: i < stage ? "" : "tm", b: i + 1 === stage })).join("");
+  if (stage >= 4) s += T(198, 120, "10 × 15 =", { a: "start", fs: 9.5 }) + T(198, 136, "150 spots", { a: "start", fs: 12, b: 1 }) +
+    T(198, 160, "Every town needs", { a: "start", fs: 8.5, c: "tm" }) + T(198, 172, nm + ":", { a: "start", fs: 8.5, b: 1 }) + T(198, 184, "10 contractors", { a: "start", fs: 8.5, c: "tm" });
+  return S(s, "A 50 mile circle around a home base with 10 towns inside, each holding the same 15 niches; " + nm + " is lit up in every town");
+}
 const DIAGRAMS = {
+  territory: (pick, stage) => territory(pick, stage),
+
   complaints: () => S(
     bubble(55, 8, 92, "My faucet leaks!") + bubble(160, 8, 92, "Lawn's a jungle.") + bubble(265, 8, 92, "Roof's dripping!") +
     person(55, 80, "shirt2", .8) + person(160, 80, "shirt3", .8) + person(265, 80, "shirt1", .8) +
@@ -312,4 +335,4 @@ const DIAGRAMS = {
     OT(252, 190, "One level only. No chains.", { fs: 8.5 }),
     "A fruit tree whose fruit is contractor fees on real jobs, with a small flower beside it for the optional $250 bonus")
 };
-if (typeof module !== "undefined") module.exports = { DIAGRAMS };
+if (typeof module !== "undefined") module.exports = { DIAGRAMS, TERRITORY_NICHES };
