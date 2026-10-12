@@ -72,6 +72,12 @@ dialog::backdrop{background:rgba(0,0,0,.4)}
 .behind{margin-top:10px;font-size:14px}
 .nextstep{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
 .todo{margin:8px 0 0;padding-left:18px}.todo li{margin:4px 0}
+.histday{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:14px 0 4px}
+.histrow{display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--line)}
+.histicon{width:22px;flex:none;text-align:center}
+.histnote{margin-top:4px;padding:6px 10px;background:var(--soft2);border-radius:8px;white-space:pre-wrap;overflow-wrap:anywhere}
+.histrow details{margin-top:4px}.histrow ol{margin:4px 0}
+.qa{padding:10px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}.qa:last-child{border-bottom:0}
 .linkbtn{background:none;border:0;padding:0;font:inherit;color:var(--accent);text-align:left;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
 .badge{display:inline-block;min-width:18px;padding:0 5px;border-radius:99px;background:var(--warn);color:#fff;font-size:11px;line-height:18px;text-align:center;font-weight:700}
 .bar.money{display:flex;height:10px}.bar.money i.owed{background:var(--gold)}
@@ -1528,16 +1534,78 @@ async function moneyView() {
 }
 
 // ---------- admin: one farmer's page ----------
+// One line per thing that happened to a farmer: [filter group, icon, text, longer text shown underneath]
+const HIST_GROUPS = [["all", "Everything"], ["account", "Account & payments"], ["niche", "15 niches"], ["levels", "Levels"],
+  ["learn", "Quizzes & questions"], ["refund", "Refund"], ["referrals", "Referrals"], ["crm", "CRM work"]];
+function histLine(e, H) {
+  const d = e.detail || {}, by = e.actor ? ` by ${esc(H.names?.[e.actor] || "an admin")}` : "";
+  const who = (id) => esc(H.names?.[id] || "a recruit");
+  const note = (t) => t ? `<div class="histnote">${esc(t)}</div>` : "";
+  const list = (t) => t ? `<details><summary>See the list</summary><ol>${String(t).split("\n").filter((x) => x.trim()).map((x) => `<li>${esc(x)}</li>`).join("")}</ol></details>` : "";
+  switch (e.kind) {
+    case "signed_up": return ["account", "👤", "Created their account"];
+    case "paid": return ["account", "💵", `Paid enrollment${d.amount ? " (" + money(d.amount) + ")" : ""}${by}`];
+    case "unpaid": return ["account", "↩️", `Enrollment marked unpaid${by}`];
+    case "terms_accepted": return ["account", "✍️", `Accepted the enrollment terms${d.version ? " (version " + esc(d.version) + ")" : ""}`];
+    case "terms_declined": return ["account", "⚠️", "Turned down the enrollment terms"];
+    case "verifier_on": return ["account", "🛡️", `Made a verifier${by}`];
+    case "verifier_off": return ["account", "🛡️", `No longer a verifier${by}`];
+    case "niche_submitted": return ["niche", "🌱", "Sent their 15 niches for review", list(d.list)];
+    case "niche_approved": return ["niche", "✅", `15 niches approved${by}`];
+    case "niche_sent_back": return ["niche", "🔙", `15 niches sent back${by}${d.time_unknown ? " (exact time not recorded)" : ""}`, note(d.note)];
+    case "level_changed": return ["levels", "⬆️", `Level ${d.from} → Level ${d.to}${by}`];
+    case "level_requested": return ["levels", "🙋", `Asked to move up to Level ${d.to}${d.files ? ` with ${d.files} proof file${d.files === 1 ? "" : "s"}` : ""}`, note(d.note)];
+    case "level_approved": return ["levels", "🎉", `Level ${d.to} request approved${by}`, note(d.note)];
+    case "level_rejected": return ["levels", "✋", `Level ${d.to} request turned down${by}`, note(d.note)];
+    case "quiz_taken": return ["learn", d.score === d.total ? "🏆" : "📝", `${esc(d.quiz || "Quiz")} quiz: ${d.score}/${d.total}${d.score === d.total ? " (aced it)" : ""}`];
+    case "question_asked": return ["learn", "❓", `Asked a teacher${d.quiz ? " about " + esc(d.quiz) : ""}`, note(d.body)];
+    case "question_answered": return ["learn", "💬", `Question answered${by}`, `<div class="histnote"><b>Q:</b> ${esc(d.body)}<br><b>A:</b> ${esc(d.answer)}</div>`];
+    case "refund_submitted": return ["refund", "📦", `Submitted their refund package${d.files ? ` (${d.files} file${d.files === 1 ? "" : "s"})` : ""}`, note(d.note)];
+    case "refund_approved": return ["refund", "💸", `Refund approved${by}`, note(d.note)];
+    case "refund_denied": return ["refund", "✋", `Refund denied${by}`, note(d.note)];
+    case "referral_signed_up": return ["referrals", "🤝", `Referred ${who(d.recruit)}`];
+    case "referral_paid_out": return ["referrals", "💰", `Paid ${money(d.amount)} for referring ${who(d.recruit)}`];
+    case "referral_clawback": return ["referrals", "↩️", `${money(d.amount)} clawed back (${who(d.recruit)} was refunded)${d.settled ? ", settled" : ""}`];
+    case "lead_outbound": return ["crm", "📤", `Sent a lead to ${esc(d.business || "a contractor")}${d.customer ? " (" + esc(d.customer) + ")" : ""}`];
+    case "lead_inbound": return ["crm", "📥", `Got a lead back from ${esc(d.business || "a contractor")}`];
+    case "lead_closed": return ["crm", "🤝", `Lead closed with ${esc(d.business || "a contractor")}${d.fee ? ", fee " + money(d.fee) : ""}`];
+    case "fee_paid": return ["crm", "💵", `Fee paid by ${esc(d.business || "a contractor")}${d.fee ? ": " + money(d.fee) : ""}`];
+    case "upsell_closed": return ["crm", "⭐", `Upsell closed: ${esc(d.product || "")} with ${esc(d.business || "a contractor")}${d.amount ? " (" + money(d.amount) + ")" : ""}`];
+    case "contractors_added": return ["crm", "📇", `Added ${d.count} contractor${d.count === 1 ? "" : "s"}`];
+    case "calls_logged": return ["crm", "📞", `Logged ${d.count} call${d.count === 1 ? "" : "s"}`];
+    default: return ["all", "•", esc(e.kind.replace(/_/g, " "))];
+  }
+}
+function historyFeed(H, group) {
+  const rows = (H.events || []).map((e) => [e, histLine(e, H)]).filter(([, l]) => group === "all" || l[0] === group).reverse();
+  if (!rows.length) return `<p class="muted" style="margin:6px 0 0">Nothing here yet.</p>`;
+  let day = "";
+  return rows.map(([e, [, icon, text, more]]) => {
+    const t = new Date(e.at), d = t.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+    const head = d !== day ? `<div class="histday">${(day = d)}</div>` : "";
+    return `${head}<div class="histrow"><span class="histicon">${icon}</span><div><div>${text} <small class="muted">${t.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}</small></div>${more || ""}</div></div>`;
+  }).join("");
+}
+
 async function farmerPage(f) {
-  const [{ data: pr }, { data: ev, error }, { data: ps }] = await Promise.all([
+  const [{ data: pr }, { data: ev, error }, { data: ps }, { data: H, error: herr }, { data: tq }, { data: qz }] = await Promise.all([
     sb.rpc("refund_progress", { p_farmer: f.id }),
     sb.rpc("refund_evidence", { p_farmer: f.id }),
     sb.from("recruiter_payouts").select("*").eq("recruiter_id", f.id),
+    sb.rpc("farmer_history", { p_farmer: f.id }),
+    sb.from("teacher_questions").select("*").eq("farmer_id", f.id).order("created_at", { ascending: false }),
+    sb.from("quizzes").select("key,name"),
   ]);
-  const E = ev || {};
+  const E = ev || {}, Hx = H || { events: [], names: {} }, N = Hx.profile || {};
+  const quizName = (k) => k === "rec" ? "Recruiting" : (qz || []).find((z) => z.key === k)?.name || k;
+  // every version of their 15 they ever sent, newest first; the profile row only keeps the latest
+  const sent = (Hx.events || []).filter((e) => e.kind === "niche_submitted" && e.detail?.list);
+  const older = sent.slice(0, -1).reverse().filter((e) => e.detail.list !== N.niche);
+  const nicheStatus = !N.niche ? "" : N.niche_approved_at ? `<span class="tag">approved ${new Date(N.niche_approved_at).toLocaleDateString()}</span>`
+    : N.niche_note ? `<span class="tag warn">sent back</span>` : `<span class="tag warn">waiting for review</span>`;
   app.innerHTML = `<div style="max-width:980px" id="farmerpage"><button class="btn ghost sm" id="fpback">← All farmers</button>
     <h2 style="font-size:20px;margin:12px 0 2px">${esc(f.full_name || f.email)}</h2>
-    <p class="muted" style="margin:0 0 12px">${esc(f.email)} · Level ${f.level} · ${f.enrollment_paid ? "paid" : "not paid"}${f.verifier ? " · verifier" : ""}</p>
+    <p class="muted" style="margin:0 0 12px">${esc(f.email)} · Level ${f.level} · ${f.enrollment_paid ? "paid" : "not paid"}${f.verifier ? " · verifier" : ""}${N.created_at ? " · joined " + new Date(N.created_at).toLocaleDateString() : ""}${N.recruited_by ? " · recruited by " + esc(Hx.names?.[N.recruited_by] || "another farmer") : ""}${N.phone ? " · " + esc(N.phone) : ""}</p>
     ${error ? `<p class="err">${esc(error.message)}</p>` : ""}
     <div class="stats">
       <div class="card stat"><div class="v">${(E.contractors || []).length}</div><div class="k">Contractors</div></div>
@@ -1546,6 +1614,23 @@ async function farmerPage(f) {
       <div class="card stat"><div class="v">${money((E.leads || []).filter((l) => l.status === "closed").reduce((t, l) => t + Number(l.fee || 0), 0))}</div><div class="k">Fees earned</div></div>
       <div class="card stat"><div class="v">${(ps || []).length}</div><div class="k">Referrals</div></div>
     </div>
+    <div class="card" style="margin-bottom:12px" id="fpniche"><b>Their 15 niches</b> ${nicheStatus}
+      ${N.niche ? `<p class="muted" style="margin:4px 0 0;font-size:13px">Sent ${N.niche_submitted_at ? new Date(N.niche_submitted_at).toLocaleString() : ""}</p>
+        ${N.niche_note ? `<p class="err" style="margin:6px 0 0">Sent back: ${esc(N.niche_note)}</p>` : ""}
+        <ol style="margin:8px 0 0">${N.niche.split("\n").filter((x) => x.trim()).map((x) => `<li>${esc(x)}</li>`).join("")}</ol>
+        ${older.map((e) => `<details style="margin-top:8px"><summary>Earlier version, sent ${new Date(e.at).toLocaleString()}</summary><ol>${e.detail.list.split("\n").filter((x) => x.trim()).map((x) => `<li>${esc(x)}</li>`).join("")}</ol></details>`).join("")}`
+      : `<p class="muted" style="margin:6px 0 0">They haven't sent their 15 yet.</p>`}</div>
+    <div class="card" style="margin-bottom:12px" id="fpqa"><b>Questions to teachers</b> <small class="muted">${(tq || []).length} asked</small>
+      ${(tq || []).map((t) => `<div class="qa"><div><small class="muted">${esc(quizName(t.quiz))} · ${new Date(t.created_at).toLocaleString()}</small></div>
+        <div><b>Q:</b> ${esc(t.body)}</div>
+        ${t.answer ? `<div><b>A:</b> ${esc(t.answer)} <small class="muted">· ${esc(Hx.names?.[t.answered_by] || "a teacher")}, ${new Date(t.answered_at).toLocaleString()}</small></div>`
+          : `<textarea rows="2" data-fpansbox="${t.id}" placeholder="Answer it here (they'll see it in Learn)" style="margin-top:6px"></textarea>
+             <div class="row" style="justify-content:flex-end;margin-top:6px"><button class="btn sm" data-fpans="${t.id}">Send answer</button></div>`}</div>`).join("")
+        || `<p class="muted" style="margin:6px 0 0">No questions yet.</p>`}</div>
+    <div class="card" style="margin-bottom:12px" id="fphist"><b>Everything that happened</b>
+      ${herr ? `<p class="err">${esc(herr.message)}</p>` : ""}
+      <div class="row" style="margin:8px 0" id="fphf">${HIST_GROUPS.map(([k, label], i) => `<button class="chipbtn ${i ? "" : "on"}" data-hg="${k}">${label}</button>`).join("")}</div>
+      <div id="fphl">${historyFeed(Hx, "all")}</div></div>
     <div class="card" style="margin-bottom:12px"><b>90 days</b>${pr?.enrolled ? `<p class="muted" style="margin:4px 0 8px">Day ${Math.min(pr.day, 90)} of 90 · package due by ${new Date(pr.submit_by).toLocaleDateString()}</p>${progressTable(pr)}`
       : `<p class="muted" style="margin:6px 0 0">Their 90 days start when their enrollment is paid.</p>`}</div>
     <div class="card" style="margin-bottom:12px"><b>Their CRM records</b><div class="row" style="margin-top:8px">${evidenceButtons(f.id)}</div>
@@ -1558,6 +1643,15 @@ async function farmerPage(f) {
       : `<p class="muted" style="margin:6px 0 0">No referrals yet.</p>`}</div></div>`;
   wireEvidence(f.id, f.full_name || f.email);
   $("#fpback").onclick = () => boot();
+  app.querySelectorAll("[data-hg]").forEach((b) => b.onclick = () => {
+    app.querySelectorAll("[data-hg]").forEach((x) => x.classList.toggle("on", x === b));
+    $("#fphl").innerHTML = historyFeed(Hx, b.dataset.hg);
+  });
+  app.querySelectorAll("[data-fpans]").forEach((b) => b.onclick = async () => {
+    const { error } = await sb.rpc("answer_question", { p_id: b.dataset.fpans, p_answer: app.querySelector(`[data-fpansbox="${b.dataset.fpans}"]`).value });
+    if (error) return alert(error.message);
+    farmerPage(f);
+  });
 }
 
 // Waiting count on the Approvals tab
