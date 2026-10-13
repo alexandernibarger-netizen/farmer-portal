@@ -62,10 +62,30 @@ function territory(pick = 0, stage = 4) {
     T(198, 160, "Every town needs", { a: "start", fs: 8.5, c: "tm" }) + T(198, 172, nm + ":", { a: "start", fs: 8.5, b: 1 }) + T(198, 184, "10 contractors", { a: "start", fs: 8.5, c: "tm" });
   return S(s, "A 50 mile circle around a home base with 10 towns inside, each holding the same 15 niches; " + nm + " is lit up in every town");
 }
+// Town positions inside the 50-mile circle: home base in the middle, the rest on rings around it.
+// Up to 10 towns keep the lesson's layout; more towns shrink and spread over extra rings.
+function farmlandSpots(count) {
+  const R = 90, rad = (d) => d * Math.PI / 180, rest = Math.max(9, count - 1);
+  if (rest <= 9) return [[0, 0, 17]].concat([...Array(9)].map((_, i) => [Math.cos(rad(-90 + i * 40)) * 59, Math.sin(rad(-90 + i * 40)) * 59, 18]));
+  for (let r = 16; r >= 4; r -= .5) {
+    const gap = Math.max(1.5, r * .2), rings = [];
+    for (let d = 2 * r + gap; d + r <= R - 2; d += 2 * r + gap) rings.push([d, Math.floor(2 * Math.PI * d / (2 * r + gap))]);
+    if (rings.reduce((a, [, c]) => a + c, 0) < rest) continue;
+    const out = [[0, 0, r]];
+    let left = rest;
+    rings.forEach(([d, cap], j) => {
+      const capLeft = rings.slice(j).reduce((a, [, c]) => a + c, 0), k = Math.min(cap, left, Math.ceil(left * cap / capLeft));
+      for (let i = 0; i < k; i++) { const a = rad(-90 + j * 17) + i * 2 * Math.PI / k; out.push([Math.cos(a) * d, Math.sin(a) * d, r]); }
+      left -= k;
+    });
+    return out;
+  }
+  return [[0, 0, 4]];
+}
 // A farmer's own map on Home: towns[i] = { name, cov: [15 values] }, 0 = empty, 1 = contractor found, 2 = signed (Terms Agreed)
 function farmlandMap(towns) {
   const cx = 96, cy = 100, R = 90, f = (n) => n.toFixed(1), rad = (d) => d * Math.PI / 180;
-  const pos = [[0, 0, 17]].concat([...Array(9)].map((_, i) => [Math.cos(rad(-90 + i * 40)) * 59, Math.sin(rad(-90 + i * 40)) * 59, 18]));
+  const pos = farmlandSpots(towns.length), dot = (v, r) => (v === 2 ? 2.6 : v ? 2.1 : 1.4) * Math.min(1, r / 14);
   let s = `<circle cx="${cx}" cy="${cy}" r="${R}" class="zone"/>`, found = 0, signed = 0;
   pos.forEach(([x, y, r], t) => {
     const tw = towns[t], X = cx + x, Y = cy + y;
@@ -75,12 +95,12 @@ function farmlandMap(towns) {
     for (let k = 0; k < 15; k++) {
       const ring = k < 5 ? 0 : 1, i = ring ? k - 5 : k, n = ring ? 10 : 5, d = (ring ? .68 : .3) * r, a = (i / n) * 2 * Math.PI - Math.PI / 2 + (ring ? .3 : 0), v = cov[k] || 0;
       if (v) found++; if (v === 2) signed++;
-      g += `<circle cx="${f(X + Math.cos(a) * d)}" cy="${f(Y + Math.sin(a) * d)}" r="${v === 2 ? 2.6 : v ? 2.1 : 1.4}" class="${v === 2 ? "gold" : v ? "leaf" : "leaf2 dim"}"/>`;
+      g += `<circle cx="${f(X + Math.cos(a) * d)}" cy="${f(Y + Math.sin(a) * d)}" r="${f(dot(v, r))}" class="${v === 2 ? "gold" : v ? "leaf" : "leaf2 dim"}"/>`;
     }
     const esc = (x) => String(x).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
     s += `<g><title>${esc(tw.name)}: ${cov.filter(Boolean).length} of 15 niches have a contractor</title>${g}</g>`;
   });
-  const spots = 150;
+  const spots = 15 * pos.length;
   s += T(198, 34, found + " of " + spots, { a: "start", fs: 14, b: 1 }) + T(198, 48, "spots have a contractor", { a: "start", fs: 9, c: "tm" }) +
     T(198, 74, signed + " signed", { a: "start", fs: 11, b: 1 }) + T(198, 87, "(Terms Agreed or later)", { a: "start", fs: 8.5, c: "tm" }) +
     `<circle cx="203" cy="122" r="3.2" class="gold"/>` + T(212, 125, "Signed", { a: "start", fs: 9 }) +

@@ -698,6 +698,7 @@ async function home() {
   if ($("#copyref")) $("#copyref").onclick = () => { $("#reflink").select(); navigator.clipboard?.writeText($("#reflink").value).catch(() => {}); $("#copyref").textContent = "Copied"; };
   if ($("#askup")) $("#askup").onclick = () => requestForm(L + 1);
   if ($("#editmap")) $("#editmap").onclick = () => farmlandForm();
+  if ($("#addtown")) $("#addtown").onclick = () => farmlandForm(true);
   if ($("#to90")) $("#to90").onclick = (e) => { e.preventDefault(); view = "program"; boot(); };
   if (me.role !== "admin") await homeExtras(cs, { L, aced, ready, pending, passes });
   if (!reviewer() && L >= 1 && (me.tour_level || 0) < L && !tour) startTour(me.tour_level ? "levelup" : "full");
@@ -1802,20 +1803,21 @@ function quizView(Z, qq, mine) {
 }
 
 // ---------- farmer: pipeline ----------
-// ---------- farmer: my farmland (their 15 niches across their 10 towns) ----------
+// ---------- farmer: my farmland (their 15 niches across their towns) ----------
 const nicheLines = (p) => (p?.niche || "").split("\n").map((x) => x.replace(/^\s*(\d+[.)]|[-*•])\s*/, "").trim()).filter(Boolean).slice(0, 15);
 const norm = (x) => (x || "").trim().toLowerCase();
+const MAX_TOWNS = 50;
 function farmlandCard(cs) {
   const towns = me.towns || [], ns = nicheLines(me), mine = cs.filter((c) => c.farmer_id === me.id);
   const at = (t, n) => mine.filter((c) => norm(c.city) === norm(t) && norm(c.niche) === norm(n));
   const cov = towns.map((t) => ns.map((n) => { const m = at(t, n); return m.some((c) => c.stage >= 3) ? 2 : m.length ? 1 : 0; }));
-  const map = farmlandMap([...Array(10)].map((_, i) => towns[i] ? { name: towns[i], cov: cov[i] } : null));
+  const map = farmlandMap([...Array(Math.max(10, towns.length))].map((_, i) => towns[i] ? { name: towns[i], cov: cov[i] } : null));
   const status = !ns.length ? "" : me.niche_approved_at ? `<span class="tag">approved</span>` : me.niche_note ? `<span class="tag warn">sent back</span>` : me.niche_submitted_at ? `<span class="tag warn">waiting for review</span>` : "";
   const untagged = towns.length && ns.length ? mine.filter((c) => !towns.some((t) => norm(t) === norm(c.city)) || !ns.some((n) => norm(n) === norm(c.niche))).length : 0;
   const cell = (v) => v === 2 ? `<td class="s" title="Signed">●</td>` : v ? `<td class="f" title="Found">○</td>` : `<td class="e" title="Empty">·</td>`;
   return `<section class="card" id="farmland" aria-label="My farmland"><div class="row" style="justify-content:space-between">
-      <h2 style="margin:0;font-size:20px">My farmland</h2><button class="btn ghost sm" id="editmap">${towns.length ? "Edit my towns" : "Map my farmland"}</button></div>
-    ${towns.length ? "" : `<p class="muted" style="margin:8px 0 0">Pick a home base and up to 9 more towns within 50 miles of it. Then tag each contractor with its town and one of your 15 niches, and this map shows which of your 150 spots are filled.</p>`}
+      <h2 style="margin:0;font-size:20px">My farmland</h2><div class="row" style="gap:6px">${towns.length && towns.length < MAX_TOWNS ? `<button class="btn ghost sm" id="addtown">+ Add town</button>` : ""}<button class="btn ghost sm" id="editmap">${towns.length ? "Edit my towns" : "Map my farmland"}</button></div></div>
+    ${towns.length ? "" : `<p class="muted" style="margin:8px 0 0">Pick a home base and at least 9 more towns within 50 miles of it, and add more any time. Then tag each contractor with its town and one of your 15 niches, and this map shows which spots are filled.</p>`}
     <div class="ldiagram" style="margin:10px 0 0">${map}</div>
     <h3>Your 15 niches ${status}</h3>
     ${ns.length ? `<ol class="nichelist">${ns.map((n, k) => `<li>${esc(n)} <small>${towns.length ? cov.filter((r) => r[k]).length + "/" + towns.length + " towns" : ""}</small></li>`).join("")}</ol>`
@@ -1825,21 +1827,33 @@ function farmlandCard(cs) {
       <p class="muted" style="margin:6px 0 0;font-size:13px">● signed (Terms Agreed or later) · ○ found, not signed yet · column numbers match your list above</p></details>` : ""}
     ${untagged ? `<p class="muted" style="margin:10px 0 0;font-size:14px">${untagged} contractor${untagged > 1 ? "s aren't" : " isn't"} on the map yet. Open them on the Contractors page and pick their town and niche.</p>` : ""}</section>`;
 }
-function farmlandForm() {
+function farmlandForm(addOne) {
   const t = me.towns || [];
+  const row = (i, v) => `<div class="townrow"><label for="town${i}">Town ${i + 1}</label><div class="row" style="gap:6px;flex-wrap:nowrap"><input id="town${i}" class="townin" value="${esc(v)}"><button type="button" class="btn ghost sm rmtown" aria-label="Remove town ${i + 1}">×</button></div></div>`;
+  const n0 = Math.min(MAX_TOWNS, Math.max(10, t.length + (addOne ? 1 : 0)));
   dlg.innerHTML = `<form method="dialog" id="ff"><h3 style="margin-top:0">My farmland</h3>
-    <p class="muted" style="margin:0 0 10px">Your home base sits in the middle. Add up to 9 more towns or areas within 50 miles of it.</p>
-    <label for="town0">Home base</label><input id="town0" value="${esc(t[0] || "")}" placeholder="e.g. Austin, TX">
-    <div class="grid2">${[...Array(9)].map((_, i) => `<div><label for="town${i + 1}">Town ${i + 2}</label><input id="town${i + 1}" value="${esc(t[i + 1] || "")}"></div>`).join("")}</div>
+    <p class="muted" style="margin:0 0 10px">Your home base sits in the middle. Add towns or areas within 50 miles of it, as many as you farm (up to ${MAX_TOWNS}).</p>
+    <label for="town0">Home base</label><input id="town0" class="townin" value="${esc(t[0] || "")}" placeholder="e.g. Austin, TX">
+    <div class="grid2" id="townlist">${[...Array(n0 - 1)].map((_, i) => row(i + 1, t[i + 1] || "")).join("")}</div>
+    <button type="button" class="btn ghost sm" id="addrow" style="margin-top:8px">+ Add another town</button>
     <div class="err" id="ferr"></div>
     <div class="row" style="margin-top:12px;justify-content:flex-end"><button type="button" class="btn ghost" id="fcx">Cancel</button><button class="btn">Save</button></div></form>`;
   dlg.showModal();
+  const list = $("#townlist"), renum = () => {
+    [...list.children].forEach((d, i) => { const k = i + 1; d.querySelector("label").textContent = "Town " + (k + 1); d.querySelector("label").htmlFor = d.querySelector("input").id = "town" + k; d.querySelector(".rmtown").setAttribute("aria-label", "Remove town " + (k + 1)); });
+    $("#addrow").hidden = list.children.length + 1 >= MAX_TOWNS;
+  };
+  const wire = () => list.querySelectorAll(".rmtown").forEach((b) => b.onclick = () => { b.closest(".townrow").remove(); renum(); });
+  $("#addrow").onclick = () => { list.insertAdjacentHTML("beforeend", row(list.children.length + 1, "")); wire(); renum(); list.lastElementChild.querySelector("input").focus(); };
+  wire(); renum();
+  if (addOne) (list.querySelector(`#town${t.length}`) || list.lastElementChild?.querySelector("input"))?.focus();
   $("#fcx").onclick = () => dlg.close();
   $("#ff").onsubmit = async (e) => {
     e.preventDefault();
-    const vals = [...Array(10)].map((_, i) => $("#town" + i).value.trim());
+    const vals = [...dlg.querySelectorAll(".townin")].map((x) => x.value.trim());
     if (!vals[0] && vals.some(Boolean)) return ($("#ferr").textContent = "Add your home base first.");
     const towns = vals.filter(Boolean);
+    if (towns.length > MAX_TOWNS) return ($("#ferr").textContent = `You can map up to ${MAX_TOWNS} towns.`);
     if (new Set(towns.map(norm)).size !== towns.length) return ($("#ferr").textContent = "Each town can only be on the list once.");
     const { error } = await sb.from("profiles").update({ towns }).eq("id", me.id);
     if (error) return ($("#ferr").textContent = error.message);
