@@ -59,6 +59,7 @@ dialog::backdrop{background:rgba(0,0,0,.4)}
 /* learn: lessons, quizzes */
 .chipbtn{background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:99px;padding:6px 12px;font:inherit;font-size:14px;cursor:pointer}
 .chipbtn.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.lgroup{margin:0 0 6px}.lgroup h3{font-size:16px;margin:16px 0 2px}.lgroup>p{margin:0 0 8px;font-size:14px}
 .lessons{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin-bottom:16px}
 .lessonbtn{display:grid;grid-template-columns:110px 1fr;gap:12px;text-align:left;font:inherit;color:var(--ink);cursor:pointer;padding:10px;align-items:center}
 .lessonbtn b{display:block;margin:2px 0}.lessonbtn small{display:block}.lessonbtn .tag{margin-top:4px}
@@ -1339,7 +1340,7 @@ function tourSteps(kind) {
       body: "Share your link. When someone you introduce enrolls, you earn $250. It's never required for anything in the program." },
     { view: "learn", page: "Learn", sel: '#nav [data-v="learn"]', title: "Learn: lessons and quizzes", when: "Before each level",
       body: "Short picture lessons, then one quiz per level. This is where you learn how to do each step before you do it." },
-    { view: "learn", page: "Learn", sel: ".lessons", title: "Start with these", when: L === 1 ? "Steps 0 to 3" : "Your level",
+    { view: "learn", page: "Learn", sel: "#lessongroups", title: "Start with these", when: L === 1 ? "Steps 0 to 3" : "Your level",
       body: L === 1 ? "The Level 1 lessons cover picking your niche, finding contractors, the phone script, and getting the 20% agreement. Go top to bottom." : "The lessons for your level. Go top to bottom." },
     { view: "learn", page: "Learn", sel: "#quizcard", title: "The quiz needs 100%", when: "Before each level-up",
       body: "Every question has to be right before you can request the next level. Miss one and it shows which lessons to review. Retake it as often as you like." },
@@ -1686,6 +1687,28 @@ const markDone = (id) => { try { const d = doneSet(); d.add(id); localStorage.se
 // lesson pictures are drawn by curriculum/diagrams.js (plain script, global DIAGRAMS)
 const svgOf = (d) => { try { return DIAGRAMS[d.diagram](); } catch { return ""; } };
 const quizLabel = (z) => z.key === "rec" ? "Recruiting" : z.name;
+// Theme headings on the Learn page. Lessons keep their database order; a heading starts at the
+// first lesson listed for it, and any lesson not listed here joins the heading above it.
+const LESSON_THEMES = [
+  { name: "Pick your field", sub: "Why it works, your interests, and your 15 business models", ids: ["1a", "1b", "1c", "1d"] },
+  { name: "Find your contractors", sub: "Map your area and spot the hungry ones", ids: ["1m", "1e"] },
+  { name: "Make the call", sub: "The phone script, start to finish", ids: ["2a", "2b", "2c", "2d", "2e", "2f"] },
+  { name: "Lock in the 20%", sub: "Charge on revenue and keep watch", ids: ["3a", "3b"] },
+  { name: "Send your first leads", sub: "Easy jobs, comment like a neighbor, hand off", ids: ["4a", "4b", "4c", "4d"] },
+  { name: "Close it and get paid", sub: "What counts as closed and how to collect", ids: ["5a", "5b", "5c"] },
+  { name: "Get leads back", sub: "Pry leads out of your contractors", ids: ["6a", "6b"] },
+  { name: "Grow your anchors", sub: "One steady contractor in every industry", ids: ["7a"] },
+  { name: "Sell the upsell", sub: "Pick it, pitch it, and close it in writing", ids: ["8a", "8b", "9a"] },
+  { name: "Late game", sub: "Run jobs yourself once you have anchors", ids: ["mm"] },
+  { name: "Bring a friend", sub: "Optional, at any level", ids: ["r1", "r2", "r3"] },
+];
+const themeOf = (id) => LESSON_THEMES.find((t) => t.ids.includes(id));
+const groupLessons = (list) => list.reduce((g, l) => {
+  const t = themeOf(l.id);
+  if (!g.length || (t && t !== g[g.length - 1].theme)) g.push({ theme: t || { name: "Lessons", sub: "" }, items: [] });
+  g[g.length - 1].items.push(l);
+  return g;
+}, []);
 
 async function learn() {
   const [{ data: qz }, { data: ls }, { data: passes }, { data: asks }] = await Promise.all([
@@ -1703,13 +1726,16 @@ async function learn() {
   const { data: qq } = await sb.rpc("get_quiz", { p_quiz: Z.key });
   const done = doneSet();
   const myAsks = (asks || []).filter((t) => t.quiz === Z.key);
+  const groups = groupLessons(mine);
   app.innerHTML = `<div class="learn">
     <div class="row" id="qzchips">${quizzes.map((z) => `<button class="chipbtn ${z.key === Z.key ? "on" : ""}" data-q="${z.key}">${esc(quizLabel(z))} · ${esc(z.title)}${(passes || []).some((p) => p.quiz === z.key) ? " ✓" : ""}</button>`).join("")}</div>
     <h2 style="font-size:20px;margin:18px 0 4px">${esc(quizLabel(Z))}: ${esc(Z.title)}</h2>
     <p class="muted" style="margin:0 0 14px">${mine.filter((l) => done.has(l.id)).length} of ${mine.length} lessons done</p>
-    <div class="lessons">${mine.map((l) => `<button class="lessonbtn card" data-l="${l.id}">
+    <div id="lessongroups">${groups.map((g) => `<section class="lgroup">${groups.length > 1 ? `<h3>${esc(g.theme.name)}</h3>
+      <p class="muted">${g.theme.sub ? esc(g.theme.sub) + " · " : ""}${g.items.filter((l) => done.has(l.id)).length} of ${g.items.length} done</p>` : ""}
+    <div class="lessons">${g.items.map((l) => `<button class="lessonbtn card" data-l="${l.id}">
       <span class="lthumb">${svgOf(l.data)}</span><span><small class="muted">${esc(l.data.step)}</small><b>${esc(l.data.title)}</b>
-      <small class="muted">${esc(l.data.metaphor)}</small>${done.has(l.id) ? `<span class="tag">done</span>` : ""}</span></button>`).join("")}</div>
+      <small class="muted">${esc(l.data.metaphor)}</small>${done.has(l.id) ? `<span class="tag">done</span>` : ""}</span></button>`).join("")}</div></section>`).join("")}</div>
     <div class="card quizcard" id="quizcard"><b>${esc(quizLabel(Z))} quiz</b>
       <p style="margin:6px 0">${(qq || []).length} questions. You need every one right${Z.key === "rec" ? "" : " before you can request the next level"}.</p>
       ${pass ? `<p><span class="tag">Aced ${new Date(pass.passed_at).toLocaleDateString()}</span></p>` : ""}
