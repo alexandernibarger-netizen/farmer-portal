@@ -1921,6 +1921,10 @@ async function pipeline() {
 }
 
 // ---------- farmer: contractors ----------
+let cQuery = "";  // kept across re-renders so saving a contractor doesn't clear the search
+// everything a farmer might type to find a contractor, lowercased; phone also as bare digits
+const contractorHay = (c) => [c.business_name, c.contact_name, c.city, c.niche, tradeName(c.trade_id), c.phone, String(c.phone || "").replace(/\D/g, ""),
+  c.email, c.notes, c.found_via, c.source_link, stageName(c.stage)].filter(Boolean).join(" ").toLowerCase();
 async function contractors() {
   const cs = await myContractors();
   app.innerHTML = `
@@ -1931,13 +1935,26 @@ async function contractors() {
       return `<div class="card" style="padding:10px"><b style="font-size:14px">${esc(t.name)}</b>
         <div class="muted" style="font-size:12px">${n} / ${PER_TRADE} in network</div><div class="bar"><i style="width:${Math.min(100, n / PER_TRADE * 100)}%"></i></div></div>`;
     }).join("") || `<p class="muted">No trades set up yet.</p>`}</div>
+    ${cs.length ? `<div class="row" style="margin-bottom:8px;gap:10px"><input id="csearch" type="search" placeholder="Search by name, town, niche, trade, phone, email or notes" aria-label="Search contractors" value="${esc(cQuery)}" style="flex:1;min-width:200px">
+      <small class="muted" id="ccount"></small></div>` : ""}
     <div class="card tablewrap"><table><thead><tr><th>Business</th><th>Trade</th><th>Contact</th><th>Stage</th><th>Fee %</th></tr></thead><tbody>
-    ${cs.map((c) => `<tr data-id="${c.id}" style="cursor:pointer"><td><b>${esc(c.business_name)}</b><br><small class="muted">${esc(c.city)}${c.niche ? " · " + esc(c.niche) : ""}</small></td>
+    ${cs.map((c) => `<tr data-id="${c.id}" data-hay="${esc(contractorHay(c))}" style="cursor:pointer"><td><b>${esc(c.business_name)}</b><br><small class="muted">${esc(c.city)}${c.niche ? " · " + esc(c.niche) : ""}</small></td>
       <td>${esc(tradeName(c.trade_id))}</td><td>${esc(c.contact_name)}<br><small class="muted">${esc(c.phone)} ${esc(c.email)}</small></td>
       <td><span class="tag">${c.stage}. ${esc(stageName(c.stage))}</span></td><td>${c.fee_pct ?? ""}</td></tr>`).join("") || `<tr><td colspan="5" class="muted">No contractors yet.</td></tr>`}
+    <tr id="cnone" hidden><td colspan="5" class="muted">No contractors match that search.</td></tr>
     </tbody></table></div>`;
   $("#add").onclick = () => contractorForm();
-  app.querySelectorAll("tr[data-id]").forEach((el) => el.onclick = () => contractorForm(cs.find((c) => c.id === el.dataset.id)));
+  const rows = [...app.querySelectorAll("tr[data-id]")];
+  rows.forEach((el) => el.onclick = () => contractorForm(cs.find((c) => c.id === el.dataset.id)));
+  // every word typed has to appear somewhere in the row, in any order ("roof austin" finds roofers in Austin)
+  const filter = () => {
+    const words = norm(cQuery).split(/\s+/).filter(Boolean);
+    let shown = 0;
+    for (const r of rows) { const hit = words.every((w) => r.dataset.hay.includes(w)); r.hidden = !hit; shown += hit; }
+    $("#cnone").hidden = shown > 0 || !rows.length;
+    $("#ccount").textContent = words.length ? `${shown} of ${rows.length}` : `${rows.length} contractor${rows.length === 1 ? "" : "s"}`;
+  };
+  if ($("#csearch")) { $("#csearch").oninput = (e) => { cQuery = e.target.value; filter(); }; filter(); }
 }
 
 function contractorForm(c = {}) {
