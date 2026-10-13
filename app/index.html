@@ -403,7 +403,9 @@ nav button:hover:not(.on){background:var(--soft2)}
 <script type="module">
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 const C = { PRICE: 499, ...window.CRM_CONFIG };  // PRICE fallback covers a cached older config.js
-let recovering = /type=recovery/.test(location.hash + location.search);
+// invite links (admin-sent) land the same way as reset links: signed in, but with no password yet
+const inviting = /type=invite/.test(location.hash + location.search);
+let recovering = inviting || /type=recovery/.test(location.hash + location.search);
 let linkError = new URLSearchParams(location.hash.slice(1)).get("error_description");
 const sb = createClient(C.SUPABASE_URL, C.SUPABASE_KEY);
 const $ = (s) => document.querySelector(s);
@@ -481,8 +483,10 @@ function authView(mode = "in") {
       : await sb.auth.signUp({ email: f.email, password: f.password,
           options: { emailRedirectTo: location.origin + location.pathname,
             data: { full_name: f.full_name, phone: f.phone, recruiter_email: f.recruiter_email } } });
-    if (error) return ($("#aerr").textContent = error.message);
-    if (mode === "up") $("#aerr").textContent = "Check your email to confirm your account, then sign in.";
+    if (error) return ($("#aerr").textContent = /not confirmed/i.test(error.message)
+      ? "Your email isn't confirmed yet. Open the confirm email we sent (check Junk too), tap the link, then sign in."
+      : error.message);
+    if (mode === "up") $("#aerr").textContent = "Check your email (and Junk) to confirm your account, then sign in.";
   };
 }
 // The enrollment agreement lives at /terms/; bump TERMS_VERSION whenever that page's version date changes.
@@ -510,11 +514,11 @@ function forgotView() {
 function newPasswordView() {
   $("#top").hidden = true;
   app.innerHTML = `<div class="auth card">
-    <h2 style="margin-top:0">Set a new password</h2>
+    <h2 style="margin-top:0">${inviting ? "Create your password" : "Set a new password"}</h2>
     <form id="nf"><label>New password</label><input name="password" type="password" minlength="8" required>
       <label>Confirm new password</label><input name="confirm" type="password" minlength="8" required>
       <div class="err" id="nerr"></div>
-      <button class="btn" style="width:100%;margin-top:8px">Save new password</button></form></div>`;
+      <button class="btn" style="width:100%;margin-top:8px">${inviting ? "Save password" : "Save new password"}</button></form></div>`;
   $("#nf").onsubmit = async (e) => {
     e.preventDefault();
     const f = Object.fromEntries(new FormData(e.target));
