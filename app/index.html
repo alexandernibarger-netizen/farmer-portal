@@ -712,7 +712,7 @@ async function home() {
 
 // ---------- admin: home dashboard (students + business) ----------
 async function adminHome() {
-  const { data: D, error } = await sb.rpc("admin_dashboard");
+  const [{ data: D, error }, { data: S }] = await Promise.all([sb.rpc("admin_dashboard"), sb.rpc("stuck_farmers")]);
   if (error || !D) return (app.innerHTML = `<p class="err">Couldn't load your dashboard${error ? ": " + esc(error.message) : ""}</p>`);
   const fs = D.farmers || [], paid = fs.filter((f) => f.paid), W = D.waiting || {}, M = D.money || {}, K = D.work || {};
   const payers = paid.filter((f) => !f.comp), comps = paid.length - payers.length;  // comp (free) accounts aren't revenue
@@ -751,6 +751,7 @@ async function adminHome() {
   const ago = (t) => { if (!t) return "never"; const d = Math.floor((Date.now() - new Date(t)) / 864e5); return d <= 0 ? "today" : d === 1 ? "yesterday" : d + " days ago"; };
   const first = (me.full_name || "").trim().split(/\s+/)[0];
   const hr = new Date().getHours();
+  const stuck = S?.farmers || [], teachers = S?.teachers || [];
 
   app.innerHTML = `<div class="dash" id="admindash" style="max-width:1100px">
     <h2 style="font-size:22px;margin:4px 0 0">Good ${hr < 12 ? "morning" : hr < 18 ? "afternoon" : "evening"}${first ? ", " + esc(first) : ""}</h2>
@@ -759,6 +760,17 @@ async function adminHome() {
     <h3>Needs you</h3>
     <div class="card needs" id="needs">${needs.length ? needs.map(([, t, v]) => `<div class="row"><span>${esc(t)}</span><button class="btn sm" data-go="${v}">Open</button></div>`).join("")
       : `<span class="muted">Nothing is waiting on you.</span>`}</div>
+
+    <h3>Stuck farmers</h3>
+    <div class="card tablewrap" id="stuck">${stuck.length ? `<p class="muted" style="margin:0 0 8px;font-size:14px">They get an alert in the portal and an email each day they stay stuck. Hand one to a teacher to check in by phone.</p>
+      <table><thead><tr><th>Farmer</th><th>Day</th><th>Why</th><th>Teacher</th><th>Last nudged</th></tr></thead><tbody>
+      ${stuck.map((x) => `<tr><td><button class="linkbtn" data-fp="${x.id}"><b>${esc(x.full_name)}</b></button>${x.phone ? `<br><small class="muted">${esc(x.phone)}</small>` : ""}</td>
+        <td>${x.day}</td><td>${x.reasons.map((r) => `<span class="tag warn">${esc(r.text)}</span>`).join(" ")}</td>
+        <td><select data-teach="${x.id}" style="width:auto" aria-label="Teacher for ${esc(x.full_name)}"><option value="">Nobody yet</option>
+          ${teachers.map((t) => `<option value="${t.id}" ${t.id === x.teacher_id ? "selected" : ""}>${esc(t.full_name)}</option>`).join("")}</select></td>
+        <td style="white-space:nowrap">${ago(x.last_nudge)}</td></tr>`).join("")}</tbody></table>
+      ${teachers.length < 2 ? `<p class="muted" style="font-size:13px;margin:8px 0 0">To hand farmers to Julian or Vincent, tick Verifier for them on the Farmers tab.</p>` : ""}`
+      : `<span class="muted">Nobody is stuck. Every paid farmer has contractors, logged something in the last 3 days, and is on time.</span>`}</div>
 
     <h3>Students</h3>
     <div class="stats" id="studentstats">
@@ -805,6 +817,9 @@ async function adminHome() {
       <td style="white-space:nowrap">${ago(x.f.last_active)}</td></tr>`).join("")
       || `<tr><td colspan="7" class="muted">Paid farmers show up here.</td></tr>`}</tbody></table></div></div>`;
   app.querySelectorAll("[data-go]").forEach((b) => b.onclick = () => { view = b.dataset.go; boot(); });
+  app.querySelectorAll("[data-teach]").forEach((el) => el.onchange = async () => {
+    const { error } = await sb.rpc("assign_teacher", { farmer: el.dataset.teach, teacher: el.value || null }); if (error) alert(error.message);
+  });
   app.querySelectorAll("[data-fp]").forEach((b) => b.onclick = () => {
     const f = fs.find((x) => x.id === b.dataset.fp);
     farmerPage({ ...f, enrollment_paid: f.paid });
@@ -1241,6 +1256,13 @@ async function homeExtras(cs, ctx) {
     <div class="card"><b style="font-size:17px">Quizzes</b>${[1, 2, 3].filter((n) => n <= Math.max(1, ctx.L)).map((n) => `<div class="row" style="justify-content:space-between;margin-top:8px;font-weight:800"><span>Level ${n}</span>
       ${(ctx.passes || []).some((p) => p.quiz === "l" + n) ? `<span class="tag" style="background:#FFF1CC;color:#7A5200">Aced</span>` : `<button class="linkbtn" data-quiz="l${n}">Take it</button>`}</div>`).join("")}</div>`;
   $("#homeside").append($("#refcard"));
+  if (me.verifier) {
+    const { data: studs } = await sb.rpc("my_students");
+    if (studs?.length) $("#today").insertAdjacentHTML("afterend", `<div class="card lvl" id="students"><h2 style="margin:0;font-size:20px">Farmers to check in on</h2>
+      <p class="muted" style="margin:4px 0 8px;font-size:14px">Alex asked you to check in with these farmers. Give them a call and help them get unstuck.</p>
+      <ul class="todo">${studs.map((x) => `<li><b>${esc(x.full_name)}</b>${x.phone ? ` · <a href="tel:${esc(x.phone)}">${esc(x.phone)}</a>` : ""} · <a href="mailto:${esc(x.email)}">${esc(x.email)}</a> · day ${x.day}
+        ${(x.reasons || []).length ? `<br><small class="muted">${esc(x.reasons.map((r) => r.text).join("; "))}</small>` : `<br><small class="muted">Back on track</small>`}</li>`).join("")}</ul></div>`);
+  }
   app.querySelectorAll("[data-quiz]").forEach((b) => b.onclick = () => { learnQuiz = b.dataset.quiz; view = "learn"; boot(); });
   if (refs?.length) $("#refcard").insertAdjacentHTML("beforeend", `<div class="tablewrap" style="margin-top:12px" id="myrefs"><table><thead><tr><th>Your referrals</th><th>Status</th></tr></thead><tbody>
     ${refs.map((r) => `<tr><td>${esc(r.full_name)}<br><small class="muted">${new Date(r.created_at).toLocaleDateString()}</small></td><td>${esc(payoutLabel(r))}</td></tr>`).join("")}</tbody></table></div>`);

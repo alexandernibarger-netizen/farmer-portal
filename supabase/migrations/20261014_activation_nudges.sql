@@ -18,7 +18,6 @@ create table if not exists public.nudges (
   created_at timestamptz not null default now());
 create index if not exists nudges_farmer_kind on public.nudges (farmer_id, kind, created_at desc);
 alter table public.nudges enable row level security;
-drop policy if exists "nudges admin read" on public.nudges;
 create policy "nudges admin read" on public.nudges for select using (public.is_admin());
 
 -- the last time a farmer logged anything (same sources as the dashboard's "last active")
@@ -160,7 +159,7 @@ $$;
 create or replace function ops.run_nudges() returns text
 language plpgsql security definer set search_path = ops, public as $$
 declare
-  p record; r jsonb; body text; subj text; paras text[]; sent boolean; n_alerts int := 0; n_emails int := 0;
+  p record; r jsonb; msg text; subj text; paras text[]; sent boolean; n_alerts int := 0; n_emails int := 0;
   pr jsonb; nxt jsonb; c_week int; c_all int; calls_week int; comm_week int; met int; total int;
 begin
   for p in select pp.id, pp.email from public.profiles pp
@@ -171,20 +170,23 @@ begin
       continue when exists (select 1 from public.nudges n where n.farmer_id = p.id and n.kind = r->>'kind' and n.detail = r->>'key'
         and (r->>'kind' <> 'inactive' or n.created_at > now() - interval '3 days'));
       if r->>'kind' = 'no_contractors' then
-        body := 'You haven''t added a contractor yet. Open Pipeline, press Add, and log the first one you find today. The Level 1 lessons show you where to look.';
+        msg := 'You haven''t added a contractor yet. Open Pipeline, press Add, and log the first one you find today. The Level 1 lessons show you where to look.';
         subj := 'Your first contractor';
       elsif r->>'kind' = 'inactive' then
-        body := 'We haven''t seen anything logged in the portal for a few days. Log today''s calls or comments, even a few, to keep your 5-days-a-week streak going. Stuck on something? Ask a teacher from the Learn page.';
+        msg := 'We haven''t seen anything logged in the portal for a few days. Log today''s calls or comments, even a few, to keep your 5-days-a-week streak going. Stuck on something? Ask a teacher from the Learn page.';
         subj := 'Pick up where you left off';
       else
-        body := r->>'text' || '. The 90 days page shows what''s left. Catch up as soon as you can, and ask a teacher from the Learn page if you''re stuck.';
+        msg := r->>'text' || '. The 90 days page shows what''s left. Catch up as soon as you can, and ask a teacher from the Learn page if you''re stuck.';
         subj := 'A 90-day goal date has passed';
       end if;
-      insert into public.notifications (farmer_id, body) values (p.id, body);
-      n_alerts := n_alerts + 1;
+      -- an alert they haven't dismissed yet isn't stacked again
+      if not exists (select 1 from public.notifications x where x.farmer_id = p.id and x.body = msg and x.read_at is null) then
+        insert into public.notifications (farmer_id, body) values (p.id, msg);
+        n_alerts := n_alerts + 1;
+      end if;
       sent := false;
       if ops.emails_today() < ops.email_cap() and not ops.emailed_today(p.id) then
-        sent := ops.send_email(p.email, subj, ops.email_html(ops.first_name(p.id), array[body]));
+        sent := ops.send_email(p.email, subj, ops.email_html(ops.first_name(p.id), array[msg]));
       end if;
       if sent then n_emails := n_emails + 1; end if;
       insert into public.nudges (farmer_id, kind, detail, emailed) values (p.id, r->>'kind', r->>'key', sent);
