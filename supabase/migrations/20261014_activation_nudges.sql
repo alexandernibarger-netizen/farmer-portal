@@ -18,7 +18,6 @@ create table if not exists public.nudges (
   created_at timestamptz not null default now());
 create index if not exists nudges_farmer_kind on public.nudges (farmer_id, kind, created_at desc);
 alter table public.nudges enable row level security;
-drop policy if exists "nudges admin read" on public.nudges;
 create policy "nudges admin read" on public.nudges for select using (public.is_admin());
 
 -- the last time a farmer logged anything (same sources as the dashboard's "last active")
