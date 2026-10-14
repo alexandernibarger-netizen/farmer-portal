@@ -14,6 +14,9 @@ window.CRM_CONFIG = {
   // Meta (Facebook/Instagram) pixel ID, digits only, from https://business.facebook.com/events_manager2
   // Leave empty and no pixel or cookie notice loads.
   META_PIXEL_ID: "",
+  // Founder video on the landing page: a YouTube or Vimeo link, or a file in the site (e.g. "/media/alex.mp4").
+  // Leave empty to hide the "Meet Alex" section.
+  FOUNDER_VIDEO: "",
   // Zelle email or phone shown to unpaid farmers. Leave empty to hide.
   ZELLE_TO: "",
 };

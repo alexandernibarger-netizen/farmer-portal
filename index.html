@@ -228,6 +228,15 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between}
   </div>
 </section>
 
+<!-- Founder video: hidden until FOUNDER_VIDEO is set in config.js -->
+<section id="video" hidden>
+  <div class="wrap narrow center">
+    <h2 class="sec">Meet Alex</h2>
+    <p class="small" style="margin:0 auto 18px;max-width:560px">Two minutes on what Lead Farming is, who it's for, and what your first weeks look like.</p>
+    <div id="vbox" style="position:relative;aspect-ratio:16/9;border-radius:18px;overflow:hidden;background:#2B3A2E"></div>
+  </div>
+</section>
+
 <section id="book" class="alt">
   <div class="wrap book">
     <div class="intro">
@@ -374,7 +383,6 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between}
     <div class="grid">
       <div class="card"><p>"[Real quote from a farmer]"</p><p style="font-weight:900;margin-top:10px">[First name, city]</p></div>
       <div class="card"><p>"[Real quote from a contractor partner]"</p><p style="font-weight:900;margin-top:10px">[Name, trade]</p></div>
-      <!-- VIDEO: a 2-minute video of Alex walking through one lead could go here -->
     </div>
   </div>
 </section>
@@ -466,6 +474,39 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between}
   var ref = new URLSearchParams(location.search).get("ref");
   if (!ref) return;
   document.querySelectorAll(".js-start").forEach(function (a) { a.href = "/app/?signup&ref=" + encodeURIComponent(ref); });
+})();
+</script>
+<script>
+// Founder video (FOUNDER_VIDEO in config.js): a YouTube or Vimeo link, or a video file such as /media/alex.mp4.
+// YouTube and Vimeo only load after the visitor presses play, so nothing from them runs before that.
+(function () {
+  var url = String((window.CRM_CONFIG || {}).FOUNDER_VIDEO || "").trim(), box = document.getElementById("vbox");
+  if (!url) return;
+  var m, src = null;
+  if ((m = url.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{6,})/)))
+    src = "https://www.youtube-nocookie.com/embed/" + m[1] + "?autoplay=1&rel=0";
+  else if ((m = url.match(/vimeo\.com\/(?:video\/)?(\d+)/)))
+    src = "https://player.vimeo.com/video/" + m[1] + "?autoplay=1&dnt=1";
+  else if (!/\.(mp4|webm|mov)(\?|$)/i.test(url)) return;  // not a link we know how to show
+  if (src) {
+    var b = document.createElement("button");
+    b.type = "button"; b.id = "vplay"; b.setAttribute("aria-label", "Play the video");
+    b.style.cssText = "position:absolute;inset:0;width:100%;border:0;background:#2B3A2E;color:#fff;cursor:pointer;font:900 20px Nunito,system-ui,sans-serif";
+    b.innerHTML = '<span style="display:inline-flex;align-items:center;justify-content:center;width:84px;height:84px;border-radius:50%;background:#58CC02;font-size:34px;margin-bottom:12px">&#9654;</span><br>Watch the 2-minute intro';
+    b.onclick = function () {
+      var f = document.createElement("iframe");
+      f.src = src; f.title = "Meet Alex"; f.allow = "autoplay; fullscreen; picture-in-picture"; f.allowFullscreen = true;
+      f.style.cssText = "position:absolute;inset:0;width:100%;height:100%;border:0";
+      box.replaceChildren(f);
+    };
+    box.appendChild(b);
+  } else {
+    var v = document.createElement("video");
+    v.src = url; v.controls = true; v.preload = "metadata"; v.playsInline = true;
+    v.style.cssText = "position:absolute;inset:0;width:100%;height:100%";
+    box.appendChild(v);
+  }
+  document.getElementById("video").hidden = false;
 })();
 </script>
 </body>
