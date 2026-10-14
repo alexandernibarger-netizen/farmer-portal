@@ -727,7 +727,44 @@ async function home() {
   if ($("#to90")) $("#to90").onclick = (e) => { e.preventDefault(); view = "program"; boot(); };
   if (me.role !== "admin") await homeExtras(cs, { L, aced, ready, pending, passes });
   if (!reviewer() && L >= 1 && (me.tour_level || 0) < L && !tour) startTour(me.tour_level ? "levelup" : "full");
+  if (me.verifier && me.role !== "admin" && me.teacher_welcome_seen === false && !dlg.open) teacherWelcome();
   if ($("#toquiz")) $("#toquiz").onclick = (e) => { e.preventDefault(); learnQuiz = "l" + L; view = "learn"; boot(); };
+}
+
+// One-time popup from Alex when Alex ticks a farmer as a teacher (verifier). Page 2 names the farmers handed to them.
+async function teacherWelcome() {
+  const { data: studs } = await sb.rpc("my_students");
+  const names = (studs || []).map((x) => (x.full_name || "").trim().split(/\s+/)[0]).filter(Boolean).map((n) => n[0].toUpperCase() + n.slice(1));
+  const who = names.length > 1 ? names.slice(0, -1).join(", ") + " and " + names.at(-1) : names[0];
+  const pages = [
+    `<div style="text-align:center">${MASCOT.replace('class="mascot"', 'class="mascot" style="width:96px"')}
+      <h2 style="font-size:44px;margin:6px 0 4px;letter-spacing:.04em">WAIT</h2>
+      <p style="font-size:18px;font-weight:800;margin:0 0 18px">Don't close this. This is actually custom from big dawg Alex.</p>
+      <button class="btn" id="twnext" style="width:100%">Next</button></div>`,
+    `<div style="text-align:center">${MASCOT.replace('class="mascot"', 'class="mascot" style="width:80px"')}
+      <h2 style="font-size:24px;margin:6px 0 10px">You're a Lead Farming teacher now</h2></div>
+      <p style="font-size:16px">${esc(firstName())}, I ticked you as a Lead Farming teacher. That means you've got a new responsibility:</p>
+      <ul style="font-size:16px;margin:8px 0 12px;padding-left:22px">
+        ${who ? `<li style="margin-bottom:6px">Making sure <b>${esc(who)}</b> make${names.length > 1 ? "" : "s"} money lead farming.</li>` : ""}
+        <li>Making sure whichever ${who ? "other " : ""}stuck farmers I hand you also make money lead farming.</li></ul>
+      ${studs?.length ? `<ul class="todo" style="margin:0 0 12px">${studs.map((x) => `<li><b>${esc(x.full_name)}</b>${x.phone ? ` · <a href="tel:${esc(x.phone)}">${esc(x.phone)}</a>` : ""} · day ${x.day}
+        ${(x.reasons || []).length ? `<br><small class="muted">${esc(x.reasons.map((r) => r.text).join("; "))}</small>` : ""}</li>`).join("")}</ul>` : ""}
+      <p class="muted" style="font-size:14px;margin:0 0 16px">Everyone I hand you shows up under "Farmers to check in on" on your Home, with their number and what they're stuck on. Give them a call and help them get unstuck.</p>
+      <button class="btn" id="twdone" style="width:100%">Got it, I'm on it</button>`,
+  ];
+  const show = (i) => {
+    dlg.innerHTML = `<div id="tw">${pages[i]}</div>`;
+    if (i === 0) $("#twnext").onclick = () => show(1);
+    else $("#twdone").onclick = async () => {
+      dlg.close();
+      me.teacher_welcome_seen = true;
+      await sb.from("profiles").update({ teacher_welcome_seen: true }).eq("id", me.id);
+    };
+  };
+  dlg.oncancel = (e) => e.preventDefault();  // Escape doesn't close it; only the button does
+  dlg.onclose = () => { dlg.oncancel = null; dlg.onclose = null; };
+  show(0);
+  dlg.showModal();
 }
 
 // The message farmers send with their link. No income claims and no bonus talk: it's about what the program is.
