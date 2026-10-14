@@ -19,6 +19,7 @@
   if (authLink || signedIn) location.replace("/app/" + q + h);
 })();
 </script>
+<script src="/config.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
@@ -134,6 +135,18 @@ details p{margin-top:8px;color:var(--muted)}
 .final h2{font-size:clamp(30px,4vw,40px);margin-bottom:10px}
 .final p{font-size:19px;margin-bottom:24px}
 .final .fine{color:#fff;margin:16px auto 0}
+/* book a call */
+.book{display:flex;flex-wrap:wrap;gap:40px;align-items:flex-start}
+.book>.intro{flex:1 1 320px;min-width:0}
+.book>.box{flex:1 1 480px;min-width:0;background:#fff;border:2px solid var(--line);border-bottom-width:6px;border-radius:24px;padding:28px}
+.book ol{padding-left:22px;margin:16px 0 0;color:var(--muted)}.book li{margin-bottom:8px}
+.box label{display:block;font-weight:800;margin:14px 0 6px}
+.box input[type=text],.box input[type=email],.box input[type=tel],.box textarea{width:100%;font:inherit;font-size:17px;padding:12px 14px;border:2px solid var(--line);border-radius:14px;background:var(--soft);color:var(--ink)}
+.box .chk{display:flex;gap:10px;align-items:flex-start;font-weight:700;margin-top:16px}.box .chk input{width:22px;height:22px;margin-top:2px;flex:none}
+.box button.btn{border:0;cursor:pointer;width:100%;margin-top:18px;font-family:inherit}
+.box .err{color:var(--bad);font-weight:800;margin-top:10px;min-height:1px}
+#calembed{min-height:560px;width:100%;overflow:auto}
+.already{font-size:15px;color:var(--muted);margin-top:14px}
 footer{border-top:2px solid var(--line);padding:28px 0;color:var(--muted);font-size:14px}
 footer .wrap{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between}
 @media (max-width:640px){
@@ -158,6 +171,7 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between}
   <nav aria-label="Page sections">
     <a href="#how">How it works</a>
     <a href="#inside">Inside</a>
+    <a href="#book">Book a call</a>
     <a href="#refund">Refund rules</a>
     <a href="#faq">FAQ</a>
   </nav>
@@ -172,9 +186,10 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between}
       <h1>This business works. <span>Do the work. If it doesn't pay you back, I refund the difference.</span></h1>
       <p class="lede">Your neighbors need a roofer. You know one. I'll teach you to connect homeowners with local contractors who pay you a referral fee when the job closes. Do every step for 90 days, and if your fees haven't paid back the $499, I refund the difference.</p>
       <div class="ctas">
-        <a class="btn btn-go js-start" href="/app/?signup">START FOR $499</a>
+        <a class="btn btn-go" href="#book">BOOK A CALL WITH ALEX</a>
         <a class="btn btn-line" href="#how">SEE HOW IT WORKS</a>
       </div>
+      <p class="already">Already talked with Alex? <a class="js-start" href="/app/?signup">Enroll here for $499</a>.</p>
       <p class="fine">The refund applies when you hit every effort quota on time and prove it. <a href="#rules">Read the rules</a> before you pay.</p>
     </div>
     <div class="hero-art">
@@ -212,7 +227,42 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between}
   </div>
 </section>
 
-<section id="how" class="alt">
+<section id="book" class="alt">
+  <div class="wrap book">
+    <div class="intro">
+      <h2 class="sec">Talk it over with Alex first</h2>
+      <p class="lede">A short call to see if this fits you: how the 90 days work, what the daily work looks like, and your questions. No pressure to sign up.</p>
+      <ol>
+        <li>Answer three quick questions.</li>
+        <li>Pick a time that works for you.</li>
+        <li>Alex calls you at that time.</li>
+      </ol>
+    </div>
+    <div class="box" id="bookbox">
+      <form id="bookform" novalidate>
+        <label for="b_name">Your name</label><input type="text" id="b_name" name="name" autocomplete="name" required maxlength="120">
+        <label for="b_email">Email</label><input type="email" id="b_email" name="email" autocomplete="email" required maxlength="200">
+        <label for="b_phone">Phone</label><input type="tel" id="b_phone" name="phone" autocomplete="tel" maxlength="40">
+        <label for="b_town">Your town</label><input type="text" id="b_town" name="town" autocomplete="address-level2" required maxlength="120">
+        <label for="b_why">Why do you want to do this?</label><textarea id="b_why" name="why" rows="3" required maxlength="2000"></textarea>
+        <label class="chk"><input type="checkbox" name="adult" required> <span>I'm 18 or older.</span></label>
+        <p class="err" id="berr" role="alert"></p>
+        <button class="btn btn-go" id="bsend">NEXT: PICK A TIME</button>
+        <p class="fine" style="margin-top:12px">We use your answers only to prepare for the call. See the <a href="/privacy/">Privacy Policy</a>.</p>
+      </form>
+      <div id="bookcal" hidden>
+        <p style="font-weight:900;font-size:20px;margin-bottom:8px" id="bookhi">Thanks! Now pick a time.</p>
+        <div id="calembed"></div>
+      </div>
+      <div id="bookdone" hidden>
+        <p style="font-weight:900;font-size:22px">You're booked.</p>
+        <p class="lede" style="margin-top:8px">Check your email for the time and a calendar invite. Alex will call you then.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="how">
   <div class="wrap">
     <h2 class="sec center">Three moves. Repeat them.</h2>
     <p class="lede center">No inventory, no tools, no license to do the work. You make introductions.</p>
@@ -345,7 +395,8 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between}
     <div class="final">
       <h2>Ready to plant your first seed?</h2>
       <p>$499, one time. Lessons, quizzes, CRM and the 90-day program.</p>
-      <a class="btn btn-white js-start" href="/app/?signup">START FOR $499</a>
+      <a class="btn btn-white" href="#book">BOOK A CALL WITH ALEX</a>
+      <p class="fine">Already talked with Alex? <a class="js-start" href="/app/?signup" style="color:#fff">Enroll for $499</a>.</p>
       <p class="fine">Do every step and prove it. If your fees haven't paid back the $499 by day 90, I refund the difference.</p>
     </div>
   </div>
@@ -366,6 +417,48 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between}
 (function () {
   function openRules() { if (location.hash === "#rules") document.getElementById("rules").open = true; }
   openRules(); window.addEventListener("hashchange", openRules);
+})();
+// Book a call: the form goes to the database (Alex gets a Telegram alert), then Alex's Cal.com calendar opens,
+// already filled in with their name, email and answers. Without a CAL_LINK it just says Alex will be in touch.
+(function () {
+  var C = window.CRM_CONFIG || {}, form = document.getElementById("bookform"), err = document.getElementById("berr");
+  window.lfTrack = window.lfTrack || function () {};
+  window.lfMeta = window.lfMeta || function () { return {}; };
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var f = new FormData(form), get = function (k) { return String(f.get(k) || "").trim(); };
+    if (!get("name") || !get("town") || !get("why")) { err.textContent = "Please fill in your name, town and why."; return; }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(get("email"))) { err.textContent = "Please enter a valid email."; return; }
+    if (!f.get("adult")) { err.textContent = "You need to be 18 or older to join."; return; }
+    err.textContent = ""; document.getElementById("bsend").disabled = true;
+    fetch(C.SUPABASE_URL + "/rest/v1/rpc/request_call", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: C.SUPABASE_KEY, Authorization: "Bearer " + C.SUPABASE_KEY },
+      body: JSON.stringify({ p_name: get("name"), p_email: get("email"), p_phone: get("phone"), p_town: get("town"), p_why: get("why"), p_adult: true, p_meta: window.lfMeta() }),
+    }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); }).then(function (x) {
+      if (!x.ok) throw new Error((x.j && x.j.message) || "Something went wrong");
+      form.hidden = true;
+      var cal = document.getElementById("bookcal"); cal.hidden = false;
+      if (!C.CAL_LINK) {
+        document.getElementById("bookhi").textContent = "Thanks! Alex will text or email you to set up a time.";
+        return;
+      }
+      openCal(get("name"), get("email"), "Town: " + get("town") + "\nWhy: " + get("why"));
+    }).catch(function (e2) {
+      document.getElementById("bsend").disabled = false;
+      err.textContent = e2.message + ". You can also email support@leadfarminghq.com.";
+    });
+  });
+  function openCal(name, email, notes) {
+    // Cal.com's embed loader (https://cal.com/docs/core-features/embed)
+    (function (C2, A, L) { var p = function (a, ar) { a.q.push(ar); }; var d = C2.document; C2.Cal = C2.Cal || function () { var cal = C2.Cal; var ar = arguments; if (!cal.loaded) { cal.ns = {}; cal.q = cal.q || []; d.head.appendChild(d.createElement("script")).src = A; cal.loaded = true; } if (ar[0] === L) { var api = function () { p(api, arguments); }; var ns = ar[1]; api.q = api.q || []; if (typeof ns === "string") { cal.ns[ns] = cal.ns[ns] || api; p(cal.ns[ns], ar); p(cal, ["initNamespace", ns]); } else p(cal, ar); return; } p(cal, ar); }; })(window, "https://app.cal.com/embed/embed.js", "init");
+    Cal("init", { origin: "https://cal.com" });
+    Cal("inline", { elementOrSelector: "#calembed", calLink: C.CAL_LINK, config: { name: name, email: email, notes: notes, layout: "month_view" } });
+    Cal("on", { action: "bookingSuccessful", callback: function () {
+      document.getElementById("bookcal").hidden = true; document.getElementById("bookdone").hidden = false;
+      window.lfTrack("Lead");
+    } });
+  }
 })();
 // Keep a recruiter's referral (?ref=email) on the way to sign-up.
 (function () {

@@ -8,6 +8,9 @@ window.CRM_CONFIG = {
   PRICE: 499,
   // Stripe Payment Link for the enrollment (https://buy.stripe.com/...). Leave empty to hide the Pay button.
   PAYMENT_LINK: "https://buy.stripe.com/3cIaEX99WcV9dS3abn5gc01",
+  // Alex's Cal.com event for intro calls, as "username/event" (from https://cal.com/username/event).
+  // Leave empty and the landing page form still reaches Alex on Telegram; it just shows no calendar.
+  CAL_LINK: "",
   // Zelle email or phone shown to unpaid farmers. Leave empty to hide.
   ZELLE_TO: "",
 };
