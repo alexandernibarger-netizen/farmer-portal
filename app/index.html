@@ -731,9 +731,11 @@ async function home() {
 const shareText = (link) => `Hey! I've been learning how to connect neighbors who need home repairs with good local contractors. It's a 90-day program with short lessons, quizzes and a CRM to keep track of everything. Thought you might like it. Take a look: ${link}`;
 
 // ---------- admin: home dashboard (students + business) ----------
+const GOAL = 30000;  // Alex's revenue goal for 2026-12-31
+const shortDate = (d) => new Date(d + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
 const CALL_LABEL = { requested: "Form only, no time yet", booked: "Booked", canceled: "Canceled", showed: "Showed", no_show: "No-show", enrolled: "Enrolled" };
 async function adminHome() {
-  const [{ data: D, error }, { data: S }, { data: CB }] = await Promise.all([sb.rpc("admin_dashboard"), sb.rpc("stuck_farmers"), sb.rpc("call_board")]);
+  const [{ data: D, error }, { data: S }, { data: CB }, { data: AD }] = await Promise.all([sb.rpc("admin_dashboard"), sb.rpc("stuck_farmers"), sb.rpc("call_board"), sb.rpc("ad_summary")]);
   if (error || !D) return (app.innerHTML = `<p class="err">Couldn't load your dashboard${error ? ": " + esc(error.message) : ""}</p>`);
   const fs = D.farmers || [], paid = fs.filter((f) => f.paid), W = D.waiting || {}, M = D.money || {}, K = D.work || {};
   const payers = paid.filter((f) => !f.comp), comps = paid.length - payers.length;  // comp (free) accounts aren't revenue
@@ -772,7 +774,7 @@ async function adminHome() {
   const ago = (t) => { if (!t) return "never"; const d = Math.floor((Date.now() - new Date(t)) / 864e5); return d <= 0 ? "today" : d === 1 ? "yesterday" : d + " days ago"; };
   const first = (me.full_name || "").trim().split(/\s+/)[0];
   const hr = new Date().getHours();
-  const stuck = S?.farmers || [], teachers = S?.teachers || [], calls = CB || [];
+  const stuck = S?.farmers || [], teachers = S?.teachers || [], calls = CB || [], A = AD || {};
 
   app.innerHTML = `<div class="dash" id="admindash" style="max-width:1100px">
     <h2 style="font-size:22px;margin:4px 0 0">Good ${hr < 12 ? "morning" : hr < 18 ? "afternoon" : "evening"}${first ? ", " + esc(first) : ""}</h2>
@@ -825,7 +827,19 @@ async function adminHome() {
       ${stat(money(M.bonuses_paid), "$250 bonuses paid", Number(M.bonuses_not_cash) ? money(M.bonuses_not_cash) + " more recorded, not paid in cash" : "")}
       ${stat(money(M.bonuses_owed), "Bonuses owed", Number(M.bonuses_pending) ? money(M.bonuses_pending) + " more once recruits pay" : "")}
       ${stat(money(net), "Net revenue", "after refunds and bonuses")}
+      ${stat(Math.round((revenue / GOAL) * 100) + "%", "Toward $30,000 by Dec 31", `about ${Math.max(0, Math.ceil((GOAL - revenue) / C.PRICE))} more farmers at ${money(C.PRICE)}`)}
     </div>
+    <div class="card" style="margin-top:10px" id="ads"><div class="row" style="justify-content:space-between"><b>Ads</b>
+      <span class="muted" style="font-size:14px">${money(A.spent)} of ${money(A.budget)} spent · ${plural(Number(A.sales || 0), "sale")} from ads${A.cost_per_sale ? ` · ${money(A.cost_per_sale)} per sale` : ""}</span></div>
+      <table style="margin-top:6px"><tbody>${(A.stages || []).map((x) => `<tr><td style="white-space:nowrap;width:1%"><b>${esc(x.stage)}</b><br><small class="muted">${esc(shortDate(x.starts))} to ${esc(shortDate(x.ends))}</small></td>
+        <td><div class="bar" style="height:10px"><i style="width:${Math.min(100, (Number(x.spent) / Number(x.budget)) * 100)}%"></i></div></td>
+        <td style="white-space:nowrap;width:1%">${money(x.spent)} of ${money(x.budget)}</td></tr>`).join("")}</tbody></table>
+      <form id="adf" class="row" style="margin-top:10px;flex-wrap:wrap"><input name="spent_on" type="date" required value="${new Date().toLocaleDateString("en-CA")}" style="width:auto" aria-label="Date">
+        <input name="amount" type="number" min="0.01" step="0.01" required placeholder="Amount spent ($)" style="width:170px" aria-label="Amount spent">
+        <input name="note" maxlength="200" placeholder="Note (campaign), optional" style="flex:1;min-width:160px" aria-label="Note">
+        <button class="btn sm">Add spend</button></form><div class="err" id="aderr"></div>
+      ${(A.entries || []).length ? `<details style="margin-top:8px"><summary class="muted" style="cursor:pointer">${plural(A.entries.length, "entry")}</summary><table><tbody>
+        ${A.entries.map((e) => `<tr><td>${esc(shortDate(e.spent_on))}</td><td>${money(e.amount)}</td><td>${esc(e.note || "")}</td><td style="text-align:right"><button class="btn ghost sm" data-adel="${e.id}">Remove</button></td></tr>`).join("")}</tbody></table></details>` : `<p class="muted" style="font-size:13px;margin:6px 0 0">Type in what you spent on Meta ads each day or week. The Monday report uses it for cost per sale.</p>`}</div>
     <div class="card" style="margin-top:10px" id="bymonth"><b>Enrollments by month</b>
       <table style="margin-top:6px"><tbody>${months.map((m) => `<tr><td style="white-space:nowrap;width:1%">${m.d.toLocaleDateString(undefined, { month: "short", year: "numeric" })}</td>
         <td><div class="bar" style="height:10px"><i style="width:${(m.n / topM) * 100}%"></i></div></td>
@@ -849,6 +863,14 @@ async function adminHome() {
       <td style="white-space:nowrap">${ago(x.f.last_active)}</td></tr>`).join("")
       || `<tr><td colspan="7" class="muted">Paid farmers show up here.</td></tr>`}</tbody></table></div></div>`;
   app.querySelectorAll("[data-go]").forEach((b) => b.onclick = () => { view = b.dataset.go; boot(); });
+  $("#adf").onsubmit = async (e) => {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(e.target));
+    const { error } = await sb.from("ad_spend").insert({ spent_on: f.spent_on, amount: Number(f.amount), note: f.note.trim() || null });
+    if (error) return ($("#aderr").textContent = error.message);
+    adminHome();
+  };
+  app.querySelectorAll("[data-adel]").forEach((b) => b.onclick = async () => { await sb.from("ad_spend").delete().eq("id", +b.dataset.adel); adminHome(); });
   app.querySelectorAll("[data-call]").forEach((b) => b.onclick = async () => {
     const { error } = await sb.rpc("mark_call", { p_id: b.dataset.call, p_status: b.dataset.st }); if (error) alert(error.message); adminHome();
   });
