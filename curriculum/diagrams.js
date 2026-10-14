@@ -242,7 +242,7 @@ const DIAGRAMS = {
 
   beewasp: () => S(
     T(160, 20, "50 to 100 comments a day", { b: 1 }) +
-    bubble(82, 34, 148, ["\"I recently had a very similar", "problem and the guy I had", "fix it did a very good job.", "I'd love to connect you.\""], { cls: "pgood", fs: 8.5 }) +
+    bubble(82, 34, 148, ["\"I know a guy who does", "really good work on this,", "I'd love to connect you.", "Heads up, he pays me a", "referral fee if you hire him.\""], { cls: "pgood", fs: 8.5 }) +
     `<ellipse cx="82" cy="136" rx="16" ry="11" class="gold"/><path d="M76 126v20M86 126v20" class="stripe"/><ellipse cx="78" cy="122" rx="8" ry="5" class="wing"/><ellipse cx="90" cy="122" rx="8" ry="5" class="wing"/><circle cx="98" cy="134" r="2" class="ink"/>` +
     bubble(240, 34, 140, ["\"HIRE MY COMPANY!", "Best price in town,", "call now!!\""], { cls: "pbad", fs: 8.5 }) +
     `<ellipse cx="240" cy="132" rx="18" ry="7" class="wasp"/><path d="M232 126v12M242 125v14M252 127v10" class="stripe"/><ellipse cx="236" cy="120" rx="7" ry="4" class="wing"/><path d="M222 132l-8 2" class="trunkl"/>` + X(268, 116, 8) +
