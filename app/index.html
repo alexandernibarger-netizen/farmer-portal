@@ -715,11 +715,12 @@ async function adminHome() {
   const { data: D, error } = await sb.rpc("admin_dashboard");
   if (error || !D) return (app.innerHTML = `<p class="err">Couldn't load your dashboard${error ? ": " + esc(error.message) : ""}</p>`);
   const fs = D.farmers || [], paid = fs.filter((f) => f.paid), W = D.waiting || {}, M = D.money || {}, K = D.work || {};
+  const payers = paid.filter((f) => !f.comp), comps = paid.length - payers.length;  // comp (free) accounts aren't revenue
   const sum = (a, f) => a.reduce((t, x) => t + Number(f(x) || 0), 0);
   const weekAgo = Date.now() - 7 * 864e5, monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
   const active = paid.filter((f) => f.last_active && new Date(f.last_active) >= weekAgo).length;
   const termsOpen = paid.filter((f) => f.terms_version !== TERMS_VERSION);
-  const revenue = sum(paid, (f) => f.fee), net = revenue - Number(M.refunded || 0) - Number(M.bonuses_paid || 0);
+  const revenue = sum(payers, (f) => f.fee), net = revenue - Number(M.refunded || 0) - Number(M.bonuses_paid || 0);
   const stat = (v, k, sub = "") => `<div class="card stat"><div class="v">${v}</div><div class="k">${esc(k)}</div>${sub ? `<small>${esc(sub)}</small>` : ""}</div>`;
   const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
 
@@ -744,7 +745,7 @@ async function adminHome() {
 
   // enrollments over the last six months
   const months = [...Array(6)].map((_, i) => { const d = new Date(new Date().getFullYear(), new Date().getMonth() - 5 + i, 1); return { d, n: 0, $: 0 }; });
-  for (const f of paid) { if (!f.enrolled_at) continue; const e = new Date(f.enrolled_at), m = months.find((x) => x.d.getFullYear() === e.getFullYear() && x.d.getMonth() === e.getMonth()); if (m) { m.n++; m.$ += Number(f.fee || 0); } }
+  for (const f of payers) { if (!f.enrolled_at) continue; const e = new Date(f.enrolled_at), m = months.find((x) => x.d.getFullYear() === e.getFullYear() && x.d.getMonth() === e.getMonth()); if (m) { m.n++; m.$ += Number(f.fee || 0); } }
   const topM = Math.max(1, ...months.map((m) => m.n));
   const lv = [1, 2, 3].map((n) => paid.filter((f) => f.level === n).length), lv0 = paid.length - lv[0] - lv[1] - lv[2];
   const ago = (t) => { if (!t) return "never"; const d = Math.floor((Date.now() - new Date(t)) / 864e5); return d <= 0 ? "today" : d === 1 ? "yesterday" : d + " days ago"; };
@@ -762,8 +763,8 @@ async function adminHome() {
     <h3>Students</h3>
     <div class="stats" id="studentstats">
       ${stat(fs.length, "Signed up")}
-      ${stat(paid.length, "Paid", paid.filter((f) => f.enrolled_at && new Date(f.enrolled_at) >= monthStart).length + " this month")}
-      ${stat(fs.length - paid.length, "Haven't paid yet", fs.length ? Math.round((paid.length / fs.length) * 100) + "% of signups paid" : "")}
+      ${stat(payers.length, "Paid", payers.filter((f) => f.enrolled_at && new Date(f.enrolled_at) >= monthStart).length + " this month" + (comps ? ` · ${plural(comps, "free account")} not counted` : ""))}
+      ${stat(fs.length - paid.length, "Haven't paid yet", fs.length - comps ? Math.round((payers.length / (fs.length - comps)) * 100) + "% of signups paid" : "")}
       ${stat(active, "Active this week", paid.length ? "of " + paid.length + " paid" : "")}
       ${stat(behindN, "Behind on a quota", "missed a deadline")}
       ${termsOpen.length ? stat(termsOpen.length, "Haven't accepted the Terms") : ""}
@@ -775,9 +776,9 @@ async function adminHome() {
 
     <h3>Business</h3>
     <div class="stats" id="bizstats">
-      ${stat(money(revenue), "Enrollment revenue", plural(paid.length, "enrollment"))}
+      ${stat(money(revenue), "Enrollment revenue", plural(payers.length, "enrollment") + (comps ? ", free accounts left out" : ""))}
       ${stat(money(M.refunded), "Refunded", plural(Number(M.refunds_approved || 0), "approved refund"))}
-      ${stat(money(M.bonuses_paid), "$250 bonuses paid")}
+      ${stat(money(M.bonuses_paid), "$250 bonuses paid", Number(M.bonuses_not_cash) ? money(M.bonuses_not_cash) + " more recorded, not paid in cash" : "")}
       ${stat(money(M.bonuses_owed), "Bonuses owed", Number(M.bonuses_pending) ? money(M.bonuses_pending) + " more once recruits pay" : "")}
       ${stat(money(net), "Net revenue", "after refunds and bonuses")}
     </div>
@@ -2080,22 +2081,23 @@ function leadForm(l = {}, cs) {
 async function admin() {
   const { data: fs } = await sb.from("farmer_summary").select("*").order("full_name");
   const byId = Object.fromEntries((fs || []).map((f) => [f.id, f]));
-  const paid = (fs || []).filter((f) => f.enrollment_paid).length;
+  const paid = (fs || []).filter((f) => f.enrollment_paid && !f.comp).length;
   app.innerHTML = `
     <div class="stats">
       <div class="card stat"><div class="v">${(fs||[]).length}</div><div class="k">Farmers</div></div>
       <div class="card stat"><div class="v">${paid}</div><div class="k">Paid enrollment</div></div>
-      <div class="card stat"><div class="v">${money((fs || []).filter((f) => f.enrollment_paid).reduce((t, f) => t + Number(f.enrollment_fee ?? 0), 0))}</div><div class="k">Enrollment revenue</div></div>
+      <div class="card stat"><div class="v">${money((fs || []).filter((f) => f.enrollment_paid && !f.comp).reduce((t, f) => t + Number(f.enrollment_fee ?? 0), 0))}</div><div class="k">Enrollment revenue</div></div>
       <div class="card stat"><div class="v">${(fs||[]).reduce((a,f)=>a+Number(f.active_network),0)}</div><div class="k">Contractors in all networks</div></div>
     </div>
-    <div class="card tablewrap"><table><thead><tr><th>Farmer</th><th>Recruited by</th><th>Enrollment</th><th>Level</th><th>Verifier</th><th>Network</th><th>Leads (closed)</th><th>Fees earned</th><th>Recruits</th></tr></thead><tbody>
+    <div class="card tablewrap"><table><thead><tr><th>Farmer</th><th>Recruited by</th><th>Enrollment</th><th title="Free account: full access, not counted as revenue">Free</th><th>Level</th><th>Verifier</th><th>Network</th><th>Leads (closed)</th><th>Fees earned</th><th>Recruits</th></tr></thead><tbody>
     ${(fs || []).map((f) => `<tr><td><button class="linkbtn" data-fp="${f.id}"><b>${esc(f.full_name || f.email)}</b></button><br><small class="muted">${esc(f.email)}</small></td>
       <td>${esc(byId[f.recruited_by]?.full_name || "")}</td>
-      <td>${f.enrollment_paid ? '<span class="tag">paid</span>' : `<button class="btn sm" data-pay="${f.id}">Mark ${money(C.PRICE)} paid</button>`}</td>
+      <td>${f.enrollment_paid ? `<span class="tag">${f.comp ? "free" : "paid"}</span>` : `<button class="btn sm" data-pay="${f.id}">Mark ${money(C.PRICE)} paid</button>`}</td>
+      <td><input type="checkbox" data-comp="${f.id}" ${f.comp ? "checked" : ""} style="width:auto" aria-label="Free account"></td>
       <td><select data-lvl="${f.id}" style="width:auto">${[0,1,2,3].map((n) => `<option ${n === f.level ? "selected" : ""}>${n}</option>`).join("")}</select></td>
       <td><input type="checkbox" data-ver="${f.id}" ${f.verifier ? "checked" : ""} style="width:auto"></td>
       <td>${f.active_network} / ${f.contractors}</td><td>${f.leads} (${f.leads_closed})</td><td>${money(f.fees_earned)}</td><td>${f.recruits}</td></tr>`).join("")
-      || `<tr><td colspan="9" class="muted">No farmers yet.</td></tr>`}
+      || `<tr><td colspan="10" class="muted">No farmers yet.</td></tr>`}
     </tbody></table></div>`;
   app.querySelectorAll("[data-fp]").forEach((b) => b.onclick = () => farmerPage(byId[b.dataset.fp]));
   app.querySelectorAll("[data-pay]").forEach((b) => b.onclick = async () => {
@@ -2103,6 +2105,9 @@ async function admin() {
   });
   app.querySelectorAll("[data-lvl]").forEach((el) => el.onchange = async () => {
     const { error } = await sb.rpc("set_level", { farmer: el.dataset.lvl, lvl: +el.value }); if (error) alert(error.message); boot();
+  });
+  app.querySelectorAll("[data-comp]").forEach((el) => el.onchange = async () => {
+    const { error } = await sb.rpc("set_comp", { farmer: el.dataset.comp, on_off: el.checked }); if (error) alert(error.message); boot();
   });
   app.querySelectorAll("[data-ver]").forEach((el) => el.onchange = async () => {
     const { error } = await sb.rpc("set_verifier", { farmer: el.dataset.ver, on_off: el.checked }); if (error) alert(error.message); boot();
@@ -2121,7 +2126,7 @@ async function payouts() {
     ${back ? `<div class="card stat"><div class="v">${money(back)}</div><div class="k">Clawbacks owed back to you</div></div>` : ""}</div>
     <div class="card tablewrap"><table><thead><tr><th>Recruiter</th><th>New farmer</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody>
     ${(ps || []).map((p) => `<tr><td>${esc(nm(p.recruiter_id))}</td><td>${esc(nm(p.recruit_id))}</td><td>${money(p.amount)}</td>
-      <td><span class="tag ${p.status === "owed" || (p.clawback_at && !p.clawback_settled_at) ? "warn" : ""}">${esc(payoutLabel(p).replace("$250 owed to you", "owed").replace(" (they were refunded)", ", recruit refunded"))}</span></td>
+      <td><span class="tag ${p.status === "owed" || (p.clawback_at && !p.clawback_settled_at) ? "warn" : ""}">${esc(p.not_cash ? "Recorded, not paid in cash" : payoutLabel(p).replace("$250 owed to you", "owed").replace(" (they were refunded)", ", recruit refunded"))}</span></td>
       <td>${p.status === "owed" ? `<button class="btn sm" data-paid="${p.id}">Mark paid</button>`
         : p.clawback_at && !p.clawback_settled_at ? `<button class="btn ghost sm" data-repaid="${p.id}">Mark repaid</button>` : ""}</td></tr>`).join("")
       || `<tr><td colspan="5" class="muted">No recruiter payouts yet.</td></tr>`}
