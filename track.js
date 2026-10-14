@@ -45,16 +45,25 @@
   function show() {
     var bar = document.createElement("div");
     bar.id = "cookiebar"; bar.setAttribute("role", "region"); bar.setAttribute("aria-label", "Cookie notice");
-    bar.style.cssText = "position:fixed;left:12px;right:12px;bottom:12px;z-index:9999;max-width:720px;margin:0 auto;background:#fff;color:#2B3A2E;border:2px solid #E6EBE1;border-bottom-width:5px;border-radius:18px;padding:14px 16px;display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;font:15px/1.45 Nunito,system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.12)";
+    bar.style.cssText = "position:fixed;left:12px;right:12px;bottom:12px;z-index:40;max-width:720px;margin:0 auto;background:#fff;color:#2B3A2E;border:2px solid #E6EBE1;border-bottom-width:5px;border-radius:18px;padding:14px 16px;display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;font:15px/1.45 Nunito,system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.12)";
     bar.innerHTML = '<span style="flex:1 1 320px">We use cookies, including Meta\'s pixel, to see which of our ads bring people here. <a href="/privacy/#cookies" style="color:#2E7A12">Privacy Policy</a></span>'
       + '<span style="display:flex;gap:8px"><button type="button" id="cookieok" style="font:inherit;font-weight:900;border:0;border-radius:12px;padding:9px 16px;background:#58CC02;color:#fff;cursor:pointer">OK</button>'
       + '<button type="button" id="cookieno" style="font:inherit;font-weight:900;border:2px solid #E6EBE1;border-radius:12px;padding:7px 14px;background:#fff;color:#1C7AAE;cursor:pointer">No thanks</button></span>';
     document.body.appendChild(bar);
+    // On phones the portal's tabs are a bar fixed to the bottom of the screen; sit above it instead of covering it.
+    function place() {
+      var nav = document.querySelector("header nav");
+      var h = nav && getComputedStyle(nav).position === "fixed" ? nav.offsetHeight : 0;
+      bar.style.bottom = (12 + h) + "px";
+    }
+    place();
+    var keep = setInterval(function () { if (!bar.isConnected) return clearInterval(keep); place(); }, 500);
     document.getElementById("cookieok").onclick = function () { choice = "yes"; store.set("lf_cookies", "yes"); bar.remove(); };
     document.getElementById("cookieno").onclick = function () {
       choice = "no"; store.set("lf_cookies", "no"); bar.remove();
       if (window.fbq) fbq("consent", "revoke");
     };
   }
+  // z-index 40: above the page, below the portal's tour (49-51), so the tour's buttons stay clickable.
   if (document.body) show(); else document.addEventListener("DOMContentLoaded", show);
 })();

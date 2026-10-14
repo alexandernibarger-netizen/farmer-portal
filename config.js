@@ -10,10 +10,10 @@ window.CRM_CONFIG = {
   PAYMENT_LINK: "https://buy.stripe.com/3cIaEX99WcV9dS3abn5gc01",
   // Alex's Cal.com event for intro calls, as "username/event" (from https://cal.com/username/event).
   // Leave empty and the landing page form still reaches Alex on Telegram; it just shows no calendar.
-  CAL_LINK: "",
+  CAL_LINK: "zimbux/intro-call",
   // Meta (Facebook/Instagram) pixel ID, digits only, from https://business.facebook.com/events_manager2
   // Leave empty and no pixel or cookie notice loads.
-  META_PIXEL_ID: "",
+  META_PIXEL_ID: "130744663441123",
   // Founder video on the landing page: a YouTube or Vimeo link, or a file in the site (e.g. "/media/alex.mp4").
   // Leave empty to hide the "Meet Alex" section.
   FOUNDER_VIDEO: "",
