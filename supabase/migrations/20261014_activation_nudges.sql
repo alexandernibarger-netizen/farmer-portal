@@ -179,8 +179,11 @@ begin
         body := r->>'text' || '. The 90 days page shows what''s left. Catch up as soon as you can, and ask a teacher from the Learn page if you''re stuck.';
         subj := 'A 90-day goal date has passed';
       end if;
-      insert into public.notifications (farmer_id, body) values (p.id, body);
-      n_alerts := n_alerts + 1;
+      -- an alert they haven't dismissed yet isn't stacked again
+      if not exists (select 1 from public.notifications x where x.farmer_id = p.id and x.body = body and x.read_at is null) then
+        insert into public.notifications (farmer_id, body) values (p.id, body);
+        n_alerts := n_alerts + 1;
+      end if;
       sent := false;
       if ops.emails_today() < ops.email_cap() and not ops.emailed_today(p.id) then
         sent := ops.send_email(p.email, subj, ops.email_html(ops.first_name(p.id), array[body]));
