@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
 <script src="../config.js"></script>
+<script src="../track.js"></script>
 <script src="../curriculum/diagrams.js"></script>
 <style>
 :root{--leaf:#3E7B3A;--leaf2:#72AA5C;--soil:#7E5A3B;--soil2:#B48A5E;--trunk:#6A4A2E;--onsoil:#FFF5E4;--sky:#DDEBF1;--sky2:#4F8AB0;--meadow:#DCEBC8;--gold:#F0B93A;--gold-d:#A9760F;--bloom:#D3648A;--apple:#C9473B;--bad:#B83E33;--good:#2C7F45;--skin:#E5B68C;--paper:#FFFFFF;--rock:#9AA095;--bg:#FFFFFF;--card:#fff;--ink:#2B3A2E;--muted:#5F6B63;--line:#E6EBE1;--accent:#3A8A1C;--accent-ink:#fff;--warn:#B4530A;--soft:#EAF6E1;--accent-d:#2A6812;--soft2:#F3F6EF;--brand:#5BB82E;--sun:#F5B700;--sun-d:#C99600;--sky3:#2E9BD6;--sky3-d:#1C7AAE;--skysoft:#E0F0FA;--flame:#FF9F1C;--lock:#E6EBE1;--lock-d:#CDD5C7}
@@ -461,7 +462,8 @@ function authView(mode = "in") {
     <form id="af">
       ${mode === "up" ? `<label>Full name</label><input name="full_name" required>
       <label>Phone</label><input name="phone">
-      <label>Who referred you? (their email, optional)</label><input name="recruiter_email" type="email" value="${esc(REF)}">` : ""}
+      <label>Who referred you? (their email, optional)</label><input name="recruiter_email" type="email" value="${esc(REF || window.lfMeta?.().ref || "")}">
+      <label>How did you hear about us?</label><select name="heard_about" required><option value="">Pick one</option>${HEARD.map((h) => `<option>${esc(h)}</option>`).join("")}</select>` : ""}
       <label>Email</label><input name="email" type="email" required>
       <label>Password</label><input name="password" type="password" minlength="8" required>
       ${mode === "in" ? `<p style="margin:6px 0 0;font-size:13px;text-align:right"><a href="#" id="fg">Forgot password?</a></p>` : ""}
@@ -482,13 +484,14 @@ function authView(mode = "in") {
       ? await sb.auth.signInWithPassword({ email: f.email, password: f.password })
       : await sb.auth.signUp({ email: f.email, password: f.password,
           options: { emailRedirectTo: location.origin + location.pathname,
-            data: { full_name: f.full_name, phone: f.phone, recruiter_email: f.recruiter_email } } });
+            data: { full_name: f.full_name, phone: f.phone, recruiter_email: f.recruiter_email, heard_about: f.heard_about, attribution: window.lfMeta?.() || {} } } });
     if (error) return ($("#aerr").textContent = /not confirmed/i.test(error.message)
       ? "Your email isn't confirmed yet. Open the confirm email we sent (check Junk too), tap the link, then sign in."
       : error.message);
     if (mode === "up") $("#aerr").textContent = "Check your email (and Junk) to confirm your account, then sign in.";
   };
 }
+const HEARD = ["Facebook or Instagram ad", "A friend or family member", "Talked with Alex", "TikTok", "YouTube", "Google search", "Other"];
 // The enrollment agreement lives at /terms/; bump TERMS_VERSION whenever that page's version date changes.
 const TERMS_VERSION = "2026-10-08.2";
 const agreeBox = (checked = false) => `<label class="agree"><input type="checkbox" name="agree" required${checked ? " checked" : ""}>
@@ -642,8 +645,15 @@ async function recheck(quiet = false) {
 }
 window.addEventListener("focus", () => { if (me && locked() && $("#paywall")) recheck(true); });
 
+function trackPurchase() {
+  if (!me?.enrollment_paid || me.role === "admin" || me.comp || !me.enrolled_at || Date.now() - new Date(me.enrolled_at) > 2 * 864e5) return;
+  const k = "lf_purchase_" + me.id;
+  try { if (localStorage.getItem(k)) return; localStorage.setItem(k, "1"); } catch { return; }
+  window.lfTrack?.("Purchase", { value: Number(me.enrollment_fee || C.PRICE), currency: "USD" });
+}
 function boot() {
   $("#top").hidden = false;
+  trackPurchase();
   $("#who").textContent = me?.full_name || me?.email || "";
   if (locked()) return payView();
   if (needsTerms()) return termsView();

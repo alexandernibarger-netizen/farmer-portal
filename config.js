@@ -11,6 +11,9 @@ window.CRM_CONFIG = {
   // Alex's Cal.com event for intro calls, as "username/event" (from https://cal.com/username/event).
   // Leave empty and the landing page form still reaches Alex on Telegram; it just shows no calendar.
   CAL_LINK: "",
+  // Meta (Facebook/Instagram) pixel ID, digits only, from https://business.facebook.com/events_manager2
+  // Leave empty and no pixel or cookie notice loads.
+  META_PIXEL_ID: "",
   // Zelle email or phone shown to unpaid farmers. Leave empty to hide.
   ZELLE_TO: "",
 };
