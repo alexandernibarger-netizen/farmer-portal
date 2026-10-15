@@ -196,7 +196,7 @@ nav button:hover:not(.on){background:var(--soft2)}
   header h1{margin:0 8px 18px}
   header nav{display:flex;flex-direction:column;gap:4px;flex:1}
   header #who{padding:0 12px;font-weight:800}
-  header #logout{margin:4px 12px 0}
+  header #logout,header #siteview{margin:4px 12px 0}
   header:not([hidden]) ~ main, header:not([hidden]) ~ #banner{margin-left:236px}
   main{padding:28px 36px 48px}
 }
@@ -395,6 +395,7 @@ nav button:hover:not(.on){background:var(--soft2)}
   <h1 id="brand"></h1>
   <nav id="nav"></nav>
   <span class="muted" id="who"></span>
+  <a class="btn ghost sm" id="siteview" href="/?home" hidden>View public site</a>
   <button class="btn ghost sm" id="logout">Sign out</button>
 </header>
 <div id="banner"></div>
@@ -538,7 +539,7 @@ function newPasswordView() {
   };
 }
 
-$("#logout").onclick = () => { view = "home"; termsLater = false; sb.auth.signOut().then(() => ($("#banner").innerHTML = "")); };
+$("#logout").onclick = () => { view = "home"; termsLater = false; ownerFlag(false); sb.auth.signOut().then(() => ($("#banner").innerHTML = "")); };
 
 sb.auth.onAuthStateChange((event, session) => {
   if (event === "USER_UPDATED") return; // new password saved; the form handles what's next
@@ -654,8 +655,12 @@ function trackPurchase() {
   try { if (localStorage.getItem(k)) return; localStorage.setItem(k, "1"); } catch { return; }
   window.lfTrack?.("Purchase", { value: Number(me.enrollment_fee || C.PRICE), currency: "USD" });
 }
+// The public landing page reads lf_owner to skip its signed-in redirect and show "Back to my portal".
+function ownerFlag(on) { try { on ? localStorage.setItem("lf_owner", "1") : localStorage.removeItem("lf_owner"); } catch {} }
 function boot() {
   $("#top").hidden = false;
+  $("#siteview").hidden = me?.role !== "admin";
+  ownerFlag(me?.role === "admin");
   trackPurchase();
   $("#who").textContent = me?.full_name || me?.email || "";
   if (locked()) return payView();
