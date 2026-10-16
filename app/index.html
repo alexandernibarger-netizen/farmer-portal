@@ -452,6 +452,7 @@ const NAV_ICONS = {
 };
 const REF = new URLSearchParams(location.search).get("ref") || ""; // referral links: leadfarminghq.com/?ref=friend@email
 const SIGNUP = new URLSearchParams(location.search).has("signup"); // landing page "Start" buttons open Create account
+let DISCORD_BACK = new URLSearchParams(location.search).get("discord"); // the Discord sign-in sends people back with ?discord=linked|cancelled|...
 
 // ---------- auth ----------
 function authView(mode = "in") {
@@ -553,6 +554,7 @@ async function signedIn(session) {
   if (!session) { me = null; return authView(SIGNUP ? "up" : "in"); }
   const { data } = await sb.from("profiles").select("*").eq("id", session.user.id).single();
   if (me?.id !== data?.id) view = "home";  // every sign-in opens on Home
+  if (DISCORD_BACK && data) { view = "settings"; history.replaceState(null, "", location.pathname); }
   me = data;
   applyTemplate(me?.dashboard_template);
   await loadRef();
@@ -1282,7 +1284,9 @@ async function homeExtras(cs, ctx) {
     ${trail}
     <div class="card lvl" id="today"><h2 style="margin:0;font-size:20px">Today</h2>${items.length
       ? `<ul class="todo">${items.map((x, i) => `<li><button class="linkbtn" data-todo="${i}">${esc(x.text)}</button></li>`).join("")}</ul>`
-      : `<p class="muted" style="margin:6px 0 0">You're caught up. Nothing needs a follow-up right now.</p>`}</div>`);
+      : `<p class="muted" style="margin:6px 0 0">You're caught up. Nothing needs a follow-up right now.</p>`}</div>
+    <div id="homediscord"></div>`);
+  discordCard($("#homediscord"), false);
   // stats column: streak, money, level, the 90-day ring, this week, quizzes, referrals
   const { data: acts } = await sb.from("activities").select("created_at").eq("farmer_id", me.id);
   const dayKey = (t) => { const d = new Date(t); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; };
@@ -1366,8 +1370,10 @@ function settingsView() {
       <b>${esc(name)}${k === "farm" ? ` <span class="tag">Default</span>` : ""}</b><small>${esc(about)}</small></button>`).join("")}</div>
     <div class="err" id="tplerr"></div></div>
     <div class="card" id="replaycard" style="margin-top:12px"><b style="font-size:17px">Portal tour</b><p class="muted" style="margin:4px 0 10px">Walk through every page again.</p>
-      <button class="btn ghost" id="replay">Replay the tour</button></div></div>`;
+      <button class="btn ghost" id="replay">Replay the tour</button></div>
+    <div id="discordslot"></div></div>`;
   $("#replay").onclick = () => startTour("full");
+  discordCard($("#discordslot"), true);
   app.querySelectorAll("[data-tpl]").forEach((b) => b.onclick = async () => {
     const t = b.dataset.tpl, prev = document.documentElement.dataset.template;
     applyTemplate(t);
@@ -1376,6 +1382,39 @@ function settingsView() {
     if (error) { applyTemplate(prev); settingsView(); return ($("#tplerr").textContent = "Couldn't save your choice: " + error.message); }
     me.dashboard_template = t;
   });
+}
+
+// ---------- everyone paid: the Lead Farming Discord ----------
+// Shown in Settings always, and on Home until they've joined. Hidden until Alex has set the server up.
+const DISCORD_ICO = `<svg width="22" height="22" viewBox="0 0 24 24" fill="#5865F2" aria-hidden="true"><path d="M19.6 5.3A17 17 0 0 0 15.4 4l-.5 1.1a15.6 15.6 0 0 0-5.8 0L8.6 4a17 17 0 0 0-4.2 1.3C1.7 9.3 1 13.2 1.3 17a17 17 0 0 0 5.2 2.6l1.1-1.8c-.6-.2-1.2-.5-1.7-.8l.4-.3a12 12 0 0 0 11.4 0l.4.3c-.5.3-1.1.6-1.7.8l1.1 1.8a17 17 0 0 0 5.2-2.6c.4-4.4-.7-8.3-3.1-11.7zM8.5 14.7c-1 0-1.9-1-1.9-2.1s.8-2.1 1.9-2.1 1.9 1 1.9 2.1-.8 2.1-1.9 2.1zm7 0c-1 0-1.9-1-1.9-2.1s.8-2.1 1.9-2.1 1.9 1 1.9 2.1-.8 2.1-1.9 2.1z"/></svg>`;
+const DISCORD_MSG = {
+  linked: "You're in! Open Discord and you'll find the Lead Farming server in your list.",
+  cancelled: "You didn't finish joining. Press the button again whenever you're ready.",
+  expired: "That link timed out. Press the button again.",
+  taken: "That Discord account is already linked to another portal account. Sign in to Discord with your own account and try again.",
+  failed: "Something went wrong joining the Discord. Try again in a minute, or tell Alex.",
+};
+async function discordCard(slot, inSettings) {
+  if (!slot) return;
+  const { data: d } = await sb.rpc("discord_status");
+  if (!d?.ready || !d.eligible || (!inSettings && d.linked)) return;
+  const back = inSettings ? DISCORD_BACK : null;
+  if (inSettings) DISCORD_BACK = null;
+  slot.innerHTML = `<div class="card" id="discordcard" style="margin-top:12px"><div class="row" style="gap:10px;align-items:flex-start">${DISCORD_ICO}<div style="flex:1">
+    <b style="font-size:17px">Lead Farming Discord</b>
+    <p class="muted" style="margin:4px 0 10px">${d.linked
+      ? `You're in as <b>${esc(d.linked)}</b>. Alex posts news in #announcements, your portal alerts also come to your Discord DMs, and you can type <b>/progress</b> in the server any time.`
+      : "Chat with the other farmers and the teachers, see Alex's announcements, and get your portal alerts as Discord messages. Your level unlocks its own lounge."}</p>
+    ${back && DISCORD_MSG[back] ? `<p class="${back === "linked" ? "" : "err"}" style="margin:0 0 10px;font-weight:700">${esc(DISCORD_MSG[back])}</p>` : ""}
+    ${d.linked ? `<a class="btn ghost" href="${esc(d.server)}" target="_blank" rel="noopener">Open the Discord</a>` : `<button class="btn" id="discordjoin">Join the Discord</button>`}
+    <div class="err" id="discorderr"></div></div></div></div>`;
+  const b = slot.querySelector("#discordjoin");
+  if (b) b.onclick = async () => {
+    b.disabled = true;
+    const { data: url, error } = await sb.rpc("discord_link_url");
+    if (error) { b.disabled = false; return (slot.querySelector("#discorderr").textContent = error.message); }
+    location.href = url;
+  };
 }
 
 // ---------- farmer: first-login tour (and short tours after each level-up) ----------
