@@ -10,12 +10,25 @@
 <script>
 // Members, email links (confirm, password reset) and the Stripe return all belong in the portal at /app/.
 // Add ?home to the address to see this page while signed in.
+// The owner (lf_owner, set by the portal for admins) always gets this page plus a "Back to my portal" button.
 (function () {
   var q = location.search, h = location.hash;
-  if (/[?&]home\b/.test(q)) return;
   var authLink = /access_token=|type=recovery|type=signup|error_description=/.test(h) || /[?&]code=/.test(q);
-  var signedIn = false;
-  try { for (var i = 0; i < localStorage.length; i++) { if (/^sb-.*-auth-token$/.test(localStorage.key(i))) signedIn = true; } } catch (e) {}
+  var signedIn = false, owner = false;
+  try {
+    for (var i = 0; i < localStorage.length; i++) { if (/^sb-.*-auth-token$/.test(localStorage.key(i))) signedIn = true; }
+    owner = signedIn && localStorage.getItem("lf_owner") === "1";
+  } catch (e) {}
+  if (owner && !authLink) {
+    document.addEventListener("DOMContentLoaded", function () {
+      var bar = document.createElement("div");
+      bar.className = "owner-bar";
+      bar.innerHTML = '<span>You\u2019re seeing the public site, like a visitor does.</span><a class="owner-back" href="/app/">\u2190 Back to my portal</a>';
+      document.body.prepend(bar);
+    });
+    return;
+  }
+  if (/[?&]home\b/.test(q)) return;
   if (authLink || signedIn) location.replace("/app/" + q + h);
 })();
 </script>
@@ -52,6 +65,9 @@ section{padding:72px 0}
 .top nav{display:flex;flex-wrap:wrap}
 .top nav a{padding:10px 12px;font-weight:800;text-decoration:none;color:var(--muted)}
 .top nav a:hover{color:var(--ink)}
+.owner-bar{position:sticky;top:0;z-index:50;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px 16px;padding:10px 16px;background:var(--accent-d);color:#fff;font-weight:800;font-size:15px}
+.owner-back{background:#fff;color:var(--accent-d);font-weight:900;padding:8px 14px;border-radius:12px;text-decoration:none}
+.owner-back:hover{color:var(--accent-d);background:var(--mint)}
 .login{padding:9px 16px;border:2px solid var(--line);border-bottom-width:4px;border-radius:14px;font-weight:900;text-decoration:none}
 /* hero */
 .hero{padding:40px 0 64px}
