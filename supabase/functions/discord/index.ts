@@ -150,6 +150,14 @@ const COMMANDS = [
 
 async function setup() {
   let cfg = await config();
+  if (!cfg.guild_id) {
+    // no server id saved yet: use the one server the bot was added to
+    const res = await discord("GET", "/users/@me/guilds");
+    const guilds: Json[] = res.ok ? await res.json() : [];
+    if (guilds.length !== 1) return { error: `the bot is in ${guilds.length} servers; save guild_id in discord_config` };
+    await setConfig("guild_id", String(guilds[0].id));
+    cfg = await config();
+  }
   const g = cfg.guild_id, app = cfg.client_id;
   if (!g || !app) return { error: "guild_id and client_id must be in discord_config first" };
   const done: string[] = [];
