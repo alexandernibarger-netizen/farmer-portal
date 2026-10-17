@@ -227,6 +227,10 @@ nav button:hover:not(.on){background:var(--soft2)}
 .nextcard .btn{background:#fff;color:var(--accent);box-shadow:0 4px 0 #CFE9BD;margin-left:auto}
 .dash h3{font-size:16px;margin:22px 0 8px}.dash .stats{margin-bottom:0}
 .dash .stat .v{font-size:22px}.dash .stat small{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+.gsteps{list-style:none;margin:6px 0 8px;padding:0;display:flex;flex-direction:column;gap:6px}
+.gstep{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font-size:14px}.gstep label{display:flex;align-items:center;gap:8px;margin:0;font-size:14px;font-weight:500;flex:1 1 220px}
+.gstep input[type=checkbox]{width:auto;margin:0}.gstep.done label span{text-decoration:line-through;color:var(--muted)}
+.goals{display:flex;flex-direction:column;gap:10px}.goal.hit{border-color:var(--leaf,var(--accent))}
 .needs{display:flex;flex-direction:column;gap:8px}.needs .row{justify-content:space-between;flex-wrap:nowrap}
 .lvlbar{display:flex;height:14px;border-radius:7px;overflow:hidden;background:var(--line);margin:10px 0 8px}
 .lvlbar i:nth-child(1){background:var(--leaf2)}.lvlbar i:nth-child(2){background:var(--leaf)}.lvlbar i:nth-child(3){background:var(--gold)}.lvlbar i:nth-child(4){background:var(--rock)}
@@ -448,6 +452,7 @@ const NAV_ICONS = {
   payouts: ico("#3A8A1C", '<path d="M12 3v18"/><path d="M17 7H9.5a3 3 0 0 0 0 6h5a3 3 0 0 1 0 6H6"/>'),
   trades: ico("#8B5E3C", '<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.5-2.5z"/>'),
   welcome: ico("#D14F8A", '<path d="M4 5h16v11H9l-5 4z"/>'),
+  growth: ico("#3A8A1C", '<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>'),
   settings: ico("#5F6B63", '<circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6a7 7 0 0 0 0 2.4l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z"/>'),
 };
 const REF = new URLSearchParams(location.search).get("ref") || ""; // referral links: leadfarminghq.com/?ref=friend@email
@@ -674,13 +679,13 @@ function boot() {
   if (lvl() >= 3) tabs.push(["upsells","Upsells"]);
   if (lvl() >= 2 && me?.role !== "admin") tabs.push(["money","Money"]);
   if (reviewer()) tabs.push(["approvals","Approvals"]);
-  if (me?.role === "admin") tabs.push(["admin","Farmers"],["payouts","Payouts"],["trades","Trades"],["welcome","Welcome"]);
+  if (me?.role === "admin") tabs.push(["growth","Growth"],["admin","Farmers"],["payouts","Payouts"],["trades","Trades"],["welcome","Welcome"]);
   tabs.push(["settings","Settings"]);
   if (!tabs.some(([k]) => k === view)) view = "home";
   $("#nav").innerHTML = tabs.map(([k,l]) => `<button data-v="${k}" class="${k===view?"on":""}">${NAV_ICONS[k] || ""}<span>${l}</span></button>`).join("");
   $("#nav").onclick = (e) => { const b = e.target.closest("button"); if (b?.dataset.v) { view = b.dataset.v; boot(); } };
   approvalsBadge();
-  return ({ home, learn, program, pipeline, contractors, leads, upsells, money: moneyView, welcome: welcomeLines, settings: settingsView, approvals, admin, payouts, tradesView: tradesView })[view === "trades" ? "tradesView" : view]();
+  return ({ home, learn, program, pipeline, contractors, leads, upsells, money: moneyView, welcome: welcomeLines, growth, settings: settingsView, approvals, admin, payouts, tradesView: tradesView })[view === "trades" ? "tradesView" : view]();
 }
 
 // ---------- farmer: home (level ladder + next step) ----------
@@ -891,6 +896,140 @@ async function adminHome() {
     const f = fs.find((x) => x.id === b.dataset.fp);
     farmerPage({ ...f, enrollment_paid: f.paid });
   });
+}
+
+// ---------- owner: Growth (benchmarks for the $30k goal and the steps toward each) ----------
+// Live numbers a benchmark can track, from growth_numbers(). [label, format]
+const GROWTH_METRICS = {
+  revenue: ["Enrollment revenue", "money"], payers: ["Paying farmers"], new_paid_week: ["New paying farmers, last 7 days"],
+  new_paid_4wk: ["New paying farmers, last 4 weeks"], calls_booked_week: ["Calls booked, last 7 days"], calls_booked: ["Calls booked, all time"],
+  show_rate: ["Call show rate", "pct"], ad_spend: ["Ad spend", "money"], ad_sales: ["Sales from ads"], cost_per_sale: ["Cost per sale from ads", "money"],
+  referral_sales: ["Sales from referrals"], activated_pct: ["Paying farmers with contractors", "pct"], active_week_pct: ["Paying farmers active this week", "pct"],
+  leads_sent: ["Leads sent by farmers"], farmers_with_fee: ["Farmers who earned a fee"], level2: ["Farmers at level 2 or higher"],
+};
+const gfmt = (k, v) => v == null ? "—" : GROWTH_METRICS[k]?.[1] === "money" ? money(v) : GROWTH_METRICS[k]?.[1] === "pct" ? Math.round(v) + "%" : Number(v).toLocaleString();
+const goalHit = (g, N) => {
+  if (!g.metric) return !!g.done_at;
+  const v = N[g.metric];
+  return v != null && g.target != null && (g.lower_is_better ? Number(v) <= Number(g.target) : Number(v) >= Number(g.target));
+};
+async function growth() {
+  const [{ data: N, error }, { data: items, error: e2 }] = await Promise.all([sb.rpc("growth_numbers"), sb.from("growth_items").select("*").order("sort_order").order("id")]);
+  if (error || e2 || !N) return (app.innerHTML = `<p class="err">Couldn't load Growth${error || e2 ? ": " + esc((error || e2).message) : ""}</p>`);
+  const goals = items.filter((i) => i.kind === "goal"), steps = items.filter((i) => i.kind === "step");
+  const today = new Date().toLocaleDateString("en-CA");
+  const rev = Number(N.revenue || 0), daysLeft = Math.max(0, Math.ceil((new Date("2026-12-31T23:59:59") - Date.now()) / 864e5));
+  const toGo = Math.max(0, Math.ceil((GOAL - rev) / C.PRICE)), perWeek = daysLeft ? toGo / (daysLeft / 7) : toGo, pace = Number(N.new_paid_4wk || 0) / 4;
+  const hitN = goals.filter((g) => goalHit(g, N)).length, openSteps = steps.filter((s) => !s.done_at);
+  const stat = (k, sub = "") => `<div class="card stat"><div class="v">${gfmt(k, N[k])}</div><div class="k">${esc(GROWTH_METRICS[k][0])}</div>${sub ? `<small>${esc(sub)}</small>` : ""}</div>`;
+  const when = (d) => shortDate(d);
+  const stepRow = (s) => `<li class="gstep${s.done_at ? " done" : ""}"><label><input type="checkbox" data-done="${s.id}" ${s.done_at ? "checked" : ""}>
+      <span>${esc(s.title)}</span></label>
+      ${s.who ? `<span class="tag">${esc(s.who)}</span>` : ""}
+      ${s.due && !s.done_at ? `<span class="tag ${s.due < today ? "warn" : ""}">${s.due < today ? "Was due " : "By "}${esc(when(s.due))}</span>` : ""}
+      ${s.link ? `<a href="${esc(s.link)}" target="_blank" rel="noopener">Open</a>` : ""}
+      <button class="linkbtn" data-edit="${s.id}" aria-label="Edit step">Edit</button></li>`;
+  const goalCard = (g) => {
+    const hit = goalHit(g, N), mine = steps.filter((s) => s.goal_id === g.id), v = N[g.metric];
+    const late = !hit && g.due && g.due < today;
+    const pctDone = g.metric && g.target ? (g.lower_is_better ? (v == null ? 0 : Math.min(100, (Number(g.target) / Number(v)) * 100)) : Math.min(100, (Number(v || 0) / Number(g.target)) * 100)) : 0;
+    return `<div class="card goal${hit ? " hit" : ""}" id="goal-${g.id}">
+      <div class="row" style="justify-content:space-between;flex-wrap:nowrap;align-items:flex-start">
+        <div>${g.metric ? "" : `<input type="checkbox" data-done="${g.id}" ${g.done_at ? "checked" : ""} aria-label="Hit" style="width:auto;margin-right:6px">`}<b style="font-size:16px">${esc(g.title)}</b>
+          ${hit ? `<span class="tag">Hit</span>` : late ? `<span class="tag warn">Was due ${esc(when(g.due))}</span>` : g.due ? `<span class="tag">By ${esc(when(g.due))}</span>` : `<span class="tag">Ongoing</span>`}</div>
+        <button class="btn ghost sm" data-edit="${g.id}">Edit</button></div>
+      ${g.detail ? `<p class="muted" style="margin:6px 0 0;font-size:14px">${esc(g.detail)}</p>` : ""}
+      ${g.metric ? `<div class="bar" style="height:10px"><i style="width:${pctDone}%"></i></div>
+        <small class="muted">${esc(GROWTH_METRICS[g.metric]?.[0] || g.metric)}: <b>${gfmt(g.metric, v)}</b> ${g.lower_is_better ? "· aiming for under" : "of"} ${gfmt(g.metric, g.target)}</small>` : ""}
+      <div style="margin-top:10px"><b style="font-size:13px">What we're doing</b>
+        <ul class="gsteps">${mine.filter((s) => !s.done_at).map(stepRow).join("")}${mine.filter((s) => s.done_at).map(stepRow).join("")}
+          ${mine.length ? "" : `<li class="muted" style="font-size:14px">No steps yet.</li>`}</ul>
+        <form class="row addstep" data-goal="${g.id}"><input name="title" required maxlength="200" placeholder="Add a step" style="flex:1;min-width:160px" aria-label="New step">
+          <input name="who" maxlength="60" placeholder="Who" style="width:110px" aria-label="Who"><button class="btn ghost sm">Add</button></form></div></div>`;
+  };
+  app.innerHTML = `<div class="dash" id="growth" style="max-width:900px">
+    <h2 style="font-size:22px;margin:4px 0 0">Growth</h2>
+    <p class="muted" style="margin:2px 0 0">${hitN} of ${goals.length} benchmarks hit · ${openSteps.length} open ${openSteps.length === 1 ? "step" : "steps"}</p>
+
+    <div class="card" style="margin-top:14px" id="pace"><div class="row" style="justify-content:space-between"><b>${money(rev)} of ${money(GOAL)} by Dec 31</b>
+      <span class="muted" style="font-size:14px">${daysLeft} days left</span></div>
+      <div class="bar" style="height:14px"><i style="width:${Math.min(100, (rev / GOAL) * 100)}%"></i></div>
+      <p style="margin:8px 0 0;font-size:14px">${toGo ? `About <b>${toGo} more paying farmers</b> at ${money(C.PRICE)}: that's <b>${perWeek.toFixed(1)} a week</b>. Last 4 weeks averaged <b>${pace.toFixed(1)} a week</b>${pace >= perWeek ? ", on pace." : "."}` : "Goal reached."}</p></div>
+
+    <h3>Live numbers</h3>
+    <div class="stats" id="gnums">
+      ${stat("payers")}${stat("new_paid_week")}${stat("calls_booked_week")}${stat("show_rate")}
+      ${stat("activated_pct")}${stat("active_week_pct")}${stat("farmers_with_fee", Number(N.leads_sent || 0).toLocaleString() + " leads sent")}
+      ${stat("ad_spend", Number(N.ad_sales || 0) + " sales from ads" + (N.cost_per_sale ? " · " + money(N.cost_per_sale) + " each" : ""))}
+    </div>
+
+    <h3>Benchmarks</h3>
+    <div class="goals">${goals.map(goalCard).join("") || `<p class="muted">No benchmarks yet. Add one below.</p>`}</div>
+
+    <h3>Add a benchmark</h3>
+    <form class="card" id="addgoal"><label for="ng-title">What we want to hit</label><input id="ng-title" name="title" required maxlength="200" placeholder="e.g. 3 case studies on the landing page">
+      <div class="row"><div style="flex:1;min-width:150px"><label for="ng-due">By (optional)</label><input id="ng-due" name="due" type="date"></div>
+        <div style="flex:2;min-width:200px"><label for="ng-metric">Track a live number (optional)</label><select id="ng-metric" name="metric"><option value="">No, I'll tick it off myself</option>
+          ${Object.entries(GROWTH_METRICS).map(([k, [l]]) => `<option value="${k}">${esc(l)}</option>`).join("")}</select></div>
+        <div style="flex:1;min-width:110px"><label for="ng-target">Target</label><input id="ng-target" name="target" type="number" min="0" step="any"></div></div>
+      <div class="row" style="margin-top:12px"><button class="btn">Add benchmark</button></div><div class="err" id="gerr"></div></form></div>`;
+
+  const done = ({ error }) => error ? alert(error.message) : growth();
+  app.querySelectorAll("[data-done]").forEach((el) => el.onchange = async () =>
+    done(await sb.from("growth_items").update({ done_at: el.checked ? new Date().toISOString() : null }).eq("id", +el.dataset.done)));
+  app.querySelectorAll(".addstep").forEach((f) => f.onsubmit = async (e) => {
+    e.preventDefault();
+    const v = Object.fromEntries(new FormData(f)), mine = steps.filter((s) => s.goal_id === +f.dataset.goal);
+    done(await sb.from("growth_items").insert({ kind: "step", goal_id: +f.dataset.goal, title: v.title.trim(), who: v.who.trim() || null, sort_order: mine.length + 1 }));
+  });
+  $("#addgoal").onsubmit = async (e) => {
+    e.preventDefault();
+    const v = Object.fromEntries(new FormData(e.target));
+    if (v.metric && v.target === "") return ($("#gerr").textContent = "Give a target for the live number.");
+    const { error } = await sb.from("growth_items").insert({ kind: "goal", title: v.title.trim(), due: v.due || null, metric: v.metric || null,
+      target: v.metric ? Number(v.target) : null, sort_order: Math.max(0, ...goals.map((g) => g.sort_order)) + 10 });
+    if (error) return ($("#gerr").textContent = error.message);
+    growth();
+  };
+  app.querySelectorAll("[data-edit]").forEach((b) => b.onclick = () => growthForm(items.find((i) => i.id === +b.dataset.edit)));
+}
+function growthForm(it) {
+  const goal = it.kind === "goal";
+  dlg.innerHTML = `<form id="gf"><h3 style="margin-top:0">Edit ${goal ? "benchmark" : "step"}</h3>
+    <label for="gf-title">${goal ? "What we want to hit" : "Step"}</label><input id="gf-title" name="title" required maxlength="200" value="${esc(it.title)}">
+    ${goal ? `<label for="gf-detail">Notes</label><textarea id="gf-detail" name="detail" rows="3" maxlength="1000">${esc(it.detail || "")}</textarea>`
+      : `<label for="gf-who">Who</label><input id="gf-who" name="who" maxlength="60" value="${esc(it.who || "")}">
+         <label for="gf-link">Link (https://…)</label><input id="gf-link" name="link" type="url" maxlength="500" value="${esc(it.link || "")}">`}
+    <label for="gf-due">By (optional)</label><input id="gf-due" name="due" type="date" value="${esc(it.due || "")}">
+    ${goal ? `<label for="gf-metric">Track a live number</label><select id="gf-metric" name="metric"><option value="">No, I'll tick it off myself</option>
+        ${Object.entries(GROWTH_METRICS).map(([k, [l]]) => `<option value="${k}" ${k === it.metric ? "selected" : ""}>${esc(l)}</option>`).join("")}</select>
+      <label for="gf-target">Target</label><input id="gf-target" name="target" type="number" min="0" step="any" value="${it.target ?? ""}">` : ""}
+    <div class="err" id="gferr"></div>
+    <div class="row" style="margin-top:12px;justify-content:space-between"><button type="button" class="btn ghost" id="gdel">Remove</button>
+      <span class="row"><button type="button" class="btn ghost" id="cx">Cancel</button><button class="btn">Save</button></span></div></form>`;
+  dlg.showModal();
+  $("#cx").onclick = () => dlg.close();
+  $("#gdel").onclick = async () => {
+    if (!confirm(goal ? "Remove this benchmark and its steps?" : "Remove this step?")) return;
+    const { error } = await sb.from("growth_items").delete().eq("id", it.id);
+    if (error) return ($("#gferr").textContent = error.message);
+    dlg.close(); growth();
+  };
+  $("#gf").onsubmit = async (e) => {
+    e.preventDefault();
+    const v = Object.fromEntries(new FormData(e.target));
+    const row = { title: v.title.trim(), due: v.due || null };
+    if (goal) {
+      if (v.metric && v.target === "") return ($("#gferr").textContent = "Give a target for the live number.");
+      Object.assign(row, { detail: v.detail.trim() || null, metric: v.metric || null, target: v.metric ? Number(v.target) : null });
+    } else {
+      if (v.link && !/^https:\/\//.test(v.link)) return ($("#gferr").textContent = "Links need to start with https://");
+      Object.assign(row, { who: v.who.trim() || null, link: v.link.trim() || null });
+    }
+    const { error } = await sb.from("growth_items").update(row).eq("id", it.id);
+    if (error) return ($("#gferr").textContent = error.message);
+    dlg.close(); growth();
+  };
 }
 
 function requestForm(to) {
