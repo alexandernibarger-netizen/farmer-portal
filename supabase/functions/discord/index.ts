@@ -1,7 +1,7 @@
 // Lead Farming Discord bot. One function, four doors:
 //   GET  ?code=&state=           the "Join the Discord" sign-in comes back here: link the account, add them to the server
 //   POST x-signature-ed25519     Discord slash commands (/progress, /portal)
-//   POST x-ops-key               the database: setup, sync roles, DM an alert, post the daily behind board
+//   POST x-ops-key               the database: setup, sync roles, DM an alert, level-up shout-outs, the daily behind board
 // Function secrets (Supabase dashboard): DISCORD_BOT_TOKEN, DISCORD_CLIENT_SECRET.
 // Table public.discord_config holds client_id, public_key, guild_id, plus the role and channel ids that setup creates.
 // Deploy with verify_jwt off: every door checks its own credentials.
@@ -48,15 +48,35 @@ const ROLES: [string, string, number][] = [
   ["role:level2", "Level 2", 0x2e9cca],
   ["role:level3", "Level 3", 0x8e44ad],
   ["role:teacher", "Teacher", 0xf5b700],
+  ["role:founder", "Founder", 0xe67e22],
+  // milestones, earned in the portal and kept for good
+  ["role:signed", "Contractor Signed", 0x1abc9c],
+  ["role:fee", "First Fee", 0x2ecc71],
+  ["role:recruiter", "Recruiter", 0xe91e63],
+  ["role:finisher", "90-Day Finisher", 0xf1c40f],
 ];
+const MILESTONES: Record<string, string> = {
+  "role:signed": "signed their first contractor",
+  "role:fee": "collected their first referral fee",
+  "role:recruiter": "brought a new farmer into the program",
+  "role:finisher": "hit every 90-day goal",
+};
 
-type Member = { farmer_id: string; discord_id: string | null; name: string; farmer: boolean; level: number; teacher: boolean; admin: boolean };
+type Member = {
+  farmer_id: string; discord_id: string | null; name: string; farmer: boolean; level: number; teacher: boolean; admin: boolean;
+  signed: boolean; fee: boolean; recruiter: boolean; finisher: boolean;
+};
 
 function wantedRoles(m: Member, cfg: Record<string, string>): string[] {
   const keys: string[] = [];
   if (m.farmer) keys.push("role:farmer");
   if (m.farmer && m.level >= 1) keys.push(`role:level${Math.min(m.level, 3)}`);
   if (m.teacher) keys.push("role:teacher");
+  if (m.admin) keys.push("role:founder");
+  if (m.farmer && m.signed) keys.push("role:signed");
+  if (m.farmer && m.fee) keys.push("role:fee");
+  if (m.farmer && m.recruiter) keys.push("role:recruiter");
+  if (m.farmer && m.finisher) keys.push("role:finisher");
   return keys.map((k) => cfg[k]).filter(Boolean);
 }
 
@@ -70,15 +90,22 @@ async function sync(farmerId: string) {
   const cur = await res.json();
   const have = new Set<string>(cur.roles ?? []);
   const want = new Set(wantedRoles(m, cfg));
+  const earned: string[] = [];
   for (const [key] of ROLES) {
     const id = cfg[key];
     if (!id) continue;
-    if (want.has(id) && !have.has(id)) await discord("PUT", `/guilds/${cfg.guild_id}/members/${m.discord_id}/roles/${id}`);
+    if (want.has(id) && !have.has(id)) {
+      const r = await discord("PUT", `/guilds/${cfg.guild_id}/members/${m.discord_id}/roles/${id}`);
+      if (r.ok && MILESTONES[key]) earned.push(key);
+    }
     if (!want.has(id) && have.has(id)) await discord("DELETE", `/guilds/${cfg.guild_id}/members/${m.discord_id}/roles/${id}`);
   }
   // nickname = portal name, so the member list reads like the Farmers page (the server owner can't be renamed)
   const nick = m.name.slice(0, 32);
   if (!m.admin && cur.nick !== nick) await discord("PATCH", `/guilds/${cfg.guild_id}/members/${m.discord_id}`, { nick });
+  if (earned.length && cfg["channel:wins"]) {
+    await post(cfg["channel:wins"], earned.map((k) => `🏅 <@${m.discord_id}> just ${MILESTONES[k]} and earned **${ROLES.find((r) => r[0] === k)![1]}**!`), [m.discord_id]);
+  }
   return "synced";
 }
 
@@ -127,21 +154,63 @@ async function board(farmers: BoardRow[]) {
   return "posted";
 }
 
+async function levelup(farmerId: string, level: number, name: string | null) {
+  const cfg = await config();
+  const { data: link } = await db.from("discord_links").select("discord_id").eq("farmer_id", farmerId).maybeSingle();
+  if (!link || !cfg["channel:wins"]) return "skipped";
+  await post(cfg["channel:wins"], [`🎉 <@${link.discord_id}> just reached **Level ${level}${name ? `, ${name}` : ""}**! Congrats!`], [link.discord_id]);
+  return "posted";
+}
+
 // ---------- one-time setup: roles, channels, slash commands ----------
 const VIEW = 1 << 10, SEND = 1 << 11, HISTORY = 1 << 16, REACT = 1 << 6, EMBED = 1 << 14, ATTACH = 1 << 15;
 const TALK = VIEW | SEND | HISTORY | REACT | EMBED | ATTACH;
 const READ = VIEW | HISTORY | REACT;
+const FARMERS = ["role:farmer", "role:teacher"];
 // [config key, name, category, topic, who can talk, who can only read]
-const CHANNELS: [string, string, string, string, string[], string[]][] = [
-  ["announcements", "announcements", "LEAD FARMING", "News from Alex. Only Alex posts here.", [], ["role:farmer", "role:teacher"]],
-  ["general", "general", "LEAD FARMING", "Talk shop with the other farmers.", ["role:farmer", "role:teacher"], []],
-  ["wins", "wins", "LEAD FARMING", "Signed a contractor? Closed a lead? Got paid? Post it here.", ["role:farmer", "role:teacher"], []],
-  ["questions", "questions", "LEAD FARMING", "Stuck? Ask here and a teacher or another farmer will help.", ["role:farmer", "role:teacher"], []],
+// Channel type 2 = voice: people there connect and speak with the server's default permissions once they can see it.
+const CHANNELS: [string, string, string, string, string[], string[], number?][] = [
+  ["start-here", "start-here", "LEAD FARMING", "How this server works. Read this first.", [], FARMERS],
+  ["announcements", "announcements", "LEAD FARMING", "News from Alex. Only Alex posts here.", [], FARMERS],
+  ["introductions", "introductions", "LEAD FARMING", "Say hi: your name, your town, and your 15 trades.", FARMERS, []],
+  ["general", "general", "LEAD FARMING", "Talk shop with the other farmers.", FARMERS, []],
+  ["wins", "wins", "LEAD FARMING", "Signed a contractor? Closed a lead? Got paid? Post it here. Level-ups and milestones post here on their own.", FARMERS, []],
+  ["questions", "questions", "LEAD FARMING", "Stuck? Ask here and a teacher or another farmer will help.", FARMERS, []],
+  ["scripts-and-templates", "scripts-and-templates", "THE PLAYBOOK", "Call scripts, texts and comment templates from the teachers.", ["role:teacher"], ["role:farmer"]],
+  ["contractor-outreach", "contractor-outreach", "THE PLAYBOOK", "Steps 1 to 3: finding contractors, calls, and getting terms agreed.", FARMERS, []],
+  ["neighbor-leads", "neighbor-leads", "THE PLAYBOOK", "Step 4 on: finding homeowner jobs on Nextdoor and Facebook.", FARMERS, []],
+  ["daily-check-in", "daily-check-in", "THE PLAYBOOK", "Post your numbers every day: contractors added, calls, comments, leads.", FARMERS, []],
+  ["Office Hours", "Office Hours", "VOICE", "", FARMERS, [], 2],
+  ["Co-working", "Co-working", "VOICE", "", FARMERS, [], 2],
   ["level-2-lounge", "level-2-lounge", "LEVEL LOUNGES", "For Level 2 and up: leads, fees and reciprocal deals.", ["role:level2", "role:level3", "role:teacher"], []],
   ["level-3-lounge", "level-3-lounge", "LEVEL LOUNGES", "For Level 3: anchors and upsells.", ["role:level3", "role:teacher"], []],
   ["teachers", "teachers", "STAFF", "Alex and the teachers.", ["role:teacher"], []],
   ["behind-board", "behind-board", "STAFF", "Every day after the nudges go out: who is behind and why.", ["role:teacher"], []],
 ];
+
+function startHere(cfg: Record<string, string>): string[] {
+  const ch = (k: string) => (cfg[`channel:${k}`] ? `<#${cfg[`channel:${k}`]}>` : `#${k}`);
+  return [
+    "🌾 **Welcome to Lead Farming HQ**",
+    "This server is for enrolled farmers, the teachers and Alex. You got in through the portal, so your roles follow your portal account.",
+    "",
+    "**How it works**",
+    `• ${ch("announcements")}: news from Alex. Turn on notifications for this one.`,
+    `• ${ch("introductions")}: say hi, where you farm and your 15 trades.`,
+    `• ${ch("daily-check-in")}: post your numbers every day. Five days a week keeps you on track.`,
+    `• ${ch("questions")}: stuck? Ask. A teacher or another farmer will answer.`,
+    `• ${ch("wins")}: level-ups and milestones post here on their own. Add your own wins too.`,
+    `• ${ch("scripts-and-templates")}: scripts and templates from the teachers.`,
+    "",
+    "**Roles**",
+    "Your Level role and lounge unlock as you level up in the portal. Milestone roles (Contractor Signed, First Fee, Recruiter, 90-Day Finisher) come on their own when the portal sees you hit them.",
+    "",
+    "**Alerts**",
+    "Portal alerts also come to your Discord DMs, like a 90-day date coming up or a level approved. Type **/progress** in any channel to see your 90-day numbers.",
+    "",
+    "Log your work in the portal: https://leadfarminghq.com/app/",
+  ];
+}
 
 const COMMANDS = [
   { name: "progress", description: "Your 90-day progress, and anything you're behind on", type: 1 },
@@ -183,19 +252,23 @@ async function setup() {
     cats.set(cat, String((await res.json()).id));
     done.push(`category ${cat}`);
   }
-  for (const [key, name, cat, topic, talk, read] of CHANNELS) {
-    const found = chans.find((c) => c.id === cfg[`channel:${key}`]) ?? chans.find((c) => c.type === 0 && c.name === name);
+  for (const [key, name, cat, topic, talk, read, type = 0] of CHANNELS) {
+    const found = chans.find((c) => c.id === cfg[`channel:${key}`]) ?? chans.find((c) => c.type === type && c.name === name);
     if (found) { await setConfig(`channel:${key}`, String(found.id)); continue; }
     // nobody sees anything until the portal gives them a role; the bot always sees its channels
     const overwrites = [
       { id: g, type: 0, allow: "0", deny: String(VIEW) },
-      { id: app, type: 1, allow: String(TALK), deny: "0" },
-      ...talk.map((k) => ({ id: cfg[k], type: 0, allow: String(TALK), deny: "0" })),
+      { id: app, type: 1, allow: String(type === 2 ? VIEW : TALK), deny: "0" },
+      ...talk.map((k) => ({ id: cfg[k], type: 0, allow: String(type === 2 ? VIEW : TALK), deny: "0" })),
       ...read.map((k) => ({ id: cfg[k], type: 0, allow: String(READ), deny: String(SEND) })),
     ];
-    const res = await discord("POST", `/guilds/${g}/channels`, { name, type: 0, topic, parent_id: cats.get(cat), permission_overwrites: overwrites });
+    const res = await discord("POST", `/guilds/${g}/channels`, {
+      name, type, parent_id: cats.get(cat), permission_overwrites: overwrites, ...(topic ? { topic } : {}), ...(key === "start-here" ? { position: 0 } : {}),
+    });
     if (!res.ok) return { error: `couldn't create #${name}: ${res.status} ${await res.text()}` };
-    await setConfig(`channel:${key}`, String((await res.json()).id));
+    const id = String((await res.json()).id);
+    await setConfig(`channel:${key}`, id);
+    if (key === "start-here") { cfg = await config(); await post(id, startHere(cfg)); }
     done.push(`#${name}`);
   }
 
@@ -306,10 +379,12 @@ Deno.serve(async (req) => {
     else if (body.action === "sync") result = await sync(body.farmer_id);
     else if (body.action === "dm") result = await dm(body.farmer_id, String(body.text ?? ""));
     else if (body.action === "board") result = await board(body.farmers ?? []);
+    else if (body.action === "levelup") result = await levelup(body.farmer_id, Number(body.level), body.name ?? null);
     else if (body.action === "sync_all") {
+      // answer right away and keep going in the background: the database only waits 10 seconds
       const { data } = await db.from("discord_links").select("farmer_id");
-      for (const r of data ?? []) await sync(r.farmer_id);
-      result = `synced ${data?.length ?? 0}`;
+      EdgeRuntime.waitUntil((async () => { for (const r of data ?? []) await sync(r.farmer_id).catch(console.error); })());
+      result = `syncing ${data?.length ?? 0}`;
     } else return new Response("unknown action", { status: 400 });
     return Response.json({ result });
   } catch (e) {
