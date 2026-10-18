@@ -574,6 +574,15 @@ async function loadRef() {
 }
 const stageName = (id) => stages.find((s) => s.id === id)?.name || id;
 const tradeName = (id) => trades.find((t) => t.id === id)?.name || "—";
+const sharedTrades = () => trades.filter((t) => !t.farmer_id);
+// the trades a farmer files contractors under: the shared list plus the ones they added (admins see everyone's)
+const myTrades = () => trades.filter((t) => !t.farmer_id || t.farmer_id === me.id);
+async function addOwnTrade(name) {
+  const { data, error } = await sb.from("trades").insert({ name: name.trim(), farmer_id: me.id, sort_order: 1000 + trades.length }).select().single();
+  if (error) return { error: /duplicate|unique/i.test(error.message) ? "You already have that trade." : error.message };
+  await loadRef();
+  return { data };
+}
 
 const locked = () => me?.role !== "admin" && !me?.verifier && !me?.enrollment_paid;
 const lvl = () => (me?.role === "admin" ? 3 : me?.level || 0);
@@ -675,6 +684,7 @@ function boot() {
   const tabs = [["home","Home"],["learn","Learn"]];
   if (me?.role !== "admin" && me?.enrollment_paid) tabs.push(["program","90 days"]);
   tabs.push(["pipeline","Pipeline"],["contractors","Contractors"]);
+  if (me?.role !== "admin") tabs.push(["trades","Trades"]);
   if (lvl() >= 2) tabs.push(["leads","Leads"]);
   if (lvl() >= 3) tabs.push(["upsells","Upsells"]);
   if (lvl() >= 2 && me?.role !== "admin") tabs.push(["money","Money"]);
@@ -2172,7 +2182,7 @@ async function pipeline() {
   const closed = (ls || []).filter((l) => l.status === "closed");
   const earned = closed.reduce((a, l) => a + Number(l.fee_amount || 0), 0);
   const unpaid = closed.filter((l) => !l.fee_paid).reduce((a, l) => a + Number(l.fee_amount || 0), 0);
-  const goal = trades.length * PER_TRADE;
+  const goal = sharedTrades().length * PER_TRADE;
   app.innerHTML = `
     <div class="stats">
       <div class="card stat"><div class="v">${active}<span class="muted" style="font-size:14px"> / ${goal || 150}</span></div><div class="k">Contractors in network (stage 3+)</div></div>
@@ -2202,7 +2212,7 @@ async function contractors() {
   app.innerHTML = `
     <div class="row" style="margin-bottom:12px"><h2 style="margin:0;margin-right:auto;font-size:18px">Contractors by trade</h2>
       <button class="btn" id="add">Add contractor</button></div>
-    <div class="trades">${trades.map((t) => {
+    <div class="trades">${(me.role === "admin" ? sharedTrades() : myTrades()).map((t) => {
       const n = cs.filter((c) => c.trade_id === t.id && c.stage >= 3).length;
       return `<div class="card" style="padding:10px"><b style="font-size:14px">${esc(t.name)}</b>
         <div class="muted" style="font-size:12px">${n} / ${PER_TRADE} in network</div><div class="bar"><i style="width:${Math.min(100, n / PER_TRADE * 100)}%"></i></div></div>`;
@@ -2234,7 +2244,7 @@ function contractorForm(c = {}) {
     <h3 style="margin-top:0">${c.id ? "Edit contractor" : "Add contractor"}</h3>
     <label>Business name</label><input name="business_name" required value="${esc(c.business_name)}">
     <div class="grid2">
-      <div><label>Trade</label><select name="trade_id"><option value="">—</option>${trades.map((t) => `<option value="${t.id}" ${t.id === c.trade_id ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</select></div>
+      <div><label>Trade</label><select name="trade_id"><option value="">—</option>${trades.filter((t) => !t.farmer_id || t.farmer_id === (c.farmer_id || me.id)).map((t) => `<option value="${t.id}" ${t.id === c.trade_id ? "selected" : ""}>${esc(t.name)}</option>`).join("")}${me.role !== "admin" ? `<option value="new">+ Add my own trade…</option>` : ""}</select></div>
       <div><label>Stage</label><select name="stage">${stages.map((s) => `<option value="${s.id}" ${s.id === (c.stage || 1) ? "selected" : ""}>${s.id}. ${esc(s.name)}</option>`).join("")}</select></div>
       <div><label>Contact name</label><input name="contact_name" value="${esc(c.contact_name)}"></div>
       <div><label>Phone</label><input name="phone" value="${esc(c.phone)}"></div>
@@ -2256,7 +2266,15 @@ function contractorForm(c = {}) {
   if (c.id) callLog(c);
   $("#cx").onclick = () => dlg.close();
   // picking a trade fills in the matching niche from their 15, if one matches and none is picked yet
-  $('#cf [name="trade_id"]').onchange = (e) => {
+  $('#cf [name="trade_id"]').onchange = async (e) => {
+    if (e.target.value === "new") {
+      const name = prompt("Name your new trade, e.g. Pool cleaning. It's only added to your list.");
+      if (!name?.trim()) return (e.target.value = c.trade_id || "");
+      const { data, error } = await addOwnTrade(name);
+      if (error) { $("#cerr").textContent = error; return (e.target.value = c.trade_id || ""); }
+      e.target.querySelector('option[value="new"]').insertAdjacentHTML("beforebegin", `<option value="${data.id}">${esc(data.name)}</option>`);
+      e.target.value = data.id;
+    }
     const sel = $('#cf select[name="niche"]'), tn = norm(tradeName(+e.target.value));
     if (!sel || sel.value || !tn) return;
     const hit = [...sel.options].find((o) => o.value && (norm(o.value) === tn || norm(o.value).includes(tn) || tn.includes(norm(o.value))));
@@ -2426,15 +2444,29 @@ async function welcomeLines() {
 }
 
 async function tradesView() {
+  const shared = sharedTrades(), own = trades.filter((t) => t.farmer_id);
+  const admin = me.role === "admin";
+  const names = admin && own.length ? Object.fromEntries(((await sb.from("profiles").select("id,full_name")).data || []).map((p) => [p.id, p.full_name])) : {};
+  const del = (t) => `<button class="btn ghost sm" data-del="${t.id}">Remove</button>`;
   app.innerHTML = `<div class="card" style="max-width:560px"><h2 style="margin-top:0;font-size:18px">Trades in the niche</h2>
-    <p class="muted">Every farmer works toward ${PER_TRADE} contractors per trade.</p>
-    <table><tbody>${trades.map((t) => `<tr><td>${esc(t.name)}</td><td style="text-align:right"><button class="btn ghost sm" data-del="${t.id}">Remove</button></td></tr>`).join("")}</tbody></table>
-    <form id="tf" class="row" style="margin-top:12px"><input name="name" placeholder="Add a trade, e.g. Roofing" required style="flex:1"><button class="btn">Add</button></form>
+    <p class="muted">${admin ? `Every farmer works toward ${PER_TRADE} contractors per trade on this shared list. Farmers can also add their own trades, which only they see.`
+      : `Everyone works from this shared list. If you scout a kind of contractor that isn't on it, add it below as your own trade. Only you see your own trades, and you can file contractors under them.`}</p>
+    <table><tbody>${shared.map((t) => `<tr><td>${esc(t.name)}</td><td style="text-align:right">${admin ? del(t) : ""}</td></tr>`).join("")}</tbody></table>
+    ${admin ? `<form id="tf" class="row" style="margin-top:12px"><input name="name" placeholder="Add a shared trade, e.g. Roofing" required style="flex:1"><button class="btn">Add</button></form>` : ""}
+    <h3 style="margin:18px 0 6px;font-size:16px">${admin ? "Trades farmers added" : "Your own trades"}</h3>
+    ${own.length ? `<table><tbody>${own.map((t) => `<tr><td>${esc(t.name)}${admin ? ` <small class="muted">· ${esc(names[t.farmer_id] || "a farmer")}</small>` : ""}</td><td style="text-align:right">${del(t)}</td></tr>`).join("")}</tbody></table>`
+      : `<p class="muted" style="margin:0">${admin ? "None yet." : "None yet. Add one here, or pick “+ Add my own trade…” in the Trade box when you add a contractor."}</p>`}
+    ${admin ? "" : `<form id="tf" class="row" style="margin-top:12px"><input name="name" placeholder="Add your own trade, e.g. Pool cleaning" required maxlength="60" style="flex:1"><button class="btn">Add</button></form>`}
     <div class="err" id="terr"></div></div>`;
   $("#tf").onsubmit = async (e) => {
     e.preventDefault();
     const name = new FormData(e.target).get("name").trim();
-    const { error } = await sb.from("trades").insert({ name, sort_order: trades.length });
+    if (!admin) {
+      const { error } = await addOwnTrade(name);
+      if (error) return ($("#terr").textContent = error);
+      return boot();
+    }
+    const { error } = await sb.from("trades").insert({ name, sort_order: shared.length });
     if (error) return ($("#terr").textContent = error.message);
     await loadRef(); boot();
   };
