@@ -145,7 +145,8 @@ begin
 end $$;
 
 -- ---------- approvals go to the farmer's teacher ----------
-drop function if exists public.review_queue();
+alter function public.review_queue() rename to review_queue_pre_teachers;  -- return type changes; kept, not dropped
+revoke execute on function public.review_queue_pre_teachers() from public, anon, authenticated;
 create function public.review_queue()
 returns table (id uuid, farmer_id uuid, full_name text, email text, to_level smallint, note text, files text[], created_at timestamptz, teacher text)
 language plpgsql stable security definer set search_path = public as $$
@@ -156,7 +157,8 @@ begin
     where r.status = 'pending' and public.teaches(r.farmer_id) order by public.teacher_of(p.id) is not null, r.created_at;
 end $$;
 
-drop function if exists public.question_queue();
+alter function public.question_queue() rename to question_queue_pre_teachers;  -- return type changes; kept, not dropped
+revoke execute on function public.question_queue_pre_teachers() from public, anon, authenticated;
 create function public.question_queue()
 returns table (id uuid, farmer_id uuid, full_name text, email text, quiz text, body text, created_at timestamptz, teacher text)
 language plpgsql stable security definer set search_path = public as $$
@@ -167,7 +169,8 @@ begin
     where t.answer is null and public.teaches(t.farmer_id) order by public.teacher_of(p.id) is not null, t.created_at;
 end $$;
 
-drop function if exists public.niche_queue();
+alter function public.niche_queue() rename to niche_queue_pre_teachers;  -- return type changes; kept, not dropped
+revoke execute on function public.niche_queue_pre_teachers() from public, anon, authenticated;
 create function public.niche_queue()
 returns table (id uuid, full_name text, email text, niche text, niche_submitted_at timestamptz, teacher text)
 language plpgsql stable security definer set search_path = public as $$
