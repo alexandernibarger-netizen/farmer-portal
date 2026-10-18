@@ -1,7 +1,7 @@
 // Lead Farming Discord bot. One function, four doors:
 //   GET  ?code=&state=           the "Join the Discord" sign-in comes back here: link the account, add them to the server
 //   POST x-signature-ed25519     Discord slash commands (/progress, /portal)
-//   POST x-ops-key               the database: setup, sync roles, DM an alert, level-up shout-outs, the daily behind board
+//   POST x-ops-key               the database: setup, sync roles, DM an alert, level-up shout-outs, the daily behind board, announcements
 // Function secrets (Supabase dashboard): DISCORD_BOT_TOKEN, DISCORD_CLIENT_SECRET.
 // Table public.discord_config holds client_id, public_key, guild_id, plus the role and channel ids that setup creates.
 // Deploy with verify_jwt off: every door checks its own credentials.
@@ -152,6 +152,17 @@ async function board(farmers: BoardRow[]) {
   // ping only the teachers, never the farmers being talked about
   await post(ch, lines, farmers.map((f) => f.teacher_discord).filter(Boolean) as string[]);
   return "posted";
+}
+
+// A one-off post from Alex to a channel (by config key). @everyone only when asked; named people get pinged.
+async function announce(channel: string, text: string, everyone: boolean, users: string[] = []) {
+  const cfg = await config();
+  const id = cfg[`channel:${channel}`];
+  if (!id) return `no #${channel} channel`;
+  const res = await discord("POST", `/channels/${id}/messages`, {
+    content: text.slice(0, 2000), allowed_mentions: { parse: everyone ? ["everyone"] : [], users: users.slice(0, 100) },
+  });
+  return res.ok ? "posted" : `failed ${res.status}`;
 }
 
 async function levelup(farmerId: string, level: number, name: string | null) {
@@ -379,6 +390,7 @@ Deno.serve(async (req) => {
     else if (body.action === "sync") result = await sync(body.farmer_id);
     else if (body.action === "dm") result = await dm(body.farmer_id, String(body.text ?? ""));
     else if (body.action === "board") result = await board(body.farmers ?? []);
+    else if (body.action === "announce") result = await announce(String(body.channel ?? "announcements"), String(body.text ?? ""), !!body.everyone, body.users ?? []);
     else if (body.action === "levelup") result = await levelup(body.farmer_id, Number(body.level), body.name ?? null);
     else if (body.action === "sync_all") {
       // answer right away and keep going in the background: the database only waits 10 seconds
