@@ -82,6 +82,8 @@ dialog::backdrop{background:rgba(0,0,0,.4)}
 .qa{padding:10px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}.qa:last-child{border-bottom:0}
 .linkbtn{background:none;border:0;padding:0;font:inherit;color:var(--accent);text-align:left;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
 .badge{display:inline-block;min-width:18px;padding:0 5px;border-radius:99px;background:var(--warn);color:#fff;font-size:11px;line-height:18px;text-align:center;font-weight:700}
+.studgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-top:12px}.stud{margin:0}.stud.empty{border-style:dashed;opacity:.75}
+.tgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px;margin-top:14px}
 .bar.money{display:flex;height:10px}.bar.money i.owed{background:var(--gold)}
 .opts{display:flex;flex-direction:column;gap:8px}
 .opt{text-align:left;background:var(--bg);color:var(--ink);border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit;cursor:pointer}
@@ -448,6 +450,7 @@ const NAV_ICONS = {
   upsells: ico("#E0A100", '<path d="M12 3l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.3 6.8 19.1l1-5.8L3.5 9.2l5.9-.8z"/>'),
   money: ico("#3A8A1C", '<rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>'),
   approvals: ico("#2E9BD6", '<path d="M5 12.5l4.5 4.5L19 7.5"/>'),
+  students: ico("#F09A00", '<circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M2.5 19c.6-3 2.8-5 5.5-5s4.9 2 5.5 5"/><path d="M13.5 14.4c.8-.3 1.6-.4 2.5-.4 2.7 0 4.9 2 5.5 5"/>'),
   admin: ico("#7A5CC9", '<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/>'),
   payouts: ico("#3A8A1C", '<path d="M12 3v18"/><path d="M17 7H9.5a3 3 0 0 0 0 6h5a3 3 0 0 1 0 6H6"/>'),
   trades: ico("#8B5E3C", '<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.5-2.5z"/>'),
@@ -587,6 +590,7 @@ async function addOwnTrade(name) {
 const locked = () => me?.role !== "admin" && !me?.verifier && !me?.enrollment_paid;
 const lvl = () => (me?.role === "admin" ? 3 : me?.level || 0);
 const reviewer = () => me?.role === "admin" || me?.verifier;
+const teacher = () => me?.verifier && me?.role !== "admin";  // Vincent and Julian: pick up to 4 students
 
 // Paid farmers who haven't accepted the current Terms (paid before the agree box existed, or the Terms changed)
 // see this once per sign-in. "Not now" lets them in; turning the Terms down offers a refund request instead.
@@ -681,7 +685,9 @@ function boot() {
   $("#who").textContent = me?.full_name || me?.email || "";
   if (locked()) return payView();
   if (needsTerms()) return termsView();
-  const tabs = [["home","Home"],["learn","Learn"]];
+  const tabs = [["home","Home"]];
+  if (teacher()) tabs.push(["students","My students"]);
+  tabs.push(["learn","Learn"]);
   if (me?.role !== "admin" && me?.enrollment_paid) tabs.push(["program","90 days"]);
   tabs.push(["pipeline","Pipeline"],["contractors","Contractors"]);
   if (me?.role !== "admin") tabs.push(["trades","Trades"]);
@@ -695,7 +701,7 @@ function boot() {
   $("#nav").innerHTML = tabs.map(([k,l]) => `<button data-v="${k}" class="${k===view?"on":""}">${NAV_ICONS[k] || ""}<span>${l}</span></button>`).join("");
   $("#nav").onclick = (e) => { const b = e.target.closest("button"); if (b?.dataset.v) { view = b.dataset.v; boot(); } };
   approvalsBadge();
-  return ({ home, learn, program, pipeline, contractors, leads, upsells, money: moneyView, welcome: welcomeLines, growth, settings: settingsView, approvals, admin, payouts, tradesView: tradesView })[view === "trades" ? "tradesView" : view]();
+  return ({ home, learn, program, pipeline, contractors, leads, upsells, money: moneyView, students, welcome: welcomeLines, growth, settings: settingsView, approvals, admin, payouts, tradesView: tradesView })[view === "trades" ? "tradesView" : view]();
 }
 
 // ---------- farmer: home (level ladder + next step) ----------
@@ -749,6 +755,7 @@ async function home() {
   if ($("#to90")) $("#to90").onclick = (e) => { e.preventDefault(); view = "program"; boot(); };
   if (me.role !== "admin") await homeExtras(cs, { L, aced, ready, pending, passes });
   if (!reviewer() && L >= 1 && (me.tour_level || 0) < L && !tour) startTour(me.tour_level ? "levelup" : "full");
+  if (teacher() && !me.teacher_guide_seen && !dlg.open) teacherGuide(true);
   if ($("#toquiz")) $("#toquiz").onclick = (e) => { e.preventDefault(); learnQuiz = "l" + L; view = "learn"; boot(); };
 }
 
@@ -760,9 +767,10 @@ const GOAL = 30000;  // Alex's revenue goal for 2026-12-31
 const shortDate = (d) => new Date(d + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
 const CALL_LABEL = { requested: "Form only, no time yet", booked: "Booked", canceled: "Canceled", showed: "Showed", no_show: "No-show", enrolled: "Enrolled" };
 async function adminHome() {
-  const [{ data: D, error }, { data: S }, { data: CB }, { data: AD }] = await Promise.all([sb.rpc("admin_dashboard"), sb.rpc("stuck_farmers"), sb.rpc("call_board"), sb.rpc("ad_summary")]);
+  const [{ data: D, error }, { data: S }, { data: CB }, { data: AD }, { data: MW }] = await Promise.all([sb.rpc("admin_dashboard"), sb.rpc("stuck_farmers"), sb.rpc("call_board"), sb.rpc("ad_summary"), sb.rpc("my_waiting")]);
   if (error || !D) return (app.innerHTML = `<p class="err">Couldn't load your dashboard${error ? ": " + esc(error.message) : ""}</p>`);
-  const fs = D.farmers || [], paid = fs.filter((f) => f.paid), W = D.waiting || {}, M = D.money || {}, K = D.work || {};
+  // farmers with a teacher go to that teacher, so "Needs you" only counts the rest
+  const fs = D.farmers || [], paid = fs.filter((f) => f.paid), W = MW || D.waiting || {}, M = D.money || {}, K = D.work || {};
   const payers = paid.filter((f) => !f.comp), comps = paid.length - payers.length;  // comp (free) accounts aren't revenue
   const sum = (a, f) => a.reduce((t, x) => t + Number(f(x) || 0), 0);
   const weekAgo = Date.now() - 7 * 864e5, monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
@@ -924,7 +932,7 @@ const goalHit = (g, N) => {
   return v != null && g.target != null && (g.lower_is_better ? Number(v) <= Number(g.target) : Number(v) >= Number(g.target));
 };
 async function growth() {
-  const [{ data: N, error }, { data: items, error: e2 }] = await Promise.all([sb.rpc("growth_numbers"), sb.from("growth_items").select("*").order("sort_order").order("id")]);
+  const [{ data: N, error }, { data: items, error: e2 }, { data: TB }] = await Promise.all([sb.rpc("growth_numbers"), sb.from("growth_items").select("*").order("sort_order").order("id"), sb.rpc("teacher_board")]);
   if (error || e2 || !N) return (app.innerHTML = `<p class="err">Couldn't load Growth${error || e2 ? ": " + esc((error || e2).message) : ""}</p>`);
   const goals = items.filter((i) => i.kind === "goal"), steps = items.filter((i) => i.kind === "step");
   const today = new Date().toLocaleDateString("en-CA");
@@ -965,6 +973,8 @@ async function growth() {
       <span class="muted" style="font-size:14px">${daysLeft} days left</span></div>
       <div class="bar" style="height:14px"><i style="width:${Math.min(100, (rev / GOAL) * 100)}%"></i></div>
       <p style="margin:8px 0 0;font-size:14px">${toGo ? `About <b>${toGo} more paying farmers</b> at ${money(C.PRICE)}: that's <b>${perWeek.toFixed(1)} a week</b>. Last 4 weeks averaged <b>${pace.toFixed(1)} a week</b>${pace >= perWeek ? ", on pace." : "."}` : "Goal reached."}</p></div>
+
+    ${teacherGoals(TB)}
 
     <h3>Live numbers</h3>
     <div class="stats" id="gnums">
@@ -1074,11 +1084,13 @@ async function approvals() {
   const rows = q || [];
   const links = await Promise.all(rows.map((r) => Promise.all((r.files || []).map((f) =>
     sb.storage.from("proof").createSignedUrl(f, 3600).then(({ data }) => `<a href="${esc(data?.signedUrl || "#")}" target="_blank" rel="noopener">${esc(f.split("/").pop().replace(/^\d+-/, ""))}</a>`))))) ;
-  app.innerHTML = `<h2 style="font-size:18px;margin-top:0">Level-up requests</h2>
+  const whose = (t) => me.role === "admin" && t ? ` <span class="tag" title="Their teacher handles this">${esc(t)}'s student</span>` : "";
+  app.innerHTML = `${teacher() ? `<p class="card" id="apintro" style="margin-top:0;font-size:14px">Only your students' questions, level-ups and 15 business models come here. Alex gets the rest.</p>` : ""}
+    <h2 style="font-size:18px;margin-top:0">Level-up requests</h2>
     <div class="err" id="aperr"></div>
     ${error ? `<p class="err">${esc(error.message)}</p>` : ""}
     <div class="card tablewrap"><table><thead><tr><th>Farmer</th><th>Asking for</th><th>Their proof</th><th></th></tr></thead><tbody>
-    ${rows.map((r, i) => `<tr><td><b>${esc(r.full_name)}</b><br><small class="muted">${esc(r.email)}</small><br><small class="muted">${new Date(r.created_at).toLocaleDateString()}</small></td>
+    ${rows.map((r, i) => `<tr><td><b>${esc(r.full_name)}</b>${whose(r.teacher)}<br><small class="muted">${esc(r.email)}</small><br><small class="muted">${new Date(r.created_at).toLocaleDateString()}</small></td>
       <td>Level ${r.to_level}</td><td>${esc(r.note)}${links[i].length ? "<br>" + links[i].join("<br>") : ""}</td>
       <td style="white-space:nowrap"><button class="btn sm" data-ok="${r.id}">Approve</button> <button class="btn ghost sm" data-no="${r.id}">Send back</button></td></tr>`).join("")
       || `<tr><td colspan="4" class="muted">No requests waiting.</td></tr>`}
@@ -1093,7 +1105,7 @@ async function approvals() {
   const { data: qs } = await sb.rpc("question_queue");
   app.insertAdjacentHTML("beforeend", `<h2 style="font-size:18px;margin-top:28px">Questions from farmers</h2>
     <p class="muted" style="font-size:14px;margin-top:-6px">Farmers can only ask after acing that level's quiz.</p>
-    ${(qs || []).map((t) => `<div class="card" style="margin-bottom:10px"><b>${esc(t.full_name)}</b> <span class="tag">${esc(t.quiz === "rec" ? "Recruiting" : "Level " + t.quiz.slice(1))}</span>
+    ${(qs || []).map((t) => `<div class="card" style="margin-bottom:10px"><b>${esc(t.full_name)}</b>${whose(t.teacher)} <span class="tag">${esc(t.quiz === "rec" ? "Recruiting" : "Level " + t.quiz.slice(1))}</span>
       <small class="muted">${new Date(t.created_at).toLocaleDateString()}</small><p style="white-space:pre-wrap">${esc(t.body)}</p>
       <textarea rows="3" data-ansbox="${t.id}" placeholder="Your answer (they'll see it in Learn)"></textarea>
       <div class="row" style="justify-content:flex-end;margin-top:8px"><button class="btn sm" data-ans="${t.id}">Send answer</button></div></div>`).join("")
@@ -1105,7 +1117,132 @@ async function approvals() {
   });
   app.querySelectorAll("[data-ok]").forEach((b) => b.onclick = () => act(b.dataset.ok, true));
   app.querySelectorAll("[data-no]").forEach((b) => b.onclick = () => act(b.dataset.no, false));
-  await programReviews();
+  await programReviews(whose);
+}
+
+// ---------- teachers: My students (pick up to 4, their last 2 weeks against the $1,000 goal) ----------
+// "Through the pipeline" = job value of leads a student logged in the last 14 days that aren't marked lost.
+const sumOf = (a, k) => a.reduce((t, x) => t + Number(x[k] || 0), 0);
+const goalBar = (v, goal) => `<div class="bar" style="height:12px"><i style="width:${goal ? Math.min(100, (Number(v || 0) / goal) * 100) : 0}%"></i></div>`;
+const daysAgo = (t) => { if (!t) return "nothing logged yet"; const d = Math.floor((Date.now() - new Date(t)) / DAY); return "last active " + (d <= 0 ? "today" : d === 1 ? "yesterday" : d + " days ago"); };
+
+// Alex's Growth tab: both teachers' groups against $4,000 each and $8,000 together
+function teacherGoals(B) {
+  const ts = B?.teachers || [];
+  if (!ts.length) return "";
+  const all = ts.flatMap((t) => t.students), total = sumOf(all, "pipeline_2wk"), goal = ts.reduce((n, t) => n + Number(t.goal), 0);
+  return `<h3>Teacher goals</h3>
+    <div class="card" id="tgoals"><div class="row" style="justify-content:space-between"><b>${money(total)} of ${money(goal)} through students' pipelines</b>
+      <span class="muted" style="font-size:14px">last ${B.days} days</span></div>${goalBar(total, goal)}
+      <p class="muted" style="margin:6px 0 0;font-size:13px">${money(B.student_goal)} per student every 2 weeks, ${B.cap} students per teacher. Counts the job value of leads logged in the last ${B.days} days that aren't marked lost.</p>
+      <div class="tgrid">${ts.map((t) => { const v = sumOf(t.students, "pipeline_2wk"); return `<div class="tgroup" data-tg="${t.id}">
+        <div class="row" style="justify-content:space-between"><b>${esc(t.full_name)}</b><span>${money(v)} of ${money(t.goal)}</span></div>${goalBar(v, t.goal)}
+        <ul class="todo" style="margin:8px 0 0">${t.students.map((s) => `<li style="display:flex;gap:6px;align-items:baseline"><span style="flex:1">${esc(s.full_name)} <small class="muted">Lv ${s.level}</small></span>
+          <b>${money(s.pipeline_2wk)}</b> <small class="muted">/ ${money(B.student_goal)}</small></li>`).join("")
+          || `<li class="muted">Hasn't picked anyone yet.</li>`}
+          ${t.students.length && t.students.length < B.cap ? `<li class="muted">${B.cap - t.students.length} spot${B.cap - t.students.length > 1 ? "s" : ""} open</li>` : ""}</ul></div>`; }).join("")}</div></div>`;
+}
+
+async function students() {
+  const [{ data: B, error }, { data: pool, error: e2 }, { data: W }] = await Promise.all([sb.rpc("teacher_board"), sb.rpc("teacher_pick_list"), sb.rpc("my_waiting")]);
+  if (error || e2 || !B) return (app.innerHTML = `<p class="err">Couldn't load your students${error || e2 ? ": " + esc((error || e2).message) : ""}</p>`);
+  const T = B.teachers.find((t) => t.id === me.id) || { students: [], goal: B.student_goal * B.cap };
+  const S = T.students, total = sumOf(S, "pipeline_2wk"), open = Math.max(0, B.cap - S.length);
+  const waitN = Object.values(W || {}).reduce((n, v) => n + Number(v || 0), 0);
+  const card = (x) => `<div class="card stud" data-stud="${x.id}">
+    <div class="row" style="justify-content:space-between;flex-wrap:nowrap"><b style="font-size:17px">${esc(x.full_name)}</b><span class="tag">Lv ${x.level}</span></div>
+    <small class="muted">${x.day != null ? `Day ${Math.min(x.day, 90)} of 90 · ` : ""}${esc(daysAgo(x.last_active))}</small>
+    <div style="margin-top:10px"><b style="font-size:22px">${money(x.pipeline_2wk)}</b> <span class="muted">of ${money(B.student_goal)}</span>${goalBar(x.pipeline_2wk, B.student_goal)}</div>
+    <p style="margin:8px 0 0;font-size:14px">Last ${B.days} days: <b>${x.leads_2wk}</b> lead${x.leads_2wk === 1 ? "" : "s"} · <b>${x.contractors_2wk}</b> new contractor${x.contractors_2wk === 1 ? "" : "s"} · <b>${x.calls_2wk}</b> call${x.calls_2wk === 1 ? "" : "s"}${Number(x.closed_2wk) ? ` · <b>${money(x.closed_2wk)}</b> closed` : ""}</p>
+    <p class="muted" style="margin:4px 0 0;font-size:13px">${x.contractors} contractors in total</p>
+    ${x.level < 2 ? `<p style="margin:6px 0 0;font-size:13px" class="muted">Leads open at Level 2. Help them get a contractor to Terms Agreed and ace the Level 1 quiz so they can level up.</p>` : ""}
+    ${(x.reasons || []).length ? `<div style="margin-top:8px">${x.reasons.map((r) => `<span class="tag warn">${esc(r.text)}</span>`).join(" ")}</div>` : ""}
+    ${x.waiting ? `<p style="margin:8px 0 0"><button class="linkbtn" data-towait="1"><b>${x.waiting} waiting on you</b> in Approvals</button></p>` : ""}
+    <p style="margin:8px 0 0;font-size:14px">${x.phone ? `<a href="tel:${esc(x.phone)}">${esc(x.phone)}</a> · ` : ""}<a href="mailto:${esc(x.email)}">${esc(x.email)}</a></p>
+    <div class="row" style="margin-top:10px"><button class="btn sm" data-open="${x.id}">See everything</button><button class="btn ghost sm" data-drop="${x.id}">Let go</button></div></div>`;
+  const others = (pool || []).filter((p) => p.teacher_id !== me.id);
+  app.innerHTML = `<div class="dash" id="studentspage" style="max-width:1000px">
+    <div class="row" style="justify-content:space-between"><h2 style="font-size:22px;margin:4px 0 0">My students</h2><button class="btn ghost sm" id="guide">How this works</button></div>
+    <p class="muted" style="margin:2px 0 0">${S.length} of ${B.cap} picked · goal is ${money(B.student_goal)} each every 2 weeks</p>
+    ${waitN ? `<div class="card needs" id="studwait" style="margin-top:12px"><div class="row"><span><b>${waitN}</b> thing${waitN === 1 ? "" : "s"} from your students ${waitN === 1 ? "is" : "are"} waiting on you</span><button class="btn sm" data-towait="1">Open Approvals</button></div></div>` : ""}
+    <div class="card" id="tgoal" style="margin-top:12px"><div class="row" style="justify-content:space-between"><b>${money(total)} of ${money(T.goal)} through your students' pipelines</b>
+      <span class="muted" style="font-size:14px">last ${B.days} days</span></div>${goalBar(total, T.goal)}
+      <p style="margin:8px 0 0;font-size:14px" class="muted">Counts the job value of every lead your students logged in the last ${B.days} days that isn't marked lost. Both teachers together are going for ${money(T.goal * 2)}.</p></div>
+    <div class="studgrid">${S.map(card).join("")}${[...Array(open)].map(() => `<div class="card stud empty"><b>Open spot</b><p class="muted" style="margin:6px 0 0;font-size:14px">Pick a farmer below.</p></div>`).join("")}</div>
+    <h3>${open ? `Pick your students` : `Everyone else`}</h3>
+    <p class="muted" style="margin:-4px 0 8px;font-size:14px">${open ? `You can have ${B.cap}. Each farmer can only have one teacher, so whoever picks first gets them.` : `You have all ${B.cap}. Let one go to pick someone else.`}</p>
+    <div class="err" id="pickerr"></div>
+    <div class="card tablewrap" id="pool"><table><thead><tr><th>Farmer</th><th>Level</th><th>Day</th><th>Contractors</th><th>Last active</th><th></th></tr></thead><tbody>
+      ${others.map((p) => `<tr><td><b>${esc(p.full_name)}</b></td><td>${p.level}</td><td>${p.day ?? ""}</td><td>${p.contractors}</td><td>${esc(daysAgo(p.last_active).replace("last active ", ""))}</td>
+        <td style="white-space:nowrap">${p.teacher_id ? `<span class="muted">${esc(p.teacher)}'s student</span>`
+          : open ? `<button class="btn sm" data-pick="${p.id}">Pick</button>` : ""}</td></tr>`).join("")
+        || `<tr><td colspan="6" class="muted">No other paid farmers yet.</td></tr>`}</tbody></table></div></div>`;
+  $("#guide").onclick = () => teacherGuide(false);
+  app.querySelectorAll("[data-towait]").forEach((b) => b.onclick = () => { view = "approvals"; boot(); });
+  app.querySelectorAll("[data-open]").forEach((b) => b.onclick = () => farmerPage(S.find((x) => x.id === b.dataset.open)));
+  app.querySelectorAll("[data-pick]").forEach((b) => b.onclick = async () => {
+    b.disabled = true;
+    const { error } = await sb.rpc("pick_student", { p_farmer: b.dataset.pick });
+    if (error) { b.disabled = false; return ($("#pickerr").textContent = error.message); }
+    students();
+  });
+  app.querySelectorAll("[data-drop]").forEach((b) => b.onclick = async () => {
+    const x = S.find((s) => s.id === b.dataset.drop);
+    if (!confirm(`Let ${x.full_name} go? Their questions and approvals go back to Alex until someone else picks them.`)) return;
+    const { error } = await sb.rpc("drop_student", { p_farmer: x.id });
+    if (error) return ($("#pickerr").textContent = error.message);
+    students();
+  });
+}
+
+// The teacher walkthrough. Opens once on Home (from Alex), and any time from "How this works" on My students.
+function teacherGuide(first) {
+  const big = (w) => MASCOT.replace('class="mascot"', `class="mascot" style="width:${w}px"`);
+  const pages = [
+    first && !me.teacher_welcome_seen ? `<div style="text-align:center">${big(96)}
+      <h2 style="font-size:44px;margin:6px 0 4px;letter-spacing:.04em">WAIT</h2>
+      <p style="font-size:18px;font-weight:800;margin:0 0 6px">Don't close this. This is actually custom from big dawg Alex.</p></div>` : null,
+    `<div style="text-align:center">${big(80)}<h2 style="font-size:24px;margin:6px 0 10px">You're a Lead Farming teacher</h2></div>
+      <p style="font-size:16px">${esc(firstName())}, you now get to pick <b>4 farmers</b> to teach. Once you pick them you can see all of their data: their contractors, calls, leads, quizzes, questions and 90-day progress.</p>
+      <p style="font-size:16px">Your job is to make sure your 4 make money lead farming.</p>`,
+    `<h2 style="font-size:22px;margin:0 0 10px">1. Pick your 4</h2>
+      <p style="font-size:16px">Open the <b>My students</b> tab and press <b>Pick</b> next to a farmer. You can have 4, and each farmer can only have one teacher, so whoever picks first gets them.</p>
+      <p style="font-size:16px">Picked the wrong person? Press <b>Let go</b> on their card and pick someone else.</p>`,
+    `<h2 style="font-size:22px;margin:0 0 10px">2. Their questions and approvals come to you</h2>
+      <p style="font-size:16px">Everything your students send now goes to you instead of Alex. It shows up on the <b>Approvals</b> tab, with a number on the tab when something is waiting:</p>
+      <ul style="font-size:16px;margin:8px 0 12px;padding-left:22px">
+        <li><b>Questions</b> they ask from the Learn page. Write your answer and press Send answer.</li>
+        <li><b>Level-up requests.</b> Check their proof, then Approve or Send back with what to fix.</li>
+        <li><b>Their 15 business models.</b> Make sure they don't overlap, then Approve or Send back.</li></ul>
+      <p class="muted" style="font-size:14px">Refund packages still go to Alex.</p>`,
+    `<h2 style="font-size:22px;margin:0 0 10px">3. The goal: ${money(1000)} each, every 2 weeks</h2>
+      <p style="font-size:16px">Each of your students should run <b>${money(1000)}</b> through their pipeline every 2 weeks. That's <b>${money(4000)}</b> across your 4, and <b>${money(8000)}</b> across both teachers' groups.</p>
+      <p style="font-size:16px">It counts the job value of every lead they log in the last 14 days that isn't marked lost. Leads open at Level 2, so job one is getting each student to Level 2.</p>`,
+    `<h2 style="font-size:22px;margin:0 0 10px">4. Check in every day</h2>
+      <p style="font-size:16px">Each student's card on <b>My students</b> shows their last 2 weeks, what they're stuck on, and their number so you can call them. Press <b>See everything</b> for their whole history.</p>
+      <p style="font-size:16px">Alex sees how both groups are doing against the goal.</p>`,
+  ].filter(Boolean);
+  const show = (i) => {
+    const last = i === pages.length - 1;
+    dlg.innerHTML = `<div id="tw">${pages[i]}
+      <div class="row" style="margin-top:16px;flex-wrap:nowrap">${i ? `<button class="btn ghost" id="twback">Back</button>` : ""}
+        <span class="muted" style="margin:0 auto;font-weight:800">${i + 1} of ${pages.length}</span>
+        <button class="btn" id="${last ? "twdone" : "twnext"}">${last ? (first ? "Pick my students" : "Got it") : "Next"}</button></div></div>`;
+    if ($("#twback")) $("#twback").onclick = () => show(i - 1);
+    if (!last) $("#twnext").onclick = () => show(i + 1);
+    else $("#twdone").onclick = async () => {
+      dlg.close();
+      if (first) {
+        Object.assign(me, { teacher_guide_seen: true, teacher_welcome_seen: true });
+        await sb.rpc("seen_teacher_guide");
+        view = "students"; boot();
+      }
+    };
+  };
+  dlg.oncancel = (e) => { if (first) e.preventDefault(); };  // the first time, only the button closes it
+  dlg.onclose = () => { dlg.oncancel = null; dlg.onclose = null; };
+  show(0);
+  dlg.showModal();
 }
 
 // ---------- farmer: the 90-day refund program ----------
@@ -1276,18 +1413,18 @@ function upsellForm(u = {}, cs) {
 }
 
 // ---------- reviewers: 15-model lists and refund packages ----------
-async function programReviews() {
+async function programReviews(whose = () => "") {
   const [{ data: nq }, { data: rq }, { data: dec }] = await Promise.all([sb.rpc("niche_queue"), sb.rpc("refund_queue"),
     me?.role === "admin" ? sb.from("profiles").select("id,full_name,email,terms_declined_at,terms_accepted_at") : Promise.resolve({ data: [] })]);
   const declined = (dec || []).filter((d) => d.terms_declined_at && (!d.terms_accepted_at || new Date(d.terms_declined_at) > new Date(d.terms_accepted_at)));
   const files = await Promise.all((rq || []).map((r) => Promise.all((r.files || []).map((f) =>
     sb.storage.from("proof").createSignedUrl(f, 3600).then(({ data }) => `<a href="${esc(data?.signedUrl || "#")}" target="_blank" rel="noopener">${esc(f.split("/").pop().replace(/^refund-\d+-/, ""))}</a>`)))));
   app.insertAdjacentHTML("beforeend", `<h2 style="font-size:18px;margin-top:28px">15 business models</h2>
-    ${(nq || []).map((n) => `<div class="card" style="margin-bottom:10px"><b>${esc(n.full_name)}</b> <small class="muted">${esc(n.email)} · sent ${new Date(n.niche_submitted_at).toLocaleDateString()}</small>
+    ${(nq || []).map((n) => `<div class="card" style="margin-bottom:10px"><b>${esc(n.full_name)}</b>${whose(n.teacher)} <small class="muted">${esc(n.email)} · sent ${new Date(n.niche_submitted_at).toLocaleDateString()}</small>
       <ol style="margin:8px 0">${n.niche.split("\n").filter((x) => x.trim()).map((x) => `<li>${esc(x)}</li>`).join("")}</ol>
       <div class="row" style="justify-content:flex-end"><button class="btn sm" data-nok="${n.id}">Approve</button> <button class="btn ghost sm" data-nno="${n.id}">Send back</button></div></div>`).join("")
       || `<div class="card muted">No lists waiting.</div>`}
-    <h2 style="font-size:18px;margin-top:28px">Refund packages</h2>
+    ${me?.role === "admin" ? `<h2 style="font-size:18px;margin-top:28px">Refund packages</h2>
     ${(rq || []).map((r, i) => `<div class="card" style="margin-bottom:10px" id="pk-${r.id}"><b>${esc(r.full_name)}</b> <small class="muted">${esc(r.email)} · sent ${new Date(r.created_at).toLocaleDateString()}</small>
       ${r.note ? `<p style="white-space:pre-wrap">${esc(r.note)}</p>` : ""}
       ${progressTable(r.progress)}
@@ -1295,7 +1432,7 @@ async function programReviews() {
       <p style="margin:10px 0 4px"><b>Their CRM records</b> <small class="muted">Spot-check any contractor or customer. One fake item voids the refund.</small></p>
       <div class="row">${evidenceButtons(r.farmer_id)}</div>
       <div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn sm" data-rok="${r.id}" data-ramt="${r.progress?.refund_amount ?? r.progress?.price}">Approve ${money(r.progress?.refund_amount ?? r.progress?.price)} refund</button> <button class="btn ghost sm" data-rno="${r.id}">Deny</button></div></div>`).join("")
-      || `<div class="card muted">No refund packages waiting.</div>`}
+      || `<div class="card muted">No refund packages waiting.</div>`}` : ""}
     ${me?.role === "admin" ? `<h2 style="font-size:18px;margin-top:28px">Turned down the Terms</h2>
     ${declined.map((d) => `<div class="card row" style="margin-bottom:10px" data-declined="${d.id}"><span style="margin-right:auto"><b>${esc(d.full_name || d.email)}</b> <small class="muted">${esc(d.email)} · ${new Date(d.terms_declined_at).toLocaleDateString()}</small><br>
       <small class="muted">They were offered a refund by email. Refund them in Stripe if they ask.</small></span><a class="btn ghost sm" href="mailto:${esc(d.email)}">Email them</a></div>`).join("")
@@ -1476,10 +1613,11 @@ async function homeExtras(cs, ctx) {
   $("#homeside").append($("#refcard"));
   if (me.verifier) {
     const { data: studs } = await sb.rpc("my_students");
-    if (studs?.length) $("#today").insertAdjacentHTML("afterend", `<div class="card lvl" id="students"><h2 style="margin:0;font-size:20px">Farmers to check in on</h2>
-      <p class="muted" style="margin:4px 0 8px;font-size:14px">Alex asked you to check in with these farmers. Give them a call and help them get unstuck.</p>
+    if (studs?.length) $("#today").insertAdjacentHTML("afterend", `<div class="card lvl" id="mystuds"><h2 style="margin:0;font-size:20px">Your students</h2>
+      <p class="muted" style="margin:4px 0 8px;font-size:14px">Give them a call and help them get unstuck. <button class="linkbtn" id="tostuds">Open My students</button> for their last 2 weeks and the $1,000 goal.</p>
       <ul class="todo">${studs.map((x) => `<li><b>${esc(x.full_name)}</b>${x.phone ? ` · <a href="tel:${esc(x.phone)}">${esc(x.phone)}</a>` : ""} · <a href="mailto:${esc(x.email)}">${esc(x.email)}</a> · day ${x.day}
         ${(x.reasons || []).length ? `<br><small class="muted">${esc(x.reasons.map((r) => r.text).join("; "))}</small>` : `<br><small class="muted">Back on track</small>`}</li>`).join("")}</ul></div>`);
+    if ($("#tostuds")) $("#tostuds").onclick = () => { view = "students"; boot(); };
   }
   app.querySelectorAll("[data-quiz]").forEach((b) => b.onclick = () => { learnQuiz = b.dataset.quiz; view = "learn"; boot(); });
   if (refs?.length) $("#refcard").insertAdjacentHTML("beforeend", `<div class="tablewrap" style="margin-top:12px" id="myrefs"><table><thead><tr><th>Your referrals</th><th>Status</th></tr></thead><tbody>
@@ -1627,7 +1765,7 @@ function tourSteps(kind) {
     { view: "learn", page: "Learn", sel: "#quizcard", title: "The quiz needs 100%", when: "Before each level-up",
       body: "Every question has to be right before you can request the next level. Miss one and it shows which lessons to review. Retake it as often as you like." },
     { view: "learn", page: "Learn", sel: "#askcard", title: "Ask a teacher", when: "After you ace the quiz",
-      body: "Once you ace a level's quiz, you can send questions about it to Alex, Vincent or Julian. Their answers show up right here." },
+      body: "Once you ace a level's quiz, you can send questions about it to your teacher. Their answers show up right here." },
     { view: "program", page: "90 days", sel: '#nav [data-v="program"]', title: "90 days: your goals and deadlines", when: "Day 0 to day 97",
       body: `This page tracks every goal of the 90-day program. Hit them all and, if your fees haven't paid back your ${money(C.PRICE)} yet, you can get the difference back.` },
     { view: "program", page: "90 days", sel: "#nichecard", title: "Your first task: step 0", when: "Step 0 · due day 3",
@@ -1901,7 +2039,7 @@ async function farmerPage(f) {
   const older = sent.slice(0, -1).reverse().filter((e) => e.detail.list !== N.niche);
   const nicheStatus = !N.niche ? "" : N.niche_approved_at ? `<span class="tag">approved ${new Date(N.niche_approved_at).toLocaleDateString()}</span>`
     : N.niche_note ? `<span class="tag warn">sent back</span>` : `<span class="tag warn">waiting for review</span>`;
-  app.innerHTML = `<div style="max-width:980px" id="farmerpage"><button class="btn ghost sm" id="fpback">← All farmers</button>
+  app.innerHTML = `<div style="max-width:980px" id="farmerpage"><button class="btn ghost sm" id="fpback">← ${me.role === "admin" ? "All farmers" : "My students"}</button>
     <h2 style="font-size:20px;margin:12px 0 2px">${esc(f.full_name || f.email)}</h2>
     <p class="muted" style="margin:0 0 12px">${esc(f.email)} · Level ${f.level} · ${f.enrollment_paid ? "paid" : "not paid"}${f.verifier ? " · verifier" : ""}${N.created_at ? " · joined " + new Date(N.created_at).toLocaleDateString() : ""}${N.recruited_by ? " · recruited by " + esc(Hx.names?.[N.recruited_by] || "another farmer") : ""}${N.phone ? " · " + esc(N.phone) : ""}</p>
     ${error ? `<p class="err">${esc(error.message)}</p>` : ""}
@@ -1993,11 +2131,12 @@ const groupLessons = (list) => list.reduce((g, l) => {
 }, []);
 
 async function learn() {
-  const [{ data: qz }, { data: ls }, { data: passes }, { data: asks }] = await Promise.all([
+  const [{ data: qz }, { data: ls }, { data: passes }, { data: asks }, { data: myTeacher }] = await Promise.all([
     sb.from("quizzes").select("*").order("sort"),
     sb.from("lessons").select("*").order("sort"),
     sb.from("quiz_passes").select("*").eq("farmer_id", me.id),
     sb.from("teacher_questions").select("*").eq("farmer_id", me.id).order("created_at", { ascending: false }),
+    sb.rpc("my_teacher"),
   ]);
   const quizzes = qz || [];
   if (!quizzes.length) return (app.innerHTML = `<div class="card muted">Lessons aren't available yet.</div>`);
@@ -2023,7 +2162,7 @@ async function learn() {
       ${pass ? `<p><span class="tag">Aced ${new Date(pass.passed_at).toLocaleDateString()}</span></p>` : ""}
       <button class="btn" id="startquiz">${pass ? "Take it again" : "Take the quiz"}</button></div>
     <div class="card quizcard" id="askcard"><b>Ask a teacher</b>
-      ${pass ? `<p class="muted" style="margin:6px 0">Stuck on something the lessons don't cover? Alex, Vincent or Julian will answer here.</p>
+      ${pass ? `<p class="muted" style="margin:6px 0">Stuck on something the lessons don't cover? ${myTeacher ? `Your teacher, ${esc(myTeacher)}, will answer here.` : "Alex or a teacher will answer here."}</p>
         <textarea id="askbody" rows="3" placeholder="Your question"></textarea><div class="err" id="askerr"></div>
         <div class="row" style="justify-content:flex-end"><button class="btn" id="asksend">Send question</button></div>`
       : `<p class="muted" style="margin:6px 0">🔒 Ace the ${esc(quizLabel(Z))} quiz to ask about it. Everything on the quiz is in these lessons.</p>`}
@@ -2364,8 +2503,11 @@ function leadForm(l = {}, cs) {
 
 // ---------- admin ----------
 async function admin() {
-  const { data: fs } = await sb.from("farmer_summary").select("*").order("full_name");
+  const [{ data: fs }, { data: tids }] = await Promise.all([sb.from("farmer_summary").select("*").order("full_name"), sb.from("profiles").select("id,teacher_id")]);
   const byId = Object.fromEntries((fs || []).map((f) => [f.id, f]));
+  const teacherOf = Object.fromEntries((tids || []).map((x) => [x.id, x.teacher_id]));
+  const teachers = (fs || []).filter((f) => f.verifier);
+  const load = (id) => (tids || []).filter((x) => x.teacher_id === id).length;
   const paid = (fs || []).filter((f) => f.enrollment_paid && !f.comp).length;
   app.innerHTML = `
     <div class="stats">
@@ -2374,15 +2516,17 @@ async function admin() {
       <div class="card stat"><div class="v">${money((fs || []).filter((f) => f.enrollment_paid && !f.comp).reduce((t, f) => t + Number(f.enrollment_fee ?? 0), 0))}</div><div class="k">Enrollment revenue</div></div>
       <div class="card stat"><div class="v">${(fs||[]).reduce((a,f)=>a+Number(f.active_network),0)}</div><div class="k">Contractors in all networks</div></div>
     </div>
-    <div class="card tablewrap"><table><thead><tr><th>Farmer</th><th>Recruited by</th><th>Enrollment</th><th title="Free account: full access, not counted as revenue">Free</th><th>Level</th><th>Verifier</th><th>Network</th><th>Leads (closed)</th><th>Fees earned</th><th>Recruits</th></tr></thead><tbody>
+    <div class="card tablewrap"><table><thead><tr><th>Farmer</th><th>Recruited by</th><th>Enrollment</th><th title="Free account: full access, not counted as revenue">Free</th><th>Level</th><th>Verifier</th><th title="Their teacher answers their questions and reviews their level-ups. 4 students per teacher.">Teacher</th><th>Network</th><th>Leads (closed)</th><th>Fees earned</th><th>Recruits</th></tr></thead><tbody>
     ${(fs || []).map((f) => `<tr><td><button class="linkbtn" data-fp="${f.id}"><b>${esc(f.full_name || f.email)}</b></button><br><small class="muted">${esc(f.email)}</small></td>
       <td>${esc(byId[f.recruited_by]?.full_name || "")}</td>
       <td>${f.enrollment_paid ? `<span class="tag">${f.comp ? "free" : "paid"}</span>` : `<button class="btn sm" data-pay="${f.id}">Mark ${money(C.PRICE)} paid</button>`}</td>
       <td><input type="checkbox" data-comp="${f.id}" ${f.comp ? "checked" : ""} style="width:auto" aria-label="Free account"></td>
       <td><select data-lvl="${f.id}" style="width:auto">${[0,1,2,3].map((n) => `<option ${n === f.level ? "selected" : ""}>${n}</option>`).join("")}</select></td>
       <td><input type="checkbox" data-ver="${f.id}" ${f.verifier ? "checked" : ""} style="width:auto"></td>
+      <td>${f.verifier || !f.enrollment_paid ? "" : `<select data-tch="${f.id}" style="width:auto" aria-label="Teacher for ${esc(f.full_name || f.email)}"><option value="">You (Alex)</option>
+        ${teachers.map((t) => `<option value="${t.id}" ${t.id === teacherOf[f.id] ? "selected" : ""}>${esc(t.full_name || t.email)} (${load(t.id)}/4)</option>`).join("")}</select>`}</td>
       <td>${f.active_network} / ${f.contractors}</td><td>${f.leads} (${f.leads_closed})</td><td>${money(f.fees_earned)}</td><td>${f.recruits}</td></tr>`).join("")
-      || `<tr><td colspan="10" class="muted">No farmers yet.</td></tr>`}
+      || `<tr><td colspan="11" class="muted">No farmers yet.</td></tr>`}
     </tbody></table></div>`;
   app.querySelectorAll("[data-fp]").forEach((b) => b.onclick = () => farmerPage(byId[b.dataset.fp]));
   app.querySelectorAll("[data-pay]").forEach((b) => b.onclick = async () => {
@@ -2393,6 +2537,9 @@ async function admin() {
   });
   app.querySelectorAll("[data-comp]").forEach((el) => el.onchange = async () => {
     const { error } = await sb.rpc("set_comp", { farmer: el.dataset.comp, on_off: el.checked }); if (error) alert(error.message); boot();
+  });
+  app.querySelectorAll("[data-tch]").forEach((el) => el.onchange = async () => {
+    const { error } = await sb.rpc("assign_teacher", { farmer: el.dataset.tch, teacher: el.value || null }); if (error) alert(error.message); boot();
   });
   app.querySelectorAll("[data-ver]").forEach((el) => el.onchange = async () => {
     const { error } = await sb.rpc("set_verifier", { farmer: el.dataset.ver, on_off: el.checked }); if (error) alert(error.message); boot();
