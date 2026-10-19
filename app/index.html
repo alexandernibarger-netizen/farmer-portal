@@ -1464,6 +1464,9 @@ const payoutLabel = (r) => r.status === "pending" ? "Waiting on their enrollment
   : r.status === "void" ? "Cancelled (they were refunded)"
   : r.clawback_at ? (r.clawback_settled_at ? "Clawed back" : "Being clawed back (they were refunded)") : "$250 paid";
 
+// The step a farmer is working on: the first one not met whose deadline hasn't passed
+const curStep = (pr) => pr?.enrolled ? pr.steps.find((x) => !x.met && x.deadline >= pr.day) : undefined;
+
 // Follow-ups worked out from the farmer's own records; each opens the thing to do
 async function todayList(cs) {
   const mine = cs.filter((c) => c.farmer_id === me.id);
@@ -1487,8 +1490,10 @@ async function todayList(cs) {
     if (l.direction === "outbound" && ["new", "sent"].includes(l.status) && ago(l.created_at) >= 7) items.push({ l, text: `Check on the lead you sent ${cname(l.contractor_id)}${l.customer_name ? ` for ${l.customer_name}` : ""}. Did it close?` });
     if (l.status === "closed" && !l.fee_paid && ago(l.closed_at || l.created_at) >= 14) items.push({ l, text: `Collect your ${money(l.fee_amount)} fee from ${cname(l.contractor_id)}. The job closed over 2 weeks ago.` });
   }
-  if (pr?.enrolled && pr.day >= 7 && pr.day <= 90 && pr.comments_today < 50) items.push({ go: "program", text: `Post your neighbor comments. ${pr.comments_today} of 50 logged today.` });
-  for (const s of pr?.steps || []) if (!s.met && s.deadline - pr.day >= 0 && s.deadline - pr.day <= 3)
+  // directions only for the step they're on; later steps that have started only show as "behind" on Home
+  const cur = curStep(pr);
+  if (cur?.n === 4 && pr.day >= 7 && pr.day <= 90 && pr.comments_today < 50) items.push({ go: "program", text: `Post your neighbor comments. ${pr.comments_today} of 50 logged today.` });
+  for (const s of cur ? [cur] : []) if (s.deadline - pr.day <= 3)
     items.push({ go: "program", text: `${s.name} is due ${s.deadline === pr.day ? "today" : "in " + (s.deadline - pr.day) + " day" + (s.deadline - pr.day > 1 ? "s" : "")}: ${s.progress}.` });
   return { items, ls: ls || [], pr };
 }
@@ -1512,10 +1517,10 @@ function nextStep({ L, aced, ready, pending }, pr, items) {
   if (L < 3 && !aced) return { text: `Go through your Level ${L} lessons and ace the quiz. It shows you exactly what to do next.`, go: "learn", btn: "Open lessons" };
   if (L < 3 && ready && !pending) return { text: `You've reached the Level ${L + 1} goal. Send your proof and ask to move up.`, go: "next", btn: "Request it" };
   if (pending) return { text: `Your Level ${L + 1} request is with Alex. Keep logging your work while you wait.`, go: items[0] ? "todo" : "program", btn: items[0] ? "Start" : "Open 90 days" };
-  const open = pr?.enrolled && pr.steps.find((x) => !x.met && x.deadline >= pr.day);
+  const open = curStep(pr);
   if (items[0]) return { text: items[0].text, go: "todo", btn: "Do it" };
   if (open) return { text: `Keep working on step ${open.n}, ${open.name}: ${open.quota}. You're at ${open.progress}.`, go: "program", btn: "Open 90 days" };
-  return { text: "Log today's calls and comments so your streak stays alive.", go: "program", btn: "Open 90 days" };
+  return { text: "Log today's work so your streak stays alive.", go: "program", btn: "Open 90 days" };
 }
 
 const MASCOT = `<svg class="mascot" viewBox="0 0 96 110" aria-hidden="true"><ellipse cx="48" cy="104" rx="30" ry="5" fill="var(--line)"/><path d="M22 70c0-20 11-34 26-34s26 14 26 34v18c0 8-6 14-14 14H36c-8 0-14-6-14-14z" fill="#F5B700"/><path d="M22 76c8 4 44 4 52 0v12c0 8-6 14-14 14H36c-8 0-14-6-14-14z" fill="#E0A100"/><circle cx="38" cy="62" r="7" fill="#fff"/><circle cx="58" cy="62" r="7" fill="#fff"/><circle cx="39.5" cy="63" r="3.4" fill="#2B3A2E"/><circle cx="59.5" cy="63" r="3.4" fill="#2B3A2E"/><path d="M42 74c3 3 9 3 12 0" stroke="#8B5E3C" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M18 40c4-9 18-14 30-14s26 5 30 14c-10 3-50 3-60 0z" fill="#C98B4D"/><path d="M30 30c2-12 10-18 18-18s16 6 18 18c-10 2-26 2-36 0z" fill="#D9A066"/><path d="M48 12V4" stroke="#3E8E22" stroke-width="3" stroke-linecap="round"/><path d="M48 7c-5 0-7-3-7-6 4 0 7 2 7 6z" fill="#5BB82E"/></svg>`;
@@ -1529,9 +1534,12 @@ async function homeExtras(cs, ctx) {
   ]);
   const unread = (notes || []).filter((n) => !n.read_at);
   const missed = pr?.enrolled ? pr.steps.filter((x) => !x.met && x.deadline < pr.day) : [];
+  // neighbor comments start on day 7 but belong to step 4; before step 4 just say they're behind
+  const cur = curStep(pr), lateComments = cur && cur.n < 4 && pr.day >= 7 && pr.day <= 90;
   const soon = pr?.enrolled ? pr.steps.filter((x) => !x.met && x.deadline >= pr.day && x.deadline - pr.day <= 7) : [];
   const nx = nextStep(ctx, pr, items);
   const behind = [...missed.map((x) => `Step ${x.n}, ${x.name}, was due on day ${x.deadline} and wasn't met (${x.progress}).`),
+    ...(lateComments ? [`You're behind on step 4, First Lead Sent. Its daily neighbor comments started on day 7.`] : []),
     ...soon.map((x) => `Step ${x.n}, ${x.name}, is due ${x.deadline === pr.day ? "today" : "in " + (x.deadline - pr.day) + " day" + (x.deadline - pr.day > 1 ? "s" : "")}. You're at ${x.progress}.`)];
   const greeting = greetingFrom(lines);
   const summary = [greeting,
@@ -1564,7 +1572,7 @@ async function homeExtras(cs, ctx) {
       ${"speechSynthesis" in window ? `<button class="btn ghost sm" id="readout" style="margin-top:10px;display:inline-flex;align-items:center;gap:6px;color:var(--sky3)">${SPEAKER}Read it to me</button>` : ""}</div></section>
     <section class="nextcard" aria-label="Your next step"><span style="flex:1 1 260px"><small>Your next step</small><b id="nexttext">${esc(nx.text)}</b></span>
       <button class="btn" id="nextgo">${esc(nx.btn)}</button></section>
-    ${behind.length ? `<div class="behind"><b>${missed.length ? "You're behind" : "Coming up"}</b><ul class="todo">${behind.map((b) => `<li>${esc(b)}</li>`).join("")}</ul></div>` : ""}
+    ${behind.length ? `<div class="behind"><b>${missed.length || lateComments ? "You're behind" : "Coming up"}</b><ul class="todo">${behind.map((b) => `<li>${esc(b)}</li>`).join("")}</ul></div>` : ""}
     ${unread.map((n) => `<div class="card lvl alert" style="border-color:var(--warn)"><div class="row"><span style="flex:1">${esc(n.body)}</span>
       <button class="btn ghost sm" data-seen="${n.id}">Got it</button></div></div>`).join("")}
     ${trail}
