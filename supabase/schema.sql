@@ -765,7 +765,7 @@ begin
     'price', p.enrollment_fee, 'fees', fees, 'bonuses', bonuses, 'refund_amount', greatest(0, p.enrollment_fee - fees - bonuses),
     'niche', p.niche, 'niche_note', p.niche_note,
     'comments_today', (select coalesce(sum(a.count), 0) from public.activities a
-      where a.farmer_id = f and a.kind = 'comments' and a.created_at >= date_trunc('day', now())));
+      where a.farmer_id = f and a.kind = 'comments' and a.created_at >= date_trunc('day', now() at time zone 'America/Chicago') at time zone 'America/Chicago'));
 end $$;
 
 -- ---------- the refund package ----------
@@ -2131,7 +2131,7 @@ begin
     'price', p.enrollment_fee, 'fees', fees, 'bonuses', bonuses, 'bonuses_count', public.bonuses_reduce_refund(p), 'refund_amount', greatest(0, p.enrollment_fee - fees - bonuses),
     'niche', p.niche, 'niche_note', p.niche_note,
     'comments_today', (select coalesce(sum(a.count), 0) from public.activities a
-      where a.farmer_id = f and a.kind = 'comments' and a.created_at >= date_trunc('day', now())));
+      where a.farmer_id = f and a.kind = 'comments' and a.created_at >= date_trunc('day', now() at time zone 'America/Chicago') at time zone 'America/Chicago'));
 end $$;
 
 create or replace function public.submit_refund_package(p_note text, p_files text[] default '{}') returns uuid
