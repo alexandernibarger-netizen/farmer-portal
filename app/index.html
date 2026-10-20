@@ -51,7 +51,16 @@ dialog::backdrop{background:rgba(0,0,0,.4)}
 .auth{max-width:380px;margin:8vh auto}
 .agree{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.45;color:var(--ink);margin:14px 0 4px}
 .agree input{width:auto;margin:3px 0 0;flex:none}
-.banner{max-width:1400px;margin:16px auto 0;padding:0 20px}.banner .card{display:flex;gap:12px;align-items:center;flex-wrap:wrap;border-color:var(--accent)}
+.banner{max-width:1400px;margin:16px auto 0;padding:0 20px}
+#subnav{max-width:1400px;margin:0 auto;padding:16px 20px 0}
+.subtabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:4px;background:var(--soft2);border:2px solid var(--line);border-radius:16px;width:max-content;max-width:100%;box-sizing:border-box}
+.subtabs::-webkit-scrollbar{display:none}
+.subtabs button{flex:none;display:flex;align-items:center;gap:6px;background:none;border:0;border-radius:12px;padding:8px 14px;min-height:40px;font:inherit;font-weight:800;color:var(--muted);cursor:pointer;white-space:nowrap}
+.subtabs button svg{width:18px;height:18px;flex:none}
+.subtabs button.on{background:var(--card);color:var(--accent);box-shadow:0 2px 0 var(--line)}
+.subtabs button.locked{opacity:.45;cursor:not-allowed}
+.subtabs .lk{font-size:11px;font-weight:800;background:var(--lock);border-radius:99px;padding:1px 7px}
+.banner .card{display:flex;gap:12px;align-items:center;flex-wrap:wrap;border-color:var(--accent)}
 .err{color:var(--warn);font-size:14px;min-height:1.2em;margin-top:8px}
 .trades{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:16px}
 .lockedcol,.lvl.locked{opacity:.55;border-style:dashed}
@@ -201,7 +210,8 @@ nav button:hover:not(.on){background:var(--soft2)}
   header nav{display:flex;flex-direction:column;gap:4px;flex:1}
   header #who{padding:0 12px;font-weight:800}
   header #logout,header #siteview{margin:4px 12px 0}
-  header:not([hidden]) ~ main, header:not([hidden]) ~ #banner{margin-left:236px}
+  header:not([hidden]) ~ main, header:not([hidden]) ~ #banner, header:not([hidden]) ~ #subnav{margin-left:236px}
+  #subnav{padding:20px 36px 0}
   main{padding:28px 36px 48px}
 }
 @media (max-width:899px){
@@ -361,7 +371,7 @@ nav button:hover:not(.on){background:var(--soft2)}
   [data-template="almanac"] header h1{margin:0 12px 0 0}
   [data-template="almanac"] header nav{flex-direction:row;flex-wrap:wrap;flex:1}
   [data-template="almanac"] nav button svg{display:none}
-  [data-template="almanac"] header:not([hidden]) ~ main,[data-template="almanac"] header:not([hidden]) ~ #banner{margin-left:0}
+  [data-template="almanac"] header:not([hidden]) ~ main,[data-template="almanac"] header:not([hidden]) ~ #banner,[data-template="almanac"] header:not([hidden]) ~ #subnav{margin-left:0}
 }
 /* Settings: template picker */
 .tpls{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-top:12px}
@@ -418,6 +428,10 @@ img,svg,video,iframe{max-width:100%}
   header:not([hidden]){flex-wrap:wrap}
   header h1{font-size:16px;flex:1 1 170px}
   .banner{padding:0 16px}
+  #subnav{padding:12px 16px 0}
+  .subtabs{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 24px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 24px),transparent);padding-right:20px}
+  .subtabs button{padding:8px 10px;gap:4px;font-size:14px}
+  .subtabs button:not(.locked) svg{display:none}
   .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
   .stat .v,.dash .stat .v{font-size:20px}
   dialog{width:calc(100vw - 16px);max-width:calc(100vw - 16px);padding:16px}
@@ -438,6 +452,7 @@ img,svg,video,iframe{max-width:100%}
   <button class="btn ghost sm" id="logout">Sign out</button>
 </header>
 <div id="banner"></div>
+<div id="subnav" hidden></div>
 <main id="app"></main>
 <dialog id="dlg"></dialog>
 
@@ -477,6 +492,7 @@ const NAV_ICONS = {
   home: ico("currentColor", '<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>'),
   learn: ico("#2E9BD6", '<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5"/>'),
   program: ico("#F09A00", '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
+  crm: ico("#8B5E3C", '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="M9 10h6"/><path d="M9 14h6"/><path d="M9 18h3"/>'),
   pipeline: ico("#8B5E3C", '<path d="M4 20h16"/><path d="M7 20V10"/><path d="M12 20V6"/><path d="M17 20v-7"/>'),
   contractors: ico("#7A5CC9", '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7"/><path d="M18 14.6c1.8.7 3 2.5 3.5 5.4"/>'),
   leads: ico("#D14F8A", '<path d="M4 12h12"/><path d="M12 6l6 6-6 6"/><path d="M20 4v16"/>'),
@@ -631,7 +647,7 @@ const teacher = () => me?.verifier && me?.role !== "admin";  // Vincent and Juli
 let termsLater = false;
 const needsTerms = () => me?.role !== "admin" && me?.enrollment_paid && !termsOk(me?.terms_version) && !termsLater;
 function termsView(declined = false) {
-  $("#nav").innerHTML = ""; $("#banner").innerHTML = "";
+  $("#nav").innerHTML = ""; $("#banner").innerHTML = ""; crmBar(false);
   if (declined) {
     app.innerHTML = `<div class="auth card" id="termsgate">
       <h2 style="margin-top:0">You can ask for a refund instead</h2>
@@ -669,7 +685,7 @@ function termsView(declined = false) {
 
 // Unpaid accounts get only this screen; the database also refuses them any program data.
 function payView() {
-  $("#nav").innerHTML = ""; $("#banner").innerHTML = "";
+  $("#nav").innerHTML = ""; $("#banner").innerHTML = ""; crmBar(false);
   const link = C.PAYMENT_LINK && `${C.PAYMENT_LINK}?client_reference_id=${encodeURIComponent(me.id)}&prefilled_email=${encodeURIComponent(me.email || "")}`;
   app.innerHTML = `<div class="auth card" id="paywall">
     <h2 style="margin-top:0">Finish your enrollment</h2>
@@ -720,23 +736,42 @@ function boot() {
   if (locked()) return payView();
   if (needsTerms()) return termsView();
   // Teachers see what they teach with: their students, the lessons, the CRM, approvals. No quotas, quizzes or 90-day trail.
-  const tabs = teacher() ? [["students","My students"],["learn","Lessons"],["pipeline","Pipeline"],["contractors","Contractors"],["trades","Trades"],["leads","Leads"],["upsells","Upsells"],["approvals","Approvals"],["settings","Settings"]] : [["home","Home"],["learn","Learn"]];
+  // Pipeline, Contractors, Trades, Leads and Upsells live under one CRM tab with sub-tabs (crmBar)
+  const tabs = teacher() ? [["students","My students"],["learn","Lessons"],["crm","CRM"],["approvals","Approvals"],["settings","Settings"]] : [["home","Home"],["learn","Learn"]];
   if (!teacher()) {
   if (me?.role !== "admin" && me?.enrollment_paid) tabs.push(["program","90 days"]);
-  tabs.push(["pipeline","Pipeline"],["contractors","Contractors"]);
-  if (me?.role !== "admin") tabs.push(["trades","Trades"]);
-  if (lvl() >= 2) tabs.push(["leads","Leads"]);
-  if (lvl() >= 3) tabs.push(["upsells","Upsells"]);
+  tabs.push(["crm","CRM"]);
   if (lvl() >= 2 && me?.role !== "admin") tabs.push(["money","Money"]);
   if (reviewer()) tabs.push(["approvals","Approvals"]);
-  if (me?.role === "admin") tabs.push(["growth","Growth"],["teachers","Teachers"],["admin","Farmers"],["payouts","Payouts"],["trades","Trades"],["welcome","Welcome"]);
+  if (me?.role === "admin") tabs.push(["growth","Growth"],["teachers","Teachers"],["admin","Farmers"],["payouts","Payouts"],["welcome","Welcome"]);
   tabs.push(["settings","Settings"]);
   }
-  if (!tabs.some(([k]) => k === view)) view = tabs[0][0];
-  $("#nav").innerHTML = tabs.map(([k,l]) => `<button data-v="${k}" class="${k===view?"on":""}">${NAV_ICONS[k] || ""}<span>${l}</span></button>`).join("");
+  if (view === "crm") view = crmLast;
+  if (CRM.some(([k, , lv]) => k === view && lvl() < lv)) view = "pipeline";
+  let tab = CRM.some(([k]) => k === view) ? "crm" : view;
+  if (!tabs.some(([k]) => k === tab)) tab = view = tabs[0][0];
+  if (tab === "crm") crmLast = view;
+  $("#nav").innerHTML = tabs.map(([k,l]) => `<button data-v="${k}" class="${k===tab?"on":""}">${NAV_ICONS[k] || ""}<span>${l}</span></button>`).join("");
   $("#nav").onclick = (e) => { const b = e.target.closest("button"); if (b?.dataset.v) { view = b.dataset.v; boot(); } };
+  crmBar(tab === "crm");
   approvalsBadge();
   return ({ home, learn, program, pipeline, contractors, leads, upsells, money: moneyView, students, teachers, welcome: welcomeLines, growth, settings: settingsView, approvals, admin, payouts, tradesView: tradesView })[view === "trades" ? "tradesView" : view]();
+}
+
+// ---------- CRM sub-tabs ----------
+// [view, label, level it opens at]. A locked one stays greyed out; Upsells keeps its name a surprise until Level 3.
+const CRM = [["pipeline","Pipeline",0],["contractors","Contractors",0],["trades","Trades",0],["leads","Leads",2],["upsells","Upsells",3]];
+let crmLast = "pipeline";  // the CRM tab reopens on the sub-tab used last
+function crmBar(show) {
+  const bar = $("#subnav");
+  bar.hidden = !show;
+  if (!show) return (bar.innerHTML = "");
+  const lock = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>`;
+  bar.innerHTML = `<div class="subtabs" role="tablist" aria-label="CRM">${CRM.map(([k, l, lv]) => lvl() >= lv
+    ? `<button data-v="${k}" role="tab" aria-selected="${k === view}" class="${k === view ? "on" : ""}">${NAV_ICONS[k] || ""}<span>${l}</span></button>`
+    : `<button data-v="${k}" role="tab" class="locked" disabled title="Opens at Level ${lv}">${lock}<span>${lv >= 3 ? "Level 3" : l}</span><span class="lk">Lv ${lv}</span></button>`).join("")}</div>`;
+  bar.onclick = (e) => { const b = e.target.closest("button:not([disabled])"); if (b?.dataset.v) { view = b.dataset.v; boot(); } };
+  bar.querySelector(".on")?.scrollIntoView({ block: "nearest", inline: "nearest" });
 }
 
 // ---------- farmer: home (level ladder + next step) ----------
@@ -1788,7 +1823,7 @@ async function discordCard(slot, inSettings) {
 function tourSteps(kind) {
   const L = lvl(), first = firstName();
   const lv2 = [
-    { view: "leads", page: "Leads", sel: '#nav [data-v="leads"]', title: L > 2 ? "Leads" : "New: Leads", when: "Steps 4 to 6",
+    { view: "leads", page: "Leads", sel: '#subnav [data-v="leads"]', title: L > 2 ? "Leads" : "New: Leads", when: "Steps 4 to 6",
       body: "Every homeowner job you pass to a contractor, and every job a contractor sends you, gets logged here." },
     { view: "leads", page: "Leads", sel: "dialog[open]", open: "lead", title: "Log a lead the day you send it", when: "Step 4 · 300 by day 75",
       body: "Pick the direction, the contractor, and what the job is. Mark it <b>closed</b> with the job value when it's done and <b>Fee paid</b> once your 20% arrives. That moves the contractor to step 5 on its own." },
@@ -1796,7 +1831,7 @@ function tourSteps(kind) {
       body: "Your fees by month and who still owes you. Press <b>Paid</b> when a fee comes in." },
   ];
   const lv3 = [
-    { view: "upsells", page: "Upsells", sel: '#nav [data-v="upsells"]', title: L > 3 ? "Upsells" : "New: Upsells", when: "Steps 8 and 9",
+    { view: "upsells", page: "Upsells", sel: '#subnav [data-v="upsells"]', title: L > 3 ? "Upsells" : "New: Upsells", when: "Steps 8 and 9",
       body: "When an anchor is ready, log your pitch here (step 8) and mark it closed with the amount when they buy (step 9)." },
     { view: "pipeline", page: "Pipeline", sel: ".board", scrollBoard: true, title: "Stages 7 to 9 are open", when: "Steps 7 to 9",
       body: "Anchor Status, Upsell Pitched and Upsell Closed are now on your board. Move a contractor to Anchor once they've closed 3 jobs and sent you a lead." },
@@ -1809,13 +1844,13 @@ function tourSteps(kind) {
     return steps.map((x) => ({ ...x, pages }));
   }
   const later = L >= 2 ? [...lv2.map((x) => ({ ...x, page: "Coming later" })), ...(L >= 3 ? lv3.map((x) => ({ ...x, page: "Coming later" })) : [
-    { view: "contractors", page: "Coming later", sel: '[data-ghost="lv3"]', ghosts: true, title: "Level 3: grow your income further", when: "Level 3",
+    { view: "contractors", page: "Coming later", sel: '#subnav [data-v="upsells"]', title: "Level 3: grow your income further", when: "Level 3",
       body: "One more page opens at Level 3. What's inside stays a surprise until you get there." }])] : [
-    { view: "contractors", page: "Coming later", sel: '[data-ghost="leads"]', ghosts: true, title: "Leads opens at Level 2", when: "Steps 4 to 6 · Level 2",
+    { view: "contractors", page: "Coming later", sel: '#subnav [data-v="leads"]', title: "Leads opens at Level 2", when: "Steps 4 to 6 · Level 2",
       body: "You won't need this until step 4, <b>First Lead Sent</b>, when you start passing homeowner jobs from your neighbor comments to contractors who agreed to terms. You'll log every lead you send, and every lead a contractor sends back (step 6)." },
     { view: "contractors", page: "Coming later", sel: '[data-ghost="money"]', ghosts: true, title: "Money opens at Level 2", when: "Level 2",
       body: "Fees collected, who still owes you, and fees by month. It starts filling the first time a contractor closes a job from your lead and pays you your 20%." },
-    { view: "contractors", page: "Coming later", sel: '[data-ghost="lv3"]', ghosts: true, title: "Level 3: grow your income further", when: "Level 3",
+    { view: "contractors", page: "Coming later", sel: '#subnav [data-v="upsells"]', title: "Level 3: grow your income further", when: "Level 3",
       body: "One more page opens at Level 3. What's inside stays a surprise until you get there, so focus on steps 0 to 4 for now." }];
   const ours = L === 1 ? "Steps 0 to 4 for now" : "Your level's steps";
   return [
@@ -1855,7 +1890,7 @@ function tourSteps(kind) {
       body: "Each row is a step with its goal, deadline and your progress. Only what you log on the day you do it counts, so log as you go." },
     { view: "program", page: "90 days", sel: "#pkcard", title: "Your refund package", when: "When every row says Met",
       body: "This button opens once every goal is met. You'll have until day 97 to send it, and your CRM records go with it automatically." },
-    { view: "pipeline", page: "Pipeline", sel: '#nav [data-v="pipeline"]', title: "Pipeline: contractors stage by stage", when: "Every step",
+    { view: "pipeline", page: "Pipeline", sel: '#subnav [data-v="pipeline"]', title: "Pipeline: contractors stage by stage", when: "Every step",
       body: "Every contractor is a card that moves left to right as the relationship grows." },
     { view: "pipeline", page: "Pipeline", sel: ".board", title: L === 1 ? "Stages 1 to 3 for now" : "Your stages", when: "Steps 1 to 3",
       body: "<b>Identified</b>: you found them (step 1). <b>Outreach Made</b>: you called (step 2). <b>Terms Agreed</b>: they said yes to 20% (step 3). More stages open as you level up." },
@@ -1865,7 +1900,7 @@ function tourSteps(kind) {
       body: "Business name, trade, contact and phone, plus the link to the post or profile where you found them. That link is your proof for step 1." },
     { view: "pipeline", page: "Pipeline", sel: "#calls", open: "sample", title: "Log every call", when: "Steps 2 and 3 · by day 21 and 45",
       body: "After each call, pick the outcome and press <b>Log a call</b>. A call moves them to Outreach Made, and <b>agreed</b> moves them to Terms Agreed. When they agree, send the 20% text and tick the box. <i>(This is an example contractor. It isn't saved.)</i>" },
-    { view: "contractors", page: "Contractors", sel: '#nav [data-v="contractors"]', title: "Contractors: your network by trade", when: "Steps 1 to 3",
+    { view: "contractors", page: "Contractors", sel: '#subnav [data-v="contractors"]', title: "Contractors: your network by trade", when: "Steps 1 to 3",
       body: "The same contractors as Pipeline, sorted by trade so you can see where your network is thin." },
     { view: "contractors", page: "Contractors", sel: ".trades", title: "10 in every trade", when: "Step 3 · 150 by day 45",
       body: "One card per trade. It fills as contractors reach Terms Agreed. The goal is 10 signed in each of the 15 trades, 150 in total." },
@@ -1916,7 +1951,7 @@ async function tourGo(i) {
   if (!tour) return;
   if (s.ghosts && !$('[data-ghost]')) {
     const set = $('#nav [data-v="settings"]'), lock = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>`;
-    for (const [k, label, lv] of [["leads", "Leads", 2], ["money", "Money", 2], ["lv3", "Level 3", 3]])
+    for (const [k, label, lv] of [["money", "Money", 2]])
       set.insertAdjacentHTML("beforebegin", `<button class="tour-ghost" data-ghost="${k}" tabindex="-1">${lock}<span>${label}</span><span class="lk">Lv ${lv}</span></button>`);
   }
   if (!s.ghosts) document.querySelectorAll(".tour-ghost").forEach((e) => e.remove());
