@@ -591,7 +591,7 @@ async function addOwnTrade(name) {
 }
 
 const locked = () => me?.role !== "admin" && !me?.verifier && !me?.enrollment_paid;
-const lvl = () => (me?.role === "admin" ? 3 : me?.level || 0);
+const lvl = () => (me?.role === "admin" || teacher() ? 3 : me?.level || 0);  // teachers get the whole CRM to farm alongside students
 const reviewer = () => me?.role === "admin" || me?.verifier;
 const teacher = () => me?.verifier && me?.role !== "admin";  // Vincent and Julian: pick up to 4 students
 
@@ -688,8 +688,8 @@ function boot() {
   $("#who").textContent = me?.full_name || me?.email || "";
   if (locked()) return payView();
   if (needsTerms()) return termsView();
-  // Teachers only see what they teach with: their students, the lessons, approvals. No quotas, quizzes or 90-day trail.
-  const tabs = teacher() ? [["students","My students"],["learn","Lessons"],["approvals","Approvals"],["settings","Settings"]] : [["home","Home"],["learn","Learn"]];
+  // Teachers see what they teach with: their students, the lessons, the CRM, approvals. No quotas, quizzes or 90-day trail.
+  const tabs = teacher() ? [["students","My students"],["learn","Lessons"],["pipeline","Pipeline"],["contractors","Contractors"],["trades","Trades"],["leads","Leads"],["upsells","Upsells"],["approvals","Approvals"],["settings","Settings"]] : [["home","Home"],["learn","Learn"]];
   if (!teacher()) {
   if (me?.role !== "admin" && me?.enrollment_paid) tabs.push(["program","90 days"]);
   tabs.push(["pipeline","Pipeline"],["contractors","Contractors"]);
