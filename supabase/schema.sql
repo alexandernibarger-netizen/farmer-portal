@@ -467,9 +467,9 @@ alter table public.quiz_passes enable row level security;
 alter table public.teacher_questions enable row level security;
 
 create policy "read quizzes" on public.quizzes for select to authenticated
-  using (public.has_access() and level <= public.my_level());
+  using (public.has_access() and (level <= public.my_level() or public.is_verifier()));
 create policy "read lessons" on public.lessons for select to authenticated
-  using (public.has_access() and exists (select 1 from public.quizzes z where z.key = quiz and z.level <= public.my_level()));
+  using (public.has_access() and (public.is_verifier() or exists (select 1 from public.quizzes z where z.key = quiz and z.level <= public.my_level())));
 create policy "admin questions" on public.quiz_questions for all to authenticated using (public.is_admin()) with check (public.is_admin());
 create policy "read attempts" on public.quiz_attempts for select to authenticated using (farmer_id = auth.uid() or public.is_verifier());
 create policy "read passes" on public.quiz_passes for select to authenticated using (farmer_id = auth.uid() or public.is_verifier());
