@@ -622,7 +622,7 @@ async function addOwnTrade(name) {
 }
 
 const locked = () => me?.role !== "admin" && !me?.verifier && !me?.enrollment_paid;
-const lvl = () => (me?.role === "admin" ? 3 : me?.level || 0);
+const lvl = () => (me?.role === "admin" || teacher() ? 3 : me?.level || 0);  // teachers get the whole CRM to farm alongside students
 const reviewer = () => me?.role === "admin" || me?.verifier;
 const teacher = () => me?.verifier && me?.role !== "admin";  // Vincent and Julian: pick up to 4 students
 
@@ -719,9 +719,9 @@ function boot() {
   $("#who").textContent = me?.full_name || me?.email || "";
   if (locked()) return payView();
   if (needsTerms()) return termsView();
-  const tabs = [["home","Home"]];
-  if (teacher()) tabs.push(["students","My students"]);
-  tabs.push(["learn","Learn"]);
+  // Teachers see what they teach with: their students, the lessons, the CRM, approvals. No quotas, quizzes or 90-day trail.
+  const tabs = teacher() ? [["students","My students"],["learn","Lessons"],["pipeline","Pipeline"],["contractors","Contractors"],["trades","Trades"],["leads","Leads"],["upsells","Upsells"],["approvals","Approvals"],["settings","Settings"]] : [["home","Home"],["learn","Learn"]];
+  if (!teacher()) {
   if (me?.role !== "admin" && me?.enrollment_paid) tabs.push(["program","90 days"]);
   tabs.push(["pipeline","Pipeline"],["contractors","Contractors"]);
   if (me?.role !== "admin") tabs.push(["trades","Trades"]);
@@ -731,7 +731,8 @@ function boot() {
   if (reviewer()) tabs.push(["approvals","Approvals"]);
   if (me?.role === "admin") tabs.push(["growth","Growth"],["teachers","Teachers"],["admin","Farmers"],["payouts","Payouts"],["trades","Trades"],["welcome","Welcome"]);
   tabs.push(["settings","Settings"]);
-  if (!tabs.some(([k]) => k === view)) view = "home";
+  }
+  if (!tabs.some(([k]) => k === view)) view = tabs[0][0];
   $("#nav").innerHTML = tabs.map(([k,l]) => `<button data-v="${k}" class="${k===view?"on":""}">${NAV_ICONS[k] || ""}<span>${l}</span></button>`).join("");
   $("#nav").onclick = (e) => { const b = e.target.closest("button"); if (b?.dataset.v) { view = b.dataset.v; boot(); } };
   approvalsBadge();
@@ -789,7 +790,6 @@ async function home() {
   if ($("#to90")) $("#to90").onclick = (e) => { e.preventDefault(); view = "program"; boot(); };
   if (me.role !== "admin") await homeExtras(cs, { L, aced, ready, pending, passes });
   if (!reviewer() && L >= 1 && (me.tour_level || 0) < L && !tour) startTour(me.tour_level ? "levelup" : "full");
-  if (teacher() && !me.teacher_guide_seen && !dlg.open) teacherGuide(true);
   if ($("#toquiz")) $("#toquiz").onclick = (e) => { e.preventDefault(); learnQuiz = "l" + L; view = "learn"; boot(); };
 }
 
@@ -1214,6 +1214,7 @@ async function students() {
           : open ? `<button class="btn sm" data-pick="${p.id}">Pick</button>` : ""}</td></tr>`).join("")
         || `<tr><td colspan="6" class="muted">No other paid farmers yet.</td></tr>`}</tbody></table></div></div>`;
   $("#guide").onclick = () => teacherGuide(false);
+  if (!me.teacher_guide_seen && !dlg.open) teacherGuide(true);
   app.querySelectorAll("[data-towait]").forEach((b) => b.onclick = () => { view = "approvals"; boot(); });
   app.querySelectorAll("[data-open]").forEach((b) => b.onclick = () => farmerPage(S.find((x) => x.id === b.dataset.open)));
   app.querySelectorAll("[data-pick]").forEach((b) => b.onclick = async () => {
@@ -1697,14 +1698,6 @@ async function homeExtras(cs, ctx) {
     <div class="card"><b style="font-size:17px">Quizzes</b>${[1, 2, 3].filter((n) => n <= Math.max(1, ctx.L)).map((n) => `<div class="row" style="justify-content:space-between;margin-top:8px;font-weight:800"><span>Level ${n}</span>
       ${(ctx.passes || []).some((p) => p.quiz === "l" + n) ? `<span class="tag" style="background:#FFF1CC;color:#7A5200">Aced</span>` : `<button class="linkbtn" data-quiz="l${n}">Take it</button>`}</div>`).join("")}</div>`;
   $("#homeside").append($("#refcard"));
-  if (me.verifier) {
-    const { data: studs } = await sb.rpc("my_students");
-    if (studs?.length) $("#today").insertAdjacentHTML("afterend", `<div class="card lvl" id="mystuds"><h2 style="margin:0;font-size:20px">Your students</h2>
-      <p class="muted" style="margin:4px 0 8px;font-size:14px">Give them a call and help them get unstuck. <button class="linkbtn" id="tostuds">Open My students</button> for their last 2 weeks and the $1,000 goal.</p>
-      <ul class="todo">${studs.map((x) => `<li><b>${esc(x.full_name)}</b>${x.phone ? ` · <a href="tel:${esc(x.phone)}">${esc(x.phone)}</a>` : ""} · <a href="mailto:${esc(x.email)}">${esc(x.email)}</a> · day ${x.day}
-        ${(x.reasons || []).length ? `<br><small class="muted">${esc(x.reasons.map((r) => r.text).join("; "))}</small>` : `<br><small class="muted">Back on track</small>`}</li>`).join("")}</ul></div>`);
-    if ($("#tostuds")) $("#tostuds").onclick = () => { view = "students"; boot(); };
-  }
   app.querySelectorAll("[data-quiz]").forEach((b) => b.onclick = () => { learnQuiz = b.dataset.quiz; view = "learn"; boot(); });
   if (refs?.length) $("#refcard").insertAdjacentHTML("beforeend", `<div class="tablewrap" style="margin-top:12px" id="myrefs"><table><thead><tr><th>Your referrals</th><th>Status</th></tr></thead><tbody>
     ${refs.map((r) => `<tr><td>${esc(r.full_name)}<br><small class="muted">${new Date(r.created_at).toLocaleDateString()}</small></td><td>${esc(payoutLabel(r))}</td></tr>`).join("")}</tbody></table></div>`);
@@ -2235,7 +2228,7 @@ async function learn() {
   const myAsks = (asks || []).filter((t) => t.quiz === Z.key);
   const groups = groupLessons(mine);
   app.innerHTML = `<div class="learn">
-    <div class="row" id="qzchips">${quizzes.map((z) => `<button class="chipbtn ${z.key === Z.key ? "on" : ""}" data-q="${z.key}">${esc(quizLabel(z))} · ${esc(z.title)}${(passes || []).some((p) => p.quiz === z.key) ? " ✓" : ""}</button>`).join("")}</div>
+    <div class="row" id="qzchips">${quizzes.map((z) => `<button class="chipbtn ${z.key === Z.key ? "on" : ""}" data-q="${z.key}">${esc(quizLabel(z))} · ${esc(z.title)}${!teacher() && (passes || []).some((p) => p.quiz === z.key) ? " ✓" : ""}</button>`).join("")}</div>
     <h2 style="font-size:20px;margin:18px 0 4px">${esc(quizLabel(Z))}: ${esc(Z.title)}</h2>
     <p class="muted" style="margin:0 0 14px">${mine.filter((l) => done.has(l.id)).length} of ${mine.length} lessons done</p>
     <div id="lessongroups">${groups.map((g) => `<section class="lgroup">${groups.length > 1 ? `<h3>${esc(g.theme.name)}</h3>
@@ -2243,7 +2236,7 @@ async function learn() {
     <div class="lessons">${g.items.map((l) => `<button class="lessonbtn card" data-l="${l.id}">
       <span class="lthumb">${svgOf(l.data)}</span><span><small class="muted">${esc(l.data.step)}</small><b>${esc(l.data.title)}</b>
       <small class="muted">${esc(l.data.metaphor)}</small>${done.has(l.id) ? `<span class="tag">done</span>` : ""}</span></button>`).join("")}</div></section>`).join("")}</div>
-    <div class="card quizcard" id="quizcard"><b>${esc(quizLabel(Z))} quiz</b>
+    ${teacher() ? "" : `<div class="card quizcard" id="quizcard"><b>${esc(quizLabel(Z))} quiz</b>
       <p style="margin:6px 0">${(qq || []).length} questions. You need every one right${Z.key === "rec" ? "" : " before you can request the next level"}.</p>
       ${pass ? `<p><span class="tag">Aced ${new Date(pass.passed_at).toLocaleDateString()}</span></p>` : ""}
       <button class="btn" id="startquiz">${pass ? "Take it again" : "Take the quiz"}</button></div>
@@ -2253,10 +2246,10 @@ async function learn() {
         <div class="row" style="justify-content:flex-end"><button class="btn" id="asksend">Send question</button></div>`
       : `<p class="muted" style="margin:6px 0">🔒 Ace the ${esc(quizLabel(Z))} quiz to ask about it. Everything on the quiz is in these lessons.</p>`}
       ${myAsks.map((t) => `<div class="qa"><p style="margin:0;white-space:pre-wrap"><b>You:</b> ${esc(t.body)}</p>
-        <p style="margin:4px 0 0;white-space:pre-wrap">${t.answer ? `<b>Answer:</b> ${esc(t.answer)}` : `<span class="muted">Waiting for an answer</span>`}</p></div>`).join("")}</div></div>`;
+        <p style="margin:4px 0 0;white-space:pre-wrap">${t.answer ? `<b>Answer:</b> ${esc(t.answer)}` : `<span class="muted">Waiting for an answer</span>`}</p></div>`).join("")}</div>`}</div>`;
   app.querySelectorAll("[data-q]").forEach((b) => b.onclick = () => { learnQuiz = b.dataset.q; learn(); });
   app.querySelectorAll("[data-l]").forEach((b) => b.onclick = () => lessonView(mine, mine.findIndex((l) => l.id === b.dataset.l)));
-  $("#startquiz").onclick = () => quizView(Z, qq || [], mine);
+  if ($("#startquiz")) $("#startquiz").onclick = () => quizView(Z, qq || [], mine);
   if ($("#asksend")) $("#asksend").onclick = async () => {
     const { error } = await sb.rpc("ask_teacher", { p_quiz: Z.key, p_body: $("#askbody").value });
     if (error) return ($("#askerr").textContent = error.message);

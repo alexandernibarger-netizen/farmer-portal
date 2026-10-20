@@ -261,7 +261,7 @@ language sql stable security definer set search_path = public as $$
 $$;
 create or replace function public.my_level() returns smallint
 language sql stable security definer set search_path = public as $$
-  select case when role = 'admin' then 3::smallint else level end from public.profiles where id = auth.uid();
+  select case when role = 'admin' or verifier then 3::smallint else level end from public.profiles where id = auth.uid();
 $$;
 create or replace function public.has_access() returns boolean
 language sql stable security definer set search_path = public as $$
@@ -467,9 +467,9 @@ alter table public.quiz_passes enable row level security;
 alter table public.teacher_questions enable row level security;
 
 create policy "read quizzes" on public.quizzes for select to authenticated
-  using (public.has_access() and level <= public.my_level());
+  using (public.has_access() and (level <= public.my_level() or public.is_verifier()));
 create policy "read lessons" on public.lessons for select to authenticated
-  using (public.has_access() and exists (select 1 from public.quizzes z where z.key = quiz and z.level <= public.my_level()));
+  using (public.has_access() and (public.is_verifier() or exists (select 1 from public.quizzes z where z.key = quiz and z.level <= public.my_level())));
 create policy "admin questions" on public.quiz_questions for all to authenticated using (public.is_admin()) with check (public.is_admin());
 create policy "read attempts" on public.quiz_attempts for select to authenticated using (farmer_id = auth.uid() or public.is_verifier());
 create policy "read passes" on public.quiz_passes for select to authenticated using (farmer_id = auth.uid() or public.is_verifier());
