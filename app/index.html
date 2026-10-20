@@ -396,6 +396,37 @@ nav button:hover:not(.on){background:var(--soft2)}
 .tour-ghost{opacity:.55;pointer-events:none}.tour-ghost svg{filter:grayscale(1)}.tour-ghost .lk{margin-left:auto;font-size:12px}
 @media (max-width:640px){.tour-card:not(.modal){left:10px!important;right:10px;top:auto!important;bottom:84px;width:auto}.tour-card .tc-arrow{display:none}}
 @media (prefers-reduced-motion:reduce){.tour-hole{transition:none}}
+/* ---------- fit every screen: phones up to wide monitors ---------- */
+img,svg,video,iframe{max-width:100%}
+.stats{grid-template-columns:repeat(auto-fit,minmax(min(140px,100%),1fr))}
+/* wide screens: center the page in the space beside the side menu instead of hugging the menu */
+@media (min-width:900px){
+  header:not([hidden]) ~ main{margin-left:calc(236px + max(0px, (100% - 236px - 1400px) / 2))}
+  main > :not(dialog){margin-inline:auto}
+  .homegrid{max-width:1060px;justify-content:center}
+}
+@media (min-width:1600px){.homegrid{max-width:1180px}.homemain{max-width:780px}.homeside{flex-basis:360px}}
+/* phones and tablets: one-line top bar, bottom menu that shows more tabs and hints it scrolls */
+@media (max-width:899px){
+  header:not([hidden]){flex-wrap:nowrap;gap:10px;padding:10px 16px}
+  header h1{flex:1 1 auto;min-width:0;font-size:18px;line-height:1.2}
+  header #siteview,header #logout{flex:none}
+  header nav{scroll-snap-type:x proximity;-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent)}
+  header nav button{flex:none;min-width:60px;padding:6px 6px;scroll-snap-align:start}
+}
+@media (max-width:640px){
+  header:not([hidden]){flex-wrap:wrap}
+  header h1{font-size:16px;flex:1 1 170px}
+  .banner{padding:0 16px}
+  .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .stat .v,.dash .stat .v{font-size:20px}
+  dialog{width:calc(100vw - 16px);max-width:calc(100vw - 16px);padding:16px}
+}
+@media (max-width:420px){
+  .node .dot{width:42px;height:40px}.node.now .dot{width:50px;height:46px}
+  .node{font-size:10px;letter-spacing:-.01em}
+  .welcome .mascot{width:52px}
+}
 </style>
 </head>
 <body>

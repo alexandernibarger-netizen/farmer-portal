@@ -176,6 +176,14 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between}
   th,td{padding:10px 12px}
 }
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+/* fit every screen: keep the top bar on one line, and use more of wide monitors */
+img,svg,video,iframe{max-width:100%}
+@media (max-width:1000px){.top{flex-wrap:nowrap;gap:8px}.top nav{flex-wrap:nowrap}.top nav a{padding:10px 6px;font-size:14px;white-space:nowrap}.login{flex:none}}
+@media (max-width:820px){.top nav{display:none}.logo{flex:none}}
+@media (max-width:760px){.logo{font-size:19px}.logo svg{width:32px;height:32px}}
+@media (max-width:640px){.top{flex-wrap:nowrap;padding:12px 16px}.logo{font-size:20px}.login{flex:none}.wrap{padding:0 16px}}
+@media (max-width:360px){.logo svg{width:32px;height:32px}.logo{font-size:18px;gap:8px}.hero h1{font-size:34px}.betbox,.final{padding-left:18px;padding-right:18px}.card,.book>.box{padding:20px}.path{padding:22px 14px}}
+@media (min-width:1600px){.wrap,.top{max-width:1360px}.narrow{max-width:1100px}body{font-size:18px}}
 </style>
 </head>
 <body>
