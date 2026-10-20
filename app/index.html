@@ -9,6 +9,7 @@
 <script src="../config.js"></script>
 <script src="../track.js"></script>
 <script src="../curriculum/diagrams.js"></script>
+<script src="../curriculum/call-class.js"></script>
 <style>
 :root{--leaf:#3E7B3A;--leaf2:#72AA5C;--soil:#7E5A3B;--soil2:#B48A5E;--trunk:#6A4A2E;--onsoil:#FFF5E4;--sky:#DDEBF1;--sky2:#4F8AB0;--meadow:#DCEBC8;--gold:#F0B93A;--gold-d:#A9760F;--bloom:#D3648A;--apple:#C9473B;--bad:#B83E33;--good:#2C7F45;--skin:#E5B68C;--paper:#FFFFFF;--rock:#9AA095;--bg:#FFFFFF;--card:#fff;--ink:#2B3A2E;--muted:#5F6B63;--line:#E6EBE1;--accent:#3A8A1C;--accent-ink:#fff;--warn:#B4530A;--soft:#EAF6E1;--accent-d:#2A6812;--soft2:#F3F6EF;--brand:#5BB82E;--sun:#F5B700;--sun-d:#C99600;--sky3:#2E9BD6;--sky3-d:#1C7AAE;--skysoft:#E0F0FA;--flame:#FF9F1C;--lock:#E6EBE1;--lock-d:#CDD5C7}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--leaf:#5FA552;--leaf2:#3F7A36;--soil:#4E3824;--soil2:#7A5B3B;--trunk:#8C6A47;--onsoil:#F3E7D3;--sky:#1C2D35;--sky2:#6EA8CC;--meadow:#1F2E1B;--gold:#F2C24E;--gold-d:#E6AE3A;--bloom:#E07FA0;--apple:#E06A5C;--bad:#E46B5E;--good:#5DC27B;--skin:#D2A07A;--paper:#263027;--rock:#5E655A;--bg:#121512;--card:#1b201c;--ink:#e7ebe7;--muted:#9aa49d;--line:#2c332d;--accent:#6CC24A;--accent-ink:#0d130f;--warn:#e19a62;--soft:#1f2a22;--accent-d:#3E8E22;--soft2:#1A1F1B;--brand:#5BB82E;--sun:#F2C24E;--sun-d:#B38A1E;--sky3:#4AAEE3;--sky3-d:#1C7AAE;--skysoft:#16303D;--flame:#FFAE45;--lock:#2C332D;--lock-d:#232924}}
@@ -70,6 +71,55 @@ dialog::backdrop{background:rgba(0,0,0,.4)}
 .player{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:12px}.player .bar{height:10px;border-radius:99px}
 .player .lcard{font-size:18px;line-height:1.5;margin:14px 0}.metaphor{font-style:italic;color:var(--muted);margin:10px 0 0}
 .ldiagram{margin-bottom:12px}.nichepick{display:flex;flex-wrap:wrap;gap:6px;margin:-4px 0 10px}.nichepick .chipbtn{font-size:13px;padding:4px 10px}.player>.btn{align-self:flex-start}
+/* learn: the general courses on one side, the teacher lesson on the other */
+.learnsplit{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start}
+.learnsplit>.learn{flex:999 1 560px;min-width:0}
+.tlside{flex:1 1 300px;min-width:0;display:flex;flex-direction:column;gap:10px}
+.tlside h3{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:6px 0 0}
+.tlcard{display:block;width:100%;text-align:left;font:inherit;color:var(--ink);cursor:pointer;border-color:var(--sky3)}
+.tlcard:hover{background:var(--skysoft)}.tlcard b{display:block;font-size:18px;margin:6px 0 2px}
+.tlcard .bar{margin-top:10px}
+.livepill{display:inline-flex;align-items:center;gap:6px;background:var(--sun);color:#2B3A2E;border-radius:99px;padding:2px 10px;font-size:12px;font-weight:900;letter-spacing:.05em}
+/* teacher lesson player: part rail on the side, one screen at a time, never scrolls */
+.ccp{display:flex;height:calc(100vh - 76px);min-height:420px;border:2px solid var(--line);border-radius:18px;overflow:hidden;background:var(--card)}
+.ccrail{flex:none;width:84px;background:var(--soft2);border-right:2px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 0;overflow-y:auto}
+.ccrail .k{font-size:11px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.ccrail .n{font-size:28px;font-weight:900;line-height:1;color:var(--accent)}.ccrail .of{font-size:12px;color:var(--muted);margin-bottom:6px}
+.ccrail button{flex:none;width:42px;height:42px;border-radius:99px;font:inherit;font-weight:900;font-size:15px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:var(--card);border:2px solid var(--lock-d);color:var(--muted)}
+#ccplayer .ccrail button.done{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+#ccplayer .ccrail button.cur{background:var(--ink);border-color:var(--ink);color:var(--bg);box-shadow:0 0 0 4px #9FD57A}
+#ccplayer .ccrail button.live:not(.cur){outline:3px solid var(--sun);outline-offset:2px}
+.ccmain{flex:1;min-width:0;display:flex;flex-direction:column;gap:10px;padding:14px 26px 16px}
+.cctop{flex:none;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.cchead h2{margin:0;font-size:26px;line-height:1.15}.cchead h2 small{font-size:13px;color:var(--muted);font-weight:800;margin-left:8px}
+.cchead p{margin:4px 0 0;font-size:17px;line-height:1.4;font-weight:800;color:var(--accent-d)}
+.ccbody{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:12px;font-size:15px;line-height:1.45}
+.ccfoot{flex:none;display:flex;align-items:center;gap:12px;padding-top:12px;border-top:2px solid var(--line)}
+.ccfoot .dots{flex:1;display:flex;justify-content:center;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+.ccfoot .dots i{display:inline-block;width:10px;height:10px;border-radius:99px;background:var(--lock-d)}.ccfoot .dots i.on{width:22px;background:var(--accent)}
+.cc-lbl{font-size:12px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 4px}
+.cc-grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.cc-grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.cc-box{border:2px solid var(--line);border-radius:14px;padding:12px 14px}.cc-box p{margin:8px 0 0}.cc-bad{border-color:#F2C9C4}
+.cc-script{background:var(--soft2);border:2px solid var(--line);border-radius:14px;padding:9px 14px}
+.cc-note{background:var(--soft);border-radius:14px;padding:12px 14px;font-weight:800;color:var(--accent-d)}
+.cc-big{font-size:16px}.cc-tall{line-height:1.7}.cc-q{font-size:17px}.cc-k{font-size:13px;font-weight:900;color:var(--accent-d)}
+.cc-red{color:#9E3328}.cc-green{color:var(--accent-d)}.cc-blue{color:var(--sky3-d)}
+.cc-stack{display:flex;flex-direction:column;gap:8px}.cc-row{display:flex;gap:12px;align-items:center}
+.cc-num{flex:none;width:30px;height:30px;border-radius:99px;background:var(--ink);color:var(--bg);display:flex;align-items:center;justify-content:center;font-weight:900}.cc-num.cc-go{background:var(--accent);color:var(--accent-ink)}
+.cc-qa{display:grid;grid-template-columns:170px 1fr;gap:10px;align-items:center}.cc-gold{border-color:var(--sun);background:color-mix(in srgb,var(--sun) 16%,var(--card))}
+.cc-split{display:flex;gap:14px;flex-wrap:wrap}.cc-split>*{min-width:0}.cc-split>.cc-main{flex:1.6 1 300px}
+.cc-reset{flex:1 1 220px;align-self:flex-start;background:var(--skysoft);border-radius:18px;padding:16px 18px;font-weight:800;line-height:2}
+.cc-tick{display:flex;align-items:center;gap:12px;width:100%;font:inherit;font-weight:800;color:var(--ink);text-align:left;cursor:pointer;border:2px solid var(--line);border-radius:14px;padding:9px 14px;background:var(--card);min-height:46px}
+.cc-tick .bx{flex:none;width:26px;height:26px;border-radius:8px;border:2px solid #9FD57A;display:flex;align-items:center;justify-content:center;color:transparent}
+.cc-tick.on{border-color:#9FD57A;background:var(--soft2)}.cc-tick.on .bx{background:var(--accent);color:var(--accent-ink)}
+.cc-partner{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--skysoft);border-radius:14px;padding:10px 14px}
+.cc-dark{background:var(--ink);color:var(--bg);border-radius:18px;padding:18px 22px}.cc-dark b{display:block;font-size:24px;line-height:1.25}
+.cc-metric{border:2px solid var(--line);border-radius:14px;padding:10px 12px;display:flex;align-items:center;gap:12px}.cc-metric .v{font-size:28px;font-weight:900;min-width:36px}
+.cc-practice{flex:1 1 220px;align-self:flex-start;border:2px dashed #9FD57A;border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.ccteach .notes{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;font-size:15px}.ccteach .notes>div{flex:1 1 240px;border-radius:14px;padding:10px 12px}
+@media (max-width:899px){.ccmain{padding:10px 12px 12px}.ccrail{width:56px}.ccrail button{width:36px;height:36px;font-size:13px}.ccrail .n{font-size:22px}
+  .cc-grid3{grid-template-columns:1fr}.cc-qa{grid-template-columns:1fr;gap:2px}.cchead h2{font-size:21px}.cchead p{font-size:15px}}
+@media (max-width:640px){.cc-grid2{grid-template-columns:1fr}.ccbody{font-size:14px}.cctop>b,.cctop>.muted{display:none}}
 .welcome{border-color:var(--accent);background:linear-gradient(180deg,var(--soft),var(--card) 70%)}
 .behind{margin-top:10px;font-size:14px}
 .nextstep{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
@@ -1191,7 +1241,7 @@ const studentCard = (x, B, own) => `<div class="card stud" data-stud="${x.id}">
     <div class="row" style="margin-top:10px"><button class="btn sm" data-open="${x.id}">See everything</button>${own ? `<button class="btn ghost sm" data-drop="${x.id}">Let go</button>` : ""}</div></div>`;
 
 async function students() {
-  const [{ data: B, error }, { data: pool, error: e2 }, { data: W }] = await Promise.all([sb.rpc("teacher_board"), sb.rpc("teacher_pick_list"), sb.rpc("my_waiting")]);
+  const [{ data: B, error }, { data: pool, error: e2 }, { data: W }, cc] = await Promise.all([sb.rpc("teacher_board"), sb.rpc("teacher_pick_list"), sb.rpc("my_waiting"), teacherClassPanel()]);
   if (error || e2 || !B) return (app.innerHTML = `<p class="err">Couldn't load your students${error || e2 ? ": " + esc((error || e2).message) : ""}</p>`);
   const T = B.teachers.find((t) => t.id === me.id) || { students: [], goal: B.student_goal * B.cap };
   const S = T.students, total = sumOf(S, "pipeline_2wk"), open = Math.max(0, B.cap - S.length);
@@ -1204,6 +1254,7 @@ async function students() {
     <div class="card" id="tgoal" style="margin-top:12px"><div class="row" style="justify-content:space-between"><b>${money(total)} of ${money(T.goal)} through your students' pipelines</b>
       <span class="muted" style="font-size:14px">last ${B.days} days</span></div>${goalBar(total, T.goal)}
       <p style="margin:8px 0 0;font-size:14px" class="muted">Counts the job value of every lead your students logged in the last ${B.days} days that isn't marked lost. Both teachers together are going for ${money(T.goal * 2)}.</p></div>
+    ${cc.html}
     <div class="studgrid">${S.map((x) => studentCard(x, B, true)).join("")}${[...Array(open)].map(() => `<div class="card stud empty"><b>Open spot</b><p class="muted" style="margin:6px 0 0;font-size:14px">Pick a farmer below.</p></div>`).join("")}</div>
     <h3>${open ? `Pick your students` : `Everyone else`}</h3>
     <p class="muted" style="margin:-4px 0 8px;font-size:14px">${open ? `You can have ${B.cap}. Each farmer can only have one teacher, so whoever picks first gets them.` : `You have all ${B.cap}. Let one go to pick someone else.`}</p>
@@ -1213,6 +1264,7 @@ async function students() {
         <td style="white-space:nowrap">${p.teacher_id ? `<span class="muted">${esc(p.teacher)}'s student</span>`
           : open ? `<button class="btn sm" data-pick="${p.id}">Pick</button>` : ""}</td></tr>`).join("")
         || `<tr><td colspan="6" class="muted">No other paid farmers yet.</td></tr>`}</tbody></table></div></div>`;
+  cc.wire();
   $("#guide").onclick = () => teacherGuide(false);
   if (!me.teacher_guide_seen && !dlg.open) teacherGuide(true);
   app.querySelectorAll("[data-towait]").forEach((b) => b.onclick = () => { view = "approvals"; boot(); });
@@ -2217,6 +2269,7 @@ async function learn() {
     sb.from("teacher_questions").select("*").eq("farmer_id", me.id).order("created_at", { ascending: false }),
     sb.rpc("my_teacher"),
   ]);
+  const side = await teacherLessonSide();
   const quizzes = qz || [];
   if (!quizzes.length) return (app.innerHTML = `<div class="card muted">Lessons aren't available yet.</div>`);
   if (!quizzes.some((z) => z.key === learnQuiz)) learnQuiz = (quizzes.find((z) => z.key === "l" + lvl()) || quizzes[0]).key;
@@ -2227,7 +2280,7 @@ async function learn() {
   const done = doneSet();
   const myAsks = (asks || []).filter((t) => t.quiz === Z.key);
   const groups = groupLessons(mine);
-  app.innerHTML = `<div class="learn">
+  app.innerHTML = `<div class="learnsplit"><div class="learn">
     <div class="row" id="qzchips">${quizzes.map((z) => `<button class="chipbtn ${z.key === Z.key ? "on" : ""}" data-q="${z.key}">${esc(quizLabel(z))} · ${esc(z.title)}${!teacher() && (passes || []).some((p) => p.quiz === z.key) ? " ✓" : ""}</button>`).join("")}</div>
     <h2 style="font-size:20px;margin:18px 0 4px">${esc(quizLabel(Z))}: ${esc(Z.title)}</h2>
     <p class="muted" style="margin:0 0 14px">${mine.filter((l) => done.has(l.id)).length} of ${mine.length} lessons done</p>
@@ -2246,7 +2299,8 @@ async function learn() {
         <div class="row" style="justify-content:flex-end"><button class="btn" id="asksend">Send question</button></div>`
       : `<p class="muted" style="margin:6px 0">🔒 Ace the ${esc(quizLabel(Z))} quiz to ask about it. Everything on the quiz is in these lessons.</p>`}
       ${myAsks.map((t) => `<div class="qa"><p style="margin:0;white-space:pre-wrap"><b>You:</b> ${esc(t.body)}</p>
-        <p style="margin:4px 0 0;white-space:pre-wrap">${t.answer ? `<b>Answer:</b> ${esc(t.answer)}` : `<span class="muted">Waiting for an answer</span>`}</p></div>`).join("")}</div>`}</div>`;
+        <p style="margin:4px 0 0;white-space:pre-wrap">${t.answer ? `<b>Answer:</b> ${esc(t.answer)}` : `<span class="muted">Waiting for an answer</span>`}</p></div>`).join("")}</div>`}</div>${side.html}</div>`;
+  side.wire();
   app.querySelectorAll("[data-q]").forEach((b) => b.onclick = () => { learnQuiz = b.dataset.q; learn(); });
   app.querySelectorAll("[data-l]").forEach((b) => b.onclick = () => lessonView(mine, mine.findIndex((l) => l.id === b.dataset.l)));
   if ($("#startquiz")) $("#startquiz").onclick = () => quizView(Z, qq || [], mine);
@@ -2255,6 +2309,218 @@ async function learn() {
     if (error) return ($("#askerr").textContent = error.message);
     learn();
   };
+}
+
+// ---------- Teacher lessons: a teacher's own class that only their students see (Learn > Teacher lesson) ----------
+const TL = (k) => (window.TEACHER_LESSONS || {})[k];
+const ccTick = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>`;
+const ccDone = (d) => new Set((d && d.done) || []);
+const ccFirst = (L, part) => L.screens.findIndex((x) => x[0] === part);
+
+// The right-hand side of Learn
+async function teacherLessonSide() {
+  const head = `<aside class="tlside" id="tlside"><h3>Teacher lesson</h3>`;
+  const none = (t) => ({ html: `${head}<div class="card muted" style="font-size:14px">${t}</div></aside>`, wire: () => {} });
+  if (me?.role === "admin") {
+    const L = TL("call-confidence");
+    return { html: `${head}<button class="card tlcard" id="opencc"><span class="tag">Vincent Beck's students</span><b>${esc(L.title)}</b><span class="muted">Preview what his students see</span></button></aside>`,
+      wire: () => { $("#opencc").onclick = () => classView({ lesson: "call-confidence", teacher: "Vincent Beck", data: {} }, true); } };
+  }
+  if (teacher()) {
+    const { data: C } = await sb.rpc("teacher_class");
+    const L = C && TL(C.lesson);
+    if (!L) return none("You don't have a teacher lesson yet. Ask Alex if you want one for your students.");
+    return { html: `${head}<div class="card tlcard" style="cursor:default"><span class="tag">Your students see this on Learn</span><b>${esc(L.title)}</b>
+      <span class="muted">${C.live ? `<span class="livepill">LIVE</span> slide ${C.slide} of 17` : "Run it live from My students."}</span>
+      <div class="row" style="margin-top:10px"><button class="btn sm" id="runcc">Run class</button><button class="btn ghost sm" id="opencc">Preview</button></div></div></aside>`,
+      wire: () => { $("#runcc").onclick = () => { view = "students"; boot(); }; $("#opencc").onclick = () => classView({ lesson: C.lesson, teacher: me.full_name, data: {} }, true); } };
+  }
+  const { data: C } = await sb.rpc("my_class");
+  const L = C && TL(C.lesson);
+  if (!L) return none("When your teacher has a lesson just for their students, it shows up here.");
+  const n = ccDone(C.data).size;
+  return { html: `${head}<button class="card tlcard" id="opencc"><span class="tag">Only for ${esc(C.teacher)}'s students</span>${C.live ? ` <span class="livepill">LIVE NOW</span>` : ""}
+      <b>${esc(L.title)}</b><span class="muted">with ${esc(C.teacher)}</span>
+      <div class="bar"><i style="width:${Math.round((n / L.parts.length) * 100)}%"></i></div><small class="muted">${n} of ${L.parts.length} parts done</small></button></aside>`,
+    wire: () => { $("#opencc").onclick = () => classView(C, false); } };
+}
+
+const ccLive = (C, L) => C.live ? `<span class="livepill">LIVE · slide ${C.slide}</span> <button class="btn sm" id="ccjump">Jump to it</button>` : "";
+
+// The interactive screens (the rest are plain HTML in the lesson file)
+function ccScreen(key, C, L, d, preview) {
+  const partner = C.partner ? esc(C.partner) : "your partner";
+  if (key === "talk") return `<div>Short, polite, conversational. Say them your way. A word-for-word script makes you sound like a salesman.</div>
+    <div class="cc-grid2">${L.talking.map((t) => `<div class="cc-script">${esc(t)}</div>`).join("")}</div>
+    <button class="cc-tick${d.read ? " on" : ""}" data-read aria-pressed="${!!d.read}"><span class="bx">${ccTick}</span>I said these out loud 5 times</button>`;
+  if (key === "rp1") { const R = L.rounds[d.round || 0]; return `<div class="cc-partner"><span class="muted">Your partner</span><b>${C.partner ? esc(C.partner) : "Your teacher pairs you up in class"}</b></div>
+    <div>One of you calls, the other plays the contractor. Switch roles after each round.</div>
+    <div class="row">${L.rounds.map((r, i) => `<button class="chipbtn${i === (d.round || 0) ? " on" : ""}" data-round="${i}" aria-pressed="${i === (d.round || 0)}">${esc(r[0])}</button>`).join("")}</div>
+    <div class="cc-grid2 cc-big"><div class="cc-script"><div class="cc-lbl">Contractor says</div>${esc(R[1])}</div><div class="cc-box"><div class="cc-lbl cc-green">Caller's goal</div>${esc(R[2])}</div></div>`; }
+  if (key === "rp2") return `<div class="cc-lbl">Feedback rule: one thing done well, one thing to improve · ${esc(L.rounds[d.round || 0][0])}</div>
+    <label for="ccwell" style="margin:0">One thing ${partner} did well</label><textarea id="ccwell" rows="2"></textarea>
+    <label for="ccimprove" style="margin:0">One specific thing to improve</label><textarea id="ccimprove" rows="2"></textarea>
+    <div class="err" id="ccerr"></div><div><button class="btn" id="ccsend">Send to ${partner} and ${esc(C.teacher)}</button></div>`;
+  if (key === "chal") return `<div class="cc-split"><div class="cc-stack" style="flex:1.5 1 300px">${L.challenge.map((t, i) => `<button class="cc-tick${(d.chal || [])[i] ? " on" : ""}" data-chal="${i}" aria-pressed="${!!(d.chal || [])[i]}"><span class="bx">${ccTick}</span>${esc(t)}</button>`).join("")}</div>
+    <div class="cc-practice"><b style="font-size:17px">Practice calls</b><span class="muted" style="font-size:14px">3 to 5 respectful calls when you're ready. Review what happened, don't judge yourself.</span>
+      <span style="font-size:34px;font-weight:900">${d.practice || 0} / 5</span><button class="btn" id="ccaddcall">+1 call</button></div></div>`;
+  if (key === "trk1") return `<div>Your numbers, not promised conversion rates. Tap +1 as you go.</div>
+    <div class="cc-grid3">${L.metrics.map(([k, t, s]) => `<div class="cc-metric"><span class="v">${(d.m || {})[k] || 0}</span><span style="flex:1;min-width:0"><b>${esc(t)}</b><br><small class="muted">${esc(s)}</small></span>
+      <button class="btn ghost sm" data-metric="${k}" aria-label="Add one to ${esc(t)}">+1</button></div>`).join("")}</div>`;
+  if (key === "close") return `<div class="cc-dark"><b>Confidence comes from keeping promises to yourself.</b>Prepare. Make the call. Learn from it. Make the next one.</div>
+    <div class="cc-note">You don't need everyone to say yes. You need to get better at the process.</div>
+    <label for="ccdisc" style="margin:0">Discussion: what's one thing you can do this week to get a little more comfortable talking to people?</label>
+    <textarea id="ccdisc" rows="2"></textarea><div class="err" id="ccerr"></div><div><button class="btn" id="ccshare">Share with ${esc(C.teacher)}</button></div>`;
+  return "";
+}
+
+// Size the lesson player to the window and split a screen's blocks into pages that fit it (no scrolling).
+function ccFit() {
+  const el = $("#ccplayer"), body = el.querySelector(".ccbody");
+  const pb = parseFloat(getComputedStyle(el.parentElement).paddingBottom) || 0;
+  window.scrollTo(0, 0);
+  el.style.height = Math.max(420, innerHeight - el.getBoundingClientRect().top - pb) + "px";
+  const box = ".cc-grid2,.cc-grid3,.cc-stack,.cc-split";
+  const unitsOf = (x) => (x.matches(box) ? [...x.children].flatMap(unitsOf) : [x]);
+  const units = [...body.children].flatMap(unitsOf);
+  const boxes = [...body.querySelectorAll(box)];
+  const show = (keep) => {
+    units.forEach((u) => (u.style.display = keep.has(u) ? "" : "none"));
+    boxes.forEach((b) => (b.style.display = unitsOf(b).some((u) => keep.has(u)) ? "" : "none"));
+  };
+  const pages = [];
+  let cur = [];
+  for (const u of units) {
+    show(new Set([...cur, u]));
+    if (body.scrollHeight <= body.clientHeight + 1 || !cur.length) cur.push(u);
+    else { pages.push(cur); cur = [u]; }
+  }
+  pages.push(cur);
+  return { count: pages.length, show: (i) => show(new Set(pages[i])) };
+}
+
+// The student's lesson screen: part numbers on the side, one screen at a time, no scrolling. preview = Alex or the teacher looking (nothing saves).
+let ccTimer = null, ccRedraw = null, ccResize = null;
+addEventListener("resize", () => { clearTimeout(ccResize); ccResize = setTimeout(() => $("#ccplayer") && ccRedraw && ccRedraw(), 200); });
+function classView(C, preview, pos, sub) {
+  const L = TL(C.lesson), SC = L.screens;
+  const d = (C.data = Object.assign({ done: [], chal: [], m: {}, practice: 0, read: false, round: 0, pos: 0 }, C.data));
+  if (pos == null) pos = Math.max(0, Math.min(SC.length - 1, d.pos || 0));
+  d.pos = pos;
+  const part = SC[pos][0], key = SC[pos][1], P = L.parts[part];
+  const inPart = SC.map((x, i) => i).filter((i) => SC[i][0] === part), k = inPart.indexOf(pos), last = k === inPart.length - 1;
+  const done = ccDone(d), livePart = C.live ? L.slidePart[C.slide - 1] : -1;
+  const save = () => { if (!preview) sb.rpc("class_save", { p_data: d }).then(({ error }) => error && console.warn(error.message)); };
+  const go = (p) => { d.pos = p; save(); classView(C, preview, p); };
+  ccRedraw = () => classView(C, preview, pos);
+  const redraw = () => { save(); classView(C, preview, pos); };
+  app.innerHTML = `<div class="ccp" id="ccplayer">
+    <nav class="ccrail" aria-label="Parts"><span class="k">Part</span><span class="n">${part + 1}</span><span class="of">of ${L.parts.length}</span>
+      ${L.parts.map((x, i) => `<button type="button" data-part="${i}" class="${i === part ? "cur" : done.has(i) ? "done" : ""}${i === livePart ? " live" : ""}" aria-label="Part ${i + 1}: ${esc(x[0])}${done.has(i) ? ", done" : ""}"${i === part ? ' aria-current="step"' : ""}>${done.has(i) && i !== part ? ccTick : i + 1}</button>`).join("")}</nav>
+    <div class="ccmain">
+      <div class="cctop"><button class="btn ghost sm" id="ccback">← ${view === "students" ? "My students" : "Learn"}</button><b>${esc(L.title)}</b><span class="muted" style="font-size:13px">with ${esc(C.teacher)}${preview ? " · preview, nothing saves" : ""}</span>
+        <span id="cclive" style="margin-left:auto">${ccLive(C, L)}</span></div>
+      <div class="cchead"><h2>${esc(P[0])}<small>${esc(P[1])}</small></h2><p>${esc(P[2])}</p></div>
+      <div class="ccbody">${L.html[key] || ccScreen(key, C, L, d, preview)}</div>
+      <div class="ccfoot"><button class="btn ghost" id="ccprev"${pos ? "" : " disabled"}>Back</button>
+        <span class="dots">${inPart.length > 1 ? inPart.map((i) => `<i class="${i === pos ? "on" : ""}"></i>`).join("") + ` <span>Screen ${k + 1} of ${inPart.length}</span>` : ""}</span>
+        <button class="btn" id="ccnext">${pos === SC.length - 1 ? "Finish" : last ? "Next part" : "Next"}</button></div></div></div>`;
+  // No scrolling: the player fills the window, and a screen too tall for it (small phones) is split into pages
+  const pg = ccFit(), nextLabel = $("#ccnext").textContent, dots = app.querySelector(".ccfoot .dots").innerHTML;
+  let page = sub === "last" ? pg.count - 1 : 0;
+  const showPage = () => {
+    pg.show(page);
+    $("#ccnext").textContent = page < pg.count - 1 ? "More" : nextLabel;
+    app.querySelector(".ccfoot .dots").innerHTML = dots + (pg.count > 1 ? ` <span>Page ${page + 1} of ${pg.count}</span>` : "");
+    $("#ccprev").disabled = !pos && !page;
+  };
+  showPage();
+  const wireJump = () => { if ($("#ccjump")) $("#ccjump").onclick = () => go(ccFirst(L, L.slidePart[C.slide - 1])); };
+  wireJump();
+  app.querySelectorAll("[data-part]").forEach((b) => b.onclick = () => go(ccFirst(L, +b.dataset.part)));
+  $("#ccback").onclick = () => { clearInterval(ccTimer); view === "students" ? students() : learn(); };
+  $("#ccprev").onclick = () => { if (page) { page--; return showPage(); } if (pos) { d.pos = pos - 1; save(); classView(C, preview, pos - 1, "last"); } };
+  $("#ccnext").onclick = () => {
+    if (page < pg.count - 1) { page++; return showPage(); }
+    if (last && !done.has(part)) d.done = [...done, part];
+    if (pos === SC.length - 1) { save(); clearInterval(ccTimer); return view === "students" ? students() : learn(); }
+    go(pos + 1);
+  };
+  if (app.querySelector("[data-read]")) app.querySelector("[data-read]").onclick = () => { d.read = !d.read; redraw(); };
+  app.querySelectorAll("[data-round]").forEach((b) => b.onclick = () => { d.round = +b.dataset.round; redraw(); });
+  app.querySelectorAll("[data-chal]").forEach((b) => b.onclick = () => { const a = (d.chal = [...(d.chal || [])]); a[+b.dataset.chal] = !a[+b.dataset.chal]; redraw(); });
+  app.querySelectorAll("[data-metric]").forEach((b) => b.onclick = () => { d.m = { ...d.m, [b.dataset.metric]: (d.m[b.dataset.metric] || 0) + 1 }; redraw(); });
+  if ($("#ccaddcall")) $("#ccaddcall").onclick = () => { d.practice = Math.min(5, (d.practice || 0) + 1); d.m = { ...d.m, calls: (d.m.calls || 0) + 1 }; redraw(); };
+  const send = async (btn, args) => {
+    if (preview) return ($("#ccerr").textContent = "Preview only: nothing is sent.");
+    btn.disabled = true;
+    const { error } = await sb.rpc("class_feedback_send", args);
+    btn.disabled = false;
+    if (error) return ($("#ccerr").textContent = error.message);
+    btn.textContent = "Sent ✓";
+    app.querySelectorAll("#ccbody textarea, .ccbody textarea").forEach((t) => (t.value = ""));
+  };
+  if ($("#ccsend")) $("#ccsend").onclick = (e) => send(e.currentTarget, { p_kind: "roleplay", p_round: (d.round || 0) + 1, p_well: $("#ccwell").value, p_improve: $("#ccimprove").value, p_to: C.partner_id || null });
+  if ($("#ccshare")) $("#ccshare").onclick = (e) => send(e.currentTarget, { p_kind: "discussion", p_round: null, p_well: $("#ccdisc").value, p_improve: "", p_to: null });
+  // follow the teacher: what's live updates every 15 seconds while the lesson is open
+  clearInterval(ccTimer);
+  if (!preview) ccTimer = setInterval(async () => {
+    if (!$("#ccplayer")) return clearInterval(ccTimer);
+    const { data: N } = await sb.rpc("my_class");
+    if (!N || !$("#ccplayer")) return;
+    Object.assign(C, { live: N.live, slide: N.slide, partner: N.partner, partner_id: N.partner_id });
+    const lp = C.live ? L.slidePart[C.slide - 1] : -1;
+    $("#cclive").innerHTML = ccLive(C, L);
+    wireJump();
+    app.querySelectorAll("[data-part]").forEach((b) => b.classList.toggle("live", +b.dataset.part === lp));
+  }, 15000);
+}
+
+// The teacher's side, on My students: run the class live, pairs, how each student is doing, feedback
+async function teacherClassPanel() {
+  const { data: C } = await sb.rpc("teacher_class");
+  const L = C && TL(C.lesson);
+  if (!L) return { html: "", wire: () => {} };
+  const pi = L.slidePart[C.slide - 1], N = L.notes[pi], T = L.parts.length;
+  const names = Object.fromEntries(C.students.map((s) => [s.id, s.name]));
+  const pairs = (C.pairs || []).map((p) => p.map((id) => (id === me.id ? "you" : esc(names[id] || "someone who left"))).join(" with "));
+  const fb = (C.feedback || []).map((f) => `<div class="qa">${f.kind === "discussion"
+    ? `<b>${esc(f.from_name)}</b> answered the discussion<br>${esc(f.well)}`
+    : `<b>${esc(f.from_name)}</b> on ${f.to_name ? esc(f.to_name) + "'s" : "their partner's"} call · Round ${f.round || "?"}<br><b>Did well:</b> ${esc(f.well)}<br><b>Improve:</b> ${esc(f.improve)}`}
+    <br><small class="muted">${new Date(f.created_at).toLocaleString()}</small></div>`).join("");
+  const html = `<div class="card ccteach" id="ccteach" style="margin-top:12px">
+    <div class="row" style="justify-content:space-between"><b style="font-size:18px">Teacher lesson: ${esc(L.title)}</b>${C.live ? `<span class="livepill">LIVE</span>` : `<span class="tag">Not live</span>`}</div>
+    <p style="margin:6px 0 0"><b>Slide ${C.slide} of 17</b> · ${esc(L.slideName[C.slide - 1])} · students see Part ${pi + 1}: ${esc(L.parts[pi][0])}</p>
+    <div class="row" style="margin-top:10px"><button class="btn sm" data-cc="live">${C.live ? "End class" : "Start class"}</button>
+      <button class="btn ghost sm" data-cc="prev"${C.slide <= 1 ? " disabled" : ""}>Prev slide</button><button class="btn ghost sm" data-cc="next"${C.slide >= 17 ? " disabled" : ""}>Next slide</button>
+      <button class="btn ghost sm" id="ccpreview">See what they see</button></div>
+    <div class="notes"><div style="background:var(--soft)"><div class="cc-lbl">${esc(N[0])} · the point</div><b>${esc(N[1])}</b></div>
+      <div style="background:color-mix(in srgb,var(--sun) 18%,var(--card))"><div class="cc-lbl">Do with the class</div>${esc(N[2])}</div>
+      <div style="background:var(--skysoft)"><div class="cc-lbl">Students are seeing</div>${esc(N[3])}</div></div>
+    <h3 style="font-size:15px;margin:16px 0 6px">Role play pairs</h3>
+    <div class="row"><span style="font-size:14px">${pairs.length ? pairs.join(" · ") : "Not paired yet."}</span><button class="btn ghost sm" data-cc="pairs">${pairs.length ? "Shuffle again" : "Pair them up"}</button></div>
+    <h3 style="font-size:15px;margin:16px 0 6px">How your students are doing</h3>
+    <div class="tablewrap"><table><thead><tr><th>Student</th><th>Parts</th><th>Challenge</th><th>Practice calls</th><th>Calls made</th><th>Agreements</th><th>Last opened</th></tr></thead><tbody>
+      ${C.students.map((s) => { const d = s.data || {}; return `<tr><td><b>${esc(s.name)}</b></td><td>${ccDone(d).size} / ${T}</td><td>${(d.chal || []).filter(Boolean).length} / 5</td>
+        <td>${d.practice || 0} / 5</td><td>${(d.m || {}).calls || 0}</td><td>${(d.m || {}).agreed || 0}</td><td class="muted">${s.updated_at ? esc(daysAgo(s.updated_at).replace("last active ", "")) : "not opened yet"}</td></tr>`; }).join("")
+        || `<tr><td colspan="7" class="muted">Pick students below and they'll show up here.</td></tr>`}</tbody></table></div>
+    <h3 style="font-size:15px;margin:16px 0 0">Latest feedback</h3>${fb || `<p class="muted" style="margin:6px 0 0;font-size:14px">Nothing yet. Role-play feedback and discussion answers land here.</p>`}
+    <details style="margin-top:14px"><summary style="cursor:pointer;font-weight:800">Pacing (slide 17, only you see this)</summary>
+      <div class="tablewrap"><table><tbody>${L.pacing.map((r) => `<tr><td><b>${esc(r[0])}</b></td><td>${esc(r[1])}</td><td class="muted">${esc(r[2])}</td></tr>`).join("")}</tbody></table></div>
+      <p class="muted" style="margin:8px 0 0;font-size:14px">${esc(L.tip)}</p></details>
+    <div class="err" id="ccerr2"></div></div>`;
+  const wire = () => {
+    app.querySelectorAll("[data-cc]").forEach((b) => b.onclick = async () => {
+      b.disabled = true;
+      const a = b.dataset.cc;
+      const { error } = a === "pairs" ? await sb.rpc("class_shuffle_pairs")
+        : await sb.rpc("class_control", { p_live: a === "live" ? !C.live : C.live, p_slide: C.slide + (a === "next" ? 1 : a === "prev" ? -1 : 0) });
+      if (error) { b.disabled = false; return ($("#ccerr2").textContent = error.message); }
+      students();
+    });
+    $("#ccpreview").onclick = () => classView({ lesson: C.lesson, teacher: me.full_name, data: {}, live: C.live, slide: C.slide }, true, ccFirst(L, pi));
+  };
+  return { html, wire };
 }
 
 let nichePick = 0;
