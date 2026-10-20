@@ -624,7 +624,7 @@ async function addOwnTrade(name) {
 const locked = () => me?.role !== "admin" && !me?.verifier && !me?.enrollment_paid;
 const lvl = () => (me?.role === "admin" || teacher() ? 3 : me?.level || 0);  // teachers get the whole CRM to farm alongside students
 const reviewer = () => me?.role === "admin" || me?.verifier;
-const teacher = () => me?.verifier && me?.role !== "admin";  // Vincent and Julian: pick up to 4 students
+const teacher = () => me?.verifier && me?.role !== "admin";  // Vincent and Julian: pick as many students as they want
 
 // Paid farmers who haven't accepted the current Terms (paid before the agree box existed, or the Terms changed)
 // see this once per sign-in. "Not now" lets them in; turning the Terms down offers a refund request instead.
@@ -1154,13 +1154,13 @@ async function approvals() {
   await programReviews(whose);
 }
 
-// ---------- teachers: My students (pick up to 4, their last 2 weeks against the $1,000 goal) ----------
+// ---------- teachers: My students (pick any number, their last 2 weeks against the $1,000 goal) ----------
 // "Through the pipeline" = job value of leads a student logged in the last 14 days that aren't marked lost.
 const sumOf = (a, k) => a.reduce((t, x) => t + Number(x[k] || 0), 0);
 const goalBar = (v, goal) => `<div class="bar" style="height:12px"><i style="width:${goal ? Math.min(100, (Number(v || 0) / goal) * 100) : 0}%"></i></div>`;
 const daysAgo = (t) => { if (!t) return "nothing logged yet"; const d = Math.floor((Date.now() - new Date(t)) / DAY); return "last active " + (d <= 0 ? "today" : d === 1 ? "yesterday" : d + " days ago"); };
 
-// Alex's Growth tab: both teachers' groups against $4,000 each and $8,000 together
+// Alex's Growth tab: both teachers' groups against $1,000 per student
 function teacherGoals(B) {
   const ts = B?.teachers || [];
   if (!ts.length) return "";
@@ -1168,13 +1168,12 @@ function teacherGoals(B) {
   return `<h3>Teacher goals</h3>
     <div class="card" id="tgoals"><div class="row" style="justify-content:space-between"><b>${money(total)} of ${money(goal)} through students' pipelines</b>
       <span class="muted" style="font-size:14px">last ${B.days} days</span></div>${goalBar(total, goal)}
-      <p class="muted" style="margin:6px 0 0;font-size:13px">${money(B.student_goal)} per student every 2 weeks, ${B.cap} students per teacher. Counts the job value of leads logged in the last ${B.days} days that aren't marked lost.</p>
+      <p class="muted" style="margin:6px 0 0;font-size:13px">${money(B.student_goal)} per student every 2 weeks. Counts the job value of leads logged in the last ${B.days} days that aren't marked lost.</p>
       <div class="tgrid">${ts.map((t) => { const v = sumOf(t.students, "pipeline_2wk"); return `<div class="tgroup" data-tg="${t.id}">
         <div class="row" style="justify-content:space-between"><b>${esc(t.full_name)}</b><span>${money(v)} of ${money(t.goal)}</span></div>${goalBar(v, t.goal)}
         <ul class="todo" style="margin:8px 0 0">${t.students.map((s) => `<li style="display:flex;gap:6px;align-items:baseline"><span style="flex:1">${esc(s.full_name)} <small class="muted">Lv ${s.level}</small></span>
           <b>${money(s.pipeline_2wk)}</b> <small class="muted">/ ${money(B.student_goal)}</small></li>`).join("")
-          || `<li class="muted">Hasn't picked anyone yet.</li>`}
-          ${t.students.length && t.students.length < B.cap ? `<li class="muted">${B.cap - t.students.length} spot${B.cap - t.students.length > 1 ? "s" : ""} open</li>` : ""}</ul></div>`; }).join("")}</div></div>`;
+          || `<li class="muted">Hasn't picked anyone yet.</li>`}</ul></div>`; }).join("")}</div></div>`;
 }
 
 // One student's card. A teacher sees "Let go" on their own students; Alex sees the same card on the Teachers tab.
@@ -1193,25 +1192,25 @@ const studentCard = (x, B, own) => `<div class="card stud" data-stud="${x.id}">
 async function students() {
   const [{ data: B, error }, { data: pool, error: e2 }, { data: W }] = await Promise.all([sb.rpc("teacher_board"), sb.rpc("teacher_pick_list"), sb.rpc("my_waiting")]);
   if (error || e2 || !B) return (app.innerHTML = `<p class="err">Couldn't load your students${error || e2 ? ": " + esc((error || e2).message) : ""}</p>`);
-  const T = B.teachers.find((t) => t.id === me.id) || { students: [], goal: B.student_goal * B.cap };
-  const S = T.students, total = sumOf(S, "pipeline_2wk"), open = Math.max(0, B.cap - S.length);
+  const T = B.teachers.find((t) => t.id === me.id) || { students: [], goal: 0 };
+  const S = T.students, total = sumOf(S, "pipeline_2wk");
   const waitN = Object.values(W || {}).reduce((n, v) => n + Number(v || 0), 0);
   const others = (pool || []).filter((p) => p.teacher_id !== me.id);
   app.innerHTML = `<div class="dash" id="studentspage" style="max-width:1000px">
     <div class="row" style="justify-content:space-between"><h2 style="font-size:22px;margin:4px 0 0">My students</h2><button class="btn ghost sm" id="guide">How this works</button></div>
-    <p class="muted" style="margin:2px 0 0">${S.length} of ${B.cap} picked · goal is ${money(B.student_goal)} each every 2 weeks</p>
+    <p class="muted" style="margin:2px 0 0">${S.length} picked · goal is ${money(B.student_goal)} each every 2 weeks</p>
     ${waitN ? `<div class="card needs" id="studwait" style="margin-top:12px"><div class="row"><span><b>${waitN}</b> thing${waitN === 1 ? "" : "s"} from your students ${waitN === 1 ? "is" : "are"} waiting on you</span><button class="btn sm" data-towait="1">Open Approvals</button></div></div>` : ""}
     <div class="card" id="tgoal" style="margin-top:12px"><div class="row" style="justify-content:space-between"><b>${money(total)} of ${money(T.goal)} through your students' pipelines</b>
       <span class="muted" style="font-size:14px">last ${B.days} days</span></div>${goalBar(total, T.goal)}
-      <p style="margin:8px 0 0;font-size:14px" class="muted">Counts the job value of every lead your students logged in the last ${B.days} days that isn't marked lost. Both teachers together are going for ${money(T.goal * 2)}.</p></div>
-    <div class="studgrid">${S.map((x) => studentCard(x, B, true)).join("")}${[...Array(open)].map(() => `<div class="card stud empty"><b>Open spot</b><p class="muted" style="margin:6px 0 0;font-size:14px">Pick a farmer below.</p></div>`).join("")}</div>
-    <h3>${open ? `Pick your students` : `Everyone else`}</h3>
-    <p class="muted" style="margin:-4px 0 8px;font-size:14px">${open ? `You can have ${B.cap}. Each farmer can only have one teacher, so whoever picks first gets them.` : `You have all ${B.cap}. Let one go to pick someone else.`}</p>
+      <p style="margin:8px 0 0;font-size:14px" class="muted">Counts the job value of every lead your students logged in the last ${B.days} days that isn't marked lost. Your goal grows by ${money(B.student_goal)} with each student you pick.</p></div>
+    <div class="studgrid">${S.map((x) => studentCard(x, B, true)).join("") || `<div class="card stud empty"><b>No students yet</b><p class="muted" style="margin:6px 0 0;font-size:14px">Pick a farmer below.</p></div>`}</div>
+    <h3>Pick your students</h3>
+    <p class="muted" style="margin:-4px 0 8px;font-size:14px">Pick as many as you can teach. Each farmer can only have one teacher, so whoever picks first gets them.</p>
     <div class="err" id="pickerr"></div>
     <div class="card tablewrap" id="pool"><table><thead><tr><th>Farmer</th><th>Level</th><th>Day</th><th>Contractors</th><th>Last active</th><th></th></tr></thead><tbody>
       ${others.map((p) => `<tr><td><b>${esc(p.full_name)}</b></td><td>${p.level}</td><td>${p.day ?? ""}</td><td>${p.contractors}</td><td>${esc(daysAgo(p.last_active).replace("last active ", ""))}</td>
         <td style="white-space:nowrap">${p.teacher_id ? `<span class="muted">${esc(p.teacher)}'s student</span>`
-          : open ? `<button class="btn sm" data-pick="${p.id}">Pick</button>` : ""}</td></tr>`).join("")
+          : `<button class="btn sm" data-pick="${p.id}">Pick</button>`}</td></tr>`).join("")
         || `<tr><td colspan="6" class="muted">No other paid farmers yet.</td></tr>`}</tbody></table></div></div>`;
   $("#guide").onclick = () => teacherGuide(false);
   if (!me.teacher_guide_seen && !dlg.open) teacherGuide(true);
@@ -1240,17 +1239,17 @@ async function teachers() {
   const ts = B.teachers || [], T = ts.find((t) => t.id === teacherSel);
   const n = (k, S) => sumOf(S, k);
   const pick = (t) => { const v = n("pipeline_2wk", t.students); return `<button class="card tpick${t.id === teacherSel ? " on" : ""}" data-tsel="${t.id}">
-      <div class="row" style="justify-content:space-between;flex-wrap:nowrap"><b style="font-size:17px">${esc(t.full_name)}</b><span class="tag">${t.students.length} of ${B.cap} students</span></div>
+      <div class="row" style="justify-content:space-between;flex-wrap:nowrap"><b style="font-size:17px">${esc(t.full_name)}</b><span class="tag">${t.students.length} student${t.students.length === 1 ? "" : "s"}</span></div>
       <div style="margin-top:8px"><b>${money(v)}</b> <span class="muted">of ${money(t.goal)}</span>${goalBar(v, t.goal)}</div></button>`; };
   let dash = "";
   if (T) {
-    const S = T.students, total = n("pipeline_2wk", S), open = Math.max(0, B.cap - S.length);
+    const S = T.students, total = n("pipeline_2wk", S);
     const stat = (v, k, sub = "") => `<div class="card stat"><div class="v">${v}</div><div class="k">${k}</div>${sub ? `<small>${sub}</small>` : ""}</div>`;
     const waiting = n("waiting", S), stuck = S.filter((x) => (x.reasons || []).length).length;
     dash = `<div id="tdash">
       <h3 style="font-size:20px">${esc(T.full_name)}'s students</h3>
       <div class="stats" id="tstats">
-        ${stat(`${S.length} of ${B.cap}`, "Students", open ? `${open} spot${open > 1 ? "s" : ""} open` : "Full")}
+        ${stat(`${S.length}`, "Students", `${money(B.student_goal)} goal each`)}
         ${stat(money(total), "Through their pipelines", `of ${money(T.goal)}, last ${B.days} days`)}
         ${stat(n("leads_2wk", S), "Leads sent", `last ${B.days} days`)}
         ${stat(n("contractors_2wk", S), "New contractors", `last ${B.days} days`)}
@@ -1262,7 +1261,7 @@ async function teachers() {
       <div class="card" style="margin-top:12px"><div class="row" style="justify-content:space-between"><b>${money(total)} of ${money(T.goal)} through ${esc(T.full_name)}'s group</b>
         <span class="muted" style="font-size:14px">last ${B.days} days</span></div>${goalBar(total, T.goal)}
         <p class="muted" style="margin:6px 0 0;font-size:13px">${money(B.student_goal)} per student every 2 weeks. Counts the job value of leads logged in the last ${B.days} days that aren't marked lost.</p></div>
-      <div class="studgrid">${S.map((x) => studentCard(x, B, false)).join("")}${[...Array(open)].map(() => `<div class="card stud empty"><b>Open spot</b><p class="muted" style="margin:6px 0 0;font-size:14px">${esc(T.full_name)} can still pick a student, or you can hand one over on the Farmers tab.</p></div>`).join("")}</div></div>`;
+      <div class="studgrid">${S.map((x) => studentCard(x, B, false)).join("")}<div class="card stud empty"><b>Room for more</b><p class="muted" style="margin:6px 0 0;font-size:14px">${esc(T.full_name)} can pick more students, or you can hand one over on the Farmers tab.</p></div></div></div>`;
   }
   app.innerHTML = `<div class="dash" id="teacherspage" style="max-width:1000px">
     <h2 style="font-size:22px;margin:4px 0 0">Teachers</h2>
@@ -1282,10 +1281,10 @@ function teacherGuide(first) {
       <h2 style="font-size:44px;margin:6px 0 4px;letter-spacing:.04em">WAIT</h2>
       <p style="font-size:18px;font-weight:800;margin:0 0 6px">Don't close this. This is actually custom from big dawg Alex.</p></div>` : null,
     `<div style="text-align:center">${big(80)}<h2 style="font-size:24px;margin:6px 0 10px">You're a Lead Farming teacher</h2></div>
-      <p style="font-size:16px">${esc(firstName())}, you now get to pick <b>4 farmers</b> to teach. Once you pick them you can see all of their data: their contractors, calls, leads, quizzes, questions and 90-day progress.</p>
-      <p style="font-size:16px">Your job is to make sure your 4 make money lead farming.</p>`,
-    `<h2 style="font-size:22px;margin:0 0 10px">1. Pick your 4</h2>
-      <p style="font-size:16px">Open the <b>My students</b> tab and press <b>Pick</b> next to a farmer. You can have 4, and each farmer can only have one teacher, so whoever picks first gets them.</p>
+      <p style="font-size:16px">${esc(firstName())}, you now get to pick <b>farmers</b> to teach, as many as you can handle. Once you pick them you can see all of their data: their contractors, calls, leads, quizzes, questions and 90-day progress.</p>
+      <p style="font-size:16px">Your job is to make sure every one of them makes money lead farming.</p>`,
+    `<h2 style="font-size:22px;margin:0 0 10px">1. Pick your students</h2>
+      <p style="font-size:16px">Open the <b>My students</b> tab and press <b>Pick</b> next to a farmer. There's no limit, but each farmer can only have one teacher, so whoever picks first gets them.</p>
       <p style="font-size:16px">Picked the wrong person? Press <b>Let go</b> on their card and pick someone else.</p>`,
     `<h2 style="font-size:22px;margin:0 0 10px">2. Their questions and approvals come to you</h2>
       <p style="font-size:16px">Everything your students send now goes to you instead of Alex. It shows up on the <b>Approvals</b> tab, with a number on the tab when something is waiting:</p>
@@ -1295,7 +1294,7 @@ function teacherGuide(first) {
         <li><b>Their 15 business models.</b> Make sure they don't overlap, then Approve or Send back.</li></ul>
       <p class="muted" style="font-size:14px">Refund packages still go to Alex.</p>`,
     `<h2 style="font-size:22px;margin:0 0 10px">3. The goal: ${money(1000)} each, every 2 weeks</h2>
-      <p style="font-size:16px">Each of your students should run <b>${money(1000)}</b> through their pipeline every 2 weeks. That's <b>${money(4000)}</b> across your 4, and <b>${money(8000)}</b> across both teachers' groups.</p>
+      <p style="font-size:16px">Each of your students should run <b>${money(1000)}</b> through their pipeline every 2 weeks. So with 4 students your goal is <b>${money(4000)}</b>, with 6 it's <b>${money(6000)}</b>.</p>
       <p style="font-size:16px">It counts the job value of every lead they log in the last 14 days that isn't marked lost. Leads open at Level 2, so job one is getting each student to Level 2.</p>`,
     `<h2 style="font-size:22px;margin:0 0 10px">4. Check in every day</h2>
       <p style="font-size:16px">Each student's card on <b>My students</b> shows their last 2 weeks, what they're stuck on, and their number so you can call them. Press <b>See everything</b> for their whole history.</p>
@@ -2595,7 +2594,7 @@ async function admin() {
       <div class="card stat"><div class="v">${money((fs || []).filter((f) => f.enrollment_paid && !f.comp).reduce((t, f) => t + Number(f.enrollment_fee ?? 0), 0))}</div><div class="k">Enrollment revenue</div></div>
       <div class="card stat"><div class="v">${(fs||[]).reduce((a,f)=>a+Number(f.active_network),0)}</div><div class="k">Contractors in all networks</div></div>
     </div>
-    <div class="card tablewrap"><table><thead><tr><th>Farmer</th><th>Recruited by</th><th>Enrollment</th><th title="Free account: full access, not counted as revenue">Free</th><th>Level</th><th>Verifier</th><th title="Their teacher answers their questions and reviews their level-ups. 4 students per teacher.">Teacher</th><th>Network</th><th>Leads (closed)</th><th>Fees earned</th><th>Recruits</th></tr></thead><tbody>
+    <div class="card tablewrap"><table><thead><tr><th>Farmer</th><th>Recruited by</th><th>Enrollment</th><th title="Free account: full access, not counted as revenue">Free</th><th>Level</th><th>Verifier</th><th title="Their teacher answers their questions and reviews their level-ups.">Teacher</th><th>Network</th><th>Leads (closed)</th><th>Fees earned</th><th>Recruits</th></tr></thead><tbody>
     ${(fs || []).map((f) => `<tr><td><button class="linkbtn" data-fp="${f.id}"><b>${esc(f.full_name || f.email)}</b></button><br><small class="muted">${esc(f.email)}</small></td>
       <td>${esc(byId[f.recruited_by]?.full_name || "")}</td>
       <td>${f.enrollment_paid ? `<span class="tag">${f.comp ? "free" : "paid"}</span>` : `<button class="btn sm" data-pay="${f.id}">Mark ${money(C.PRICE)} paid</button>`}</td>
@@ -2603,7 +2602,7 @@ async function admin() {
       <td><select data-lvl="${f.id}" style="width:auto">${[0,1,2,3].map((n) => `<option ${n === f.level ? "selected" : ""}>${n}</option>`).join("")}</select></td>
       <td><input type="checkbox" data-ver="${f.id}" ${f.verifier ? "checked" : ""} style="width:auto"></td>
       <td>${f.verifier || !f.enrollment_paid ? "" : `<select data-tch="${f.id}" style="width:auto" aria-label="Teacher for ${esc(f.full_name || f.email)}"><option value="">You (Alex)</option>
-        ${teachers.map((t) => `<option value="${t.id}" ${t.id === teacherOf[f.id] ? "selected" : ""}>${esc(t.full_name || t.email)} (${load(t.id)}/4)</option>`).join("")}</select>`}</td>
+        ${teachers.map((t) => `<option value="${t.id}" ${t.id === teacherOf[f.id] ? "selected" : ""}>${esc(t.full_name || t.email)} (${load(t.id)})</option>`).join("")}</select>`}</td>
       <td>${f.active_network} / ${f.contractors}</td><td>${f.leads} (${f.leads_closed})</td><td>${money(f.fees_earned)}</td><td>${f.recruits}</td></tr>`).join("")
       || `<tr><td colspan="11" class="muted">No farmers yet.</td></tr>`}
     </tbody></table></div>`;
