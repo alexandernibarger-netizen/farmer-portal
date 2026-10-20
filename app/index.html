@@ -83,6 +83,8 @@ dialog::backdrop{background:rgba(0,0,0,.4)}
 .linkbtn{background:none;border:0;padding:0;font:inherit;color:var(--accent);text-align:left;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
 .badge{display:inline-block;min-width:18px;padding:0 5px;border-radius:99px;background:var(--warn);color:#fff;font-size:11px;line-height:18px;text-align:center;font-weight:700}
 .studgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-top:12px}.stud{margin:0}.stud.empty{border-style:dashed;opacity:.75}
+.tpicks{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:12px}
+.tpick{text-align:left;font:inherit;color:var(--ink);cursor:pointer;margin:0}.tpick:hover{border-color:var(--accent)}.tpick.on{border:2px solid var(--accent)}
 .tgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px;margin-top:14px}
 .bar.money{display:flex;height:10px}.bar.money i.owed{background:var(--gold)}
 .opts{display:flex;flex-direction:column;gap:8px}
@@ -455,6 +457,7 @@ const NAV_ICONS = {
   payouts: ico("#3A8A1C", '<path d="M12 3v18"/><path d="M17 7H9.5a3 3 0 0 0 0 6h5a3 3 0 0 1 0 6H6"/>'),
   trades: ico("#8B5E3C", '<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.5-2.5z"/>'),
   welcome: ico("#D14F8A", '<path d="M4 5h16v11H9l-5 4z"/>'),
+  teachers: ico("#2E9BD6", '<rect x="3" y="4" width="18" height="12" rx="1"/><path d="M8 20l4-4 4 4"/><path d="M7 9h6"/><path d="M7 12h4"/>'),
   growth: ico("#3A8A1C", '<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>'),
   settings: ico("#5F6B63", '<circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6a7 7 0 0 0 0 2.4l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z"/>'),
 };
@@ -695,13 +698,13 @@ function boot() {
   if (lvl() >= 3) tabs.push(["upsells","Upsells"]);
   if (lvl() >= 2 && me?.role !== "admin") tabs.push(["money","Money"]);
   if (reviewer()) tabs.push(["approvals","Approvals"]);
-  if (me?.role === "admin") tabs.push(["growth","Growth"],["admin","Farmers"],["payouts","Payouts"],["trades","Trades"],["welcome","Welcome"]);
+  if (me?.role === "admin") tabs.push(["growth","Growth"],["teachers","Teachers"],["admin","Farmers"],["payouts","Payouts"],["trades","Trades"],["welcome","Welcome"]);
   tabs.push(["settings","Settings"]);
   if (!tabs.some(([k]) => k === view)) view = "home";
   $("#nav").innerHTML = tabs.map(([k,l]) => `<button data-v="${k}" class="${k===view?"on":""}">${NAV_ICONS[k] || ""}<span>${l}</span></button>`).join("");
   $("#nav").onclick = (e) => { const b = e.target.closest("button"); if (b?.dataset.v) { view = b.dataset.v; boot(); } };
   approvalsBadge();
-  return ({ home, learn, program, pipeline, contractors, leads, upsells, money: moneyView, students, welcome: welcomeLines, growth, settings: settingsView, approvals, admin, payouts, tradesView: tradesView })[view === "trades" ? "tradesView" : view]();
+  return ({ home, learn, program, pipeline, contractors, leads, upsells, money: moneyView, students, teachers, welcome: welcomeLines, growth, settings: settingsView, approvals, admin, payouts, tradesView: tradesView })[view === "trades" ? "tradesView" : view]();
 }
 
 // ---------- farmer: home (level ladder + next step) ----------
@@ -1143,13 +1146,8 @@ function teacherGoals(B) {
           ${t.students.length && t.students.length < B.cap ? `<li class="muted">${B.cap - t.students.length} spot${B.cap - t.students.length > 1 ? "s" : ""} open</li>` : ""}</ul></div>`; }).join("")}</div></div>`;
 }
 
-async function students() {
-  const [{ data: B, error }, { data: pool, error: e2 }, { data: W }] = await Promise.all([sb.rpc("teacher_board"), sb.rpc("teacher_pick_list"), sb.rpc("my_waiting")]);
-  if (error || e2 || !B) return (app.innerHTML = `<p class="err">Couldn't load your students${error || e2 ? ": " + esc((error || e2).message) : ""}</p>`);
-  const T = B.teachers.find((t) => t.id === me.id) || { students: [], goal: B.student_goal * B.cap };
-  const S = T.students, total = sumOf(S, "pipeline_2wk"), open = Math.max(0, B.cap - S.length);
-  const waitN = Object.values(W || {}).reduce((n, v) => n + Number(v || 0), 0);
-  const card = (x) => `<div class="card stud" data-stud="${x.id}">
+// One student's card. A teacher sees "Let go" on their own students; Alex sees the same card on the Teachers tab.
+const studentCard = (x, B, own) => `<div class="card stud" data-stud="${x.id}">
     <div class="row" style="justify-content:space-between;flex-wrap:nowrap"><b style="font-size:17px">${esc(x.full_name)}</b><span class="tag">Lv ${x.level}</span></div>
     <small class="muted">${x.day != null ? `Day ${Math.min(x.day, 90)} of 90 · ` : ""}${esc(daysAgo(x.last_active))}</small>
     <div style="margin-top:10px"><b style="font-size:22px">${money(x.pipeline_2wk)}</b> <span class="muted">of ${money(B.student_goal)}</span>${goalBar(x.pipeline_2wk, B.student_goal)}</div>
@@ -1157,9 +1155,16 @@ async function students() {
     <p class="muted" style="margin:4px 0 0;font-size:13px">${x.contractors} contractors in total</p>
     ${x.level < 2 ? `<p style="margin:6px 0 0;font-size:13px" class="muted">Leads open at Level 2. Help them get a contractor to Terms Agreed and ace the Level 1 quiz so they can level up.</p>` : ""}
     ${(x.reasons || []).length ? `<div style="margin-top:8px">${x.reasons.map((r) => `<span class="tag warn">${esc(r.text)}</span>`).join(" ")}</div>` : ""}
-    ${x.waiting ? `<p style="margin:8px 0 0"><button class="linkbtn" data-towait="1"><b>${x.waiting} waiting on you</b> in Approvals</button></p>` : ""}
+    ${x.waiting ? `<p style="margin:8px 0 0"><button class="linkbtn" data-towait="1"><b>${x.waiting} waiting on ${own ? "you" : "their teacher"}</b> in Approvals</button></p>` : ""}
     <p style="margin:8px 0 0;font-size:14px">${x.phone ? `<a href="tel:${esc(x.phone)}">${esc(x.phone)}</a> · ` : ""}<a href="mailto:${esc(x.email)}">${esc(x.email)}</a></p>
-    <div class="row" style="margin-top:10px"><button class="btn sm" data-open="${x.id}">See everything</button><button class="btn ghost sm" data-drop="${x.id}">Let go</button></div></div>`;
+    <div class="row" style="margin-top:10px"><button class="btn sm" data-open="${x.id}">See everything</button>${own ? `<button class="btn ghost sm" data-drop="${x.id}">Let go</button>` : ""}</div></div>`;
+
+async function students() {
+  const [{ data: B, error }, { data: pool, error: e2 }, { data: W }] = await Promise.all([sb.rpc("teacher_board"), sb.rpc("teacher_pick_list"), sb.rpc("my_waiting")]);
+  if (error || e2 || !B) return (app.innerHTML = `<p class="err">Couldn't load your students${error || e2 ? ": " + esc((error || e2).message) : ""}</p>`);
+  const T = B.teachers.find((t) => t.id === me.id) || { students: [], goal: B.student_goal * B.cap };
+  const S = T.students, total = sumOf(S, "pipeline_2wk"), open = Math.max(0, B.cap - S.length);
+  const waitN = Object.values(W || {}).reduce((n, v) => n + Number(v || 0), 0);
   const others = (pool || []).filter((p) => p.teacher_id !== me.id);
   app.innerHTML = `<div class="dash" id="studentspage" style="max-width:1000px">
     <div class="row" style="justify-content:space-between"><h2 style="font-size:22px;margin:4px 0 0">My students</h2><button class="btn ghost sm" id="guide">How this works</button></div>
@@ -1168,7 +1173,7 @@ async function students() {
     <div class="card" id="tgoal" style="margin-top:12px"><div class="row" style="justify-content:space-between"><b>${money(total)} of ${money(T.goal)} through your students' pipelines</b>
       <span class="muted" style="font-size:14px">last ${B.days} days</span></div>${goalBar(total, T.goal)}
       <p style="margin:8px 0 0;font-size:14px" class="muted">Counts the job value of every lead your students logged in the last ${B.days} days that isn't marked lost. Both teachers together are going for ${money(T.goal * 2)}.</p></div>
-    <div class="studgrid">${S.map(card).join("")}${[...Array(open)].map(() => `<div class="card stud empty"><b>Open spot</b><p class="muted" style="margin:6px 0 0;font-size:14px">Pick a farmer below.</p></div>`).join("")}</div>
+    <div class="studgrid">${S.map((x) => studentCard(x, B, true)).join("")}${[...Array(open)].map(() => `<div class="card stud empty"><b>Open spot</b><p class="muted" style="margin:6px 0 0;font-size:14px">Pick a farmer below.</p></div>`).join("")}</div>
     <h3>${open ? `Pick your students` : `Everyone else`}</h3>
     <p class="muted" style="margin:-4px 0 8px;font-size:14px">${open ? `You can have ${B.cap}. Each farmer can only have one teacher, so whoever picks first gets them.` : `You have all ${B.cap}. Let one go to pick someone else.`}</p>
     <div class="err" id="pickerr"></div>
@@ -1193,6 +1198,48 @@ async function students() {
     if (error) return ($("#pickerr").textContent = error.message);
     students();
   });
+}
+
+// ---------- Alex: Teachers (pick Julian or Vincent, see their students as a dashboard) ----------
+let teacherSel = null;
+async function teachers() {
+  const { data: B, error } = await sb.rpc("teacher_board");
+  if (error || !B) return (app.innerHTML = `<p class="err">Couldn't load teachers${error ? ": " + esc(error.message) : ""}</p>`);
+  const ts = B.teachers || [], T = ts.find((t) => t.id === teacherSel);
+  const n = (k, S) => sumOf(S, k);
+  const pick = (t) => { const v = n("pipeline_2wk", t.students); return `<button class="card tpick${t.id === teacherSel ? " on" : ""}" data-tsel="${t.id}">
+      <div class="row" style="justify-content:space-between;flex-wrap:nowrap"><b style="font-size:17px">${esc(t.full_name)}</b><span class="tag">${t.students.length} of ${B.cap} students</span></div>
+      <div style="margin-top:8px"><b>${money(v)}</b> <span class="muted">of ${money(t.goal)}</span>${goalBar(v, t.goal)}</div></button>`; };
+  let dash = "";
+  if (T) {
+    const S = T.students, total = n("pipeline_2wk", S), open = Math.max(0, B.cap - S.length);
+    const stat = (v, k, sub = "") => `<div class="card stat"><div class="v">${v}</div><div class="k">${k}</div>${sub ? `<small>${sub}</small>` : ""}</div>`;
+    const waiting = n("waiting", S), stuck = S.filter((x) => (x.reasons || []).length).length;
+    dash = `<div id="tdash">
+      <h3 style="font-size:20px">${esc(T.full_name)}'s students</h3>
+      <div class="stats" id="tstats">
+        ${stat(`${S.length} of ${B.cap}`, "Students", open ? `${open} spot${open > 1 ? "s" : ""} open` : "Full")}
+        ${stat(money(total), "Through their pipelines", `of ${money(T.goal)}, last ${B.days} days`)}
+        ${stat(n("leads_2wk", S), "Leads sent", `last ${B.days} days`)}
+        ${stat(n("contractors_2wk", S), "New contractors", `last ${B.days} days`)}
+        ${stat(n("calls_2wk", S), "Calls", `last ${B.days} days`)}
+        ${stat(money(n("closed_2wk", S)), "Closed", `fees ${money(n("fees_2wk", S))}`)}
+        ${stat(waiting, "Waiting on the teacher", "questions, level-ups, 15 lists")}
+        ${stat(stuck, "Stuck", stuck ? "see the orange tags below" : "nobody")}
+      </div>
+      <div class="card" style="margin-top:12px"><div class="row" style="justify-content:space-between"><b>${money(total)} of ${money(T.goal)} through ${esc(T.full_name)}'s group</b>
+        <span class="muted" style="font-size:14px">last ${B.days} days</span></div>${goalBar(total, T.goal)}
+        <p class="muted" style="margin:6px 0 0;font-size:13px">${money(B.student_goal)} per student every 2 weeks. Counts the job value of leads logged in the last ${B.days} days that aren't marked lost.</p></div>
+      <div class="studgrid">${S.map((x) => studentCard(x, B, false)).join("")}${[...Array(open)].map(() => `<div class="card stud empty"><b>Open spot</b><p class="muted" style="margin:6px 0 0;font-size:14px">${esc(T.full_name)} can still pick a student, or you can hand one over on the Farmers tab.</p></div>`).join("")}</div></div>`;
+  }
+  app.innerHTML = `<div class="dash" id="teacherspage" style="max-width:1000px">
+    <h2 style="font-size:22px;margin:4px 0 0">Teachers</h2>
+    <p class="muted" style="margin:2px 0 0">${T ? "Pick another teacher to switch." : "Pick a teacher to see their students."}</p>
+    ${ts.length ? `<div class="tpicks">${ts.map(pick).join("")}</div>` : `<p class="card muted" style="margin-top:12px">No teachers yet. Tick Verifier for someone on the Farmers tab to make them a teacher.</p>`}
+    ${dash}</div>`;
+  app.querySelectorAll("[data-tsel]").forEach((b) => b.onclick = () => { teacherSel = b.dataset.tsel; teachers(); });
+  app.querySelectorAll("[data-towait]").forEach((b) => b.onclick = () => { view = "approvals"; boot(); });
+  app.querySelectorAll("[data-open]").forEach((b) => b.onclick = () => farmerPage(T.students.find((x) => x.id === b.dataset.open)));
 }
 
 // The teacher walkthrough. Opens once on Home (from Alex), and any time from "How this works" on My students.
@@ -2047,7 +2094,7 @@ async function farmerPage(f) {
   const older = sent.slice(0, -1).reverse().filter((e) => e.detail.list !== N.niche);
   const nicheStatus = !N.niche ? "" : N.niche_approved_at ? `<span class="tag">approved ${new Date(N.niche_approved_at).toLocaleDateString()}</span>`
     : N.niche_note ? `<span class="tag warn">sent back</span>` : `<span class="tag warn">waiting for review</span>`;
-  app.innerHTML = `<div style="max-width:980px" id="farmerpage"><button class="btn ghost sm" id="fpback">← ${me.role === "admin" ? "All farmers" : "My students"}</button>
+  app.innerHTML = `<div style="max-width:980px" id="farmerpage"><button class="btn ghost sm" id="fpback">← ${me.role === "admin" ? (view === "teachers" ? "Teachers" : "All farmers") : "My students"}</button>
     <h2 style="font-size:20px;margin:12px 0 2px">${esc(f.full_name || f.email)}</h2>
     <p class="muted" style="margin:0 0 12px">${esc(f.email)} · Level ${f.level} · ${f.enrollment_paid ? "paid" : "not paid"}${f.verifier ? " · verifier" : ""}${N.created_at ? " · joined " + new Date(N.created_at).toLocaleDateString() : ""}${N.recruited_by ? " · recruited by " + esc(Hx.names?.[N.recruited_by] || "another farmer") : ""}${N.phone ? " · " + esc(N.phone) : ""}</p>
     ${error ? `<p class="err">${esc(error.message)}</p>` : ""}
