@@ -16,7 +16,7 @@ window.CRM_CONFIG = {
   META_PIXEL_ID: "130744663441123",
   // Founder video on the landing page: a YouTube or Vimeo link, or a file in the site (e.g. "/media/alex.mp4").
   // Leave empty to hide the "Meet Alex" section.
-  FOUNDER_VIDEO: "",
+  FOUNDER_VIDEO: "https://youtu.be/n_byHF5egNU",
   // Zelle email or phone shown to unpaid farmers. Leave empty to hide.
   ZELLE_TO: "",
 };
