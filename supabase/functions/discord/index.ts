@@ -193,6 +193,7 @@ const CHANNELS: [string, string, string, string, string[], string[], number?][] 
   ["daily-check-in", "daily-check-in", "THE PLAYBOOK", "Post your numbers every day: contractors added, calls, comments, leads.", FARMERS, []],
   ["Office Hours", "Office Hours", "VOICE", "", FARMERS, [], 2],
   ["Co-working", "Co-working", "VOICE", "", FARMERS, [], 2],
+  ["weekly-meeting", "Weekly Meeting", "VOICE", "", FARMERS, [], 2],
   ["level-2-lounge", "level-2-lounge", "LEVEL LOUNGES", "For Level 2 and up: leads, fees and reciprocal deals.", ["role:level2", "role:level3", "role:teacher"], []],
   ["level-3-lounge", "level-3-lounge", "LEVEL LOUNGES", "For Level 3: anchors and upsells.", ["role:level3", "role:teacher"], []],
   ["teachers", "teachers", "STAFF", "Alex and the teachers.", ["role:teacher"], []],
