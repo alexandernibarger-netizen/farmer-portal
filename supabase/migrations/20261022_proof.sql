@@ -60,7 +60,7 @@ begin
   if tg_op = 'UPDATE' and old.verified then raise exception 'This fee is verified and locked. Ask Alex to change it.'; end if;
   new.farmer_id := auth.uid();
   new.verified := false; new.verified_by := null; new.verified_at := null;
-  if tg_op = 'UPDATE' then new.review_note := old.review_note; end if;
+  if tg_op = 'UPDATE' then new.review_note := null; end if;   -- they fixed it: back in Alex's queue
   if new.contractor_id is not null and not exists (select 1 from public.contractors where id = new.contractor_id and farmer_id = auth.uid()) then
     raise exception 'That contractor isn''t on your list';
   end if;
@@ -129,8 +129,9 @@ create or replace function ops.request_testimonial(f uuid, ev text, k text, d js
 language plpgsql security definer set search_path = ops, public as $$
 declare t uuid;
 begin
-  if not exists (select 1 from public.profiles where id = f and role = 'farmer' and enrollment_paid and not coalesce(comp, false)) then
-    return;   -- only paying members (no admin, no comp accounts)
+  if not exists (select 1 from public.profiles where id = f and role = 'farmer' and enrollment_paid
+                 and not coalesce(comp, false) and not coalesce(verifier, false)) then
+    return;   -- only paying members (no admin, teachers or comp accounts)
   end if;
   insert into public.testimonials (farmer_id, trigger_event, trigger_key, trigger_detail, contractor_id, fee_id)
     values (f, ev, k, coalesce(d, '{}'), p_contractor, p_fee)
@@ -278,7 +279,9 @@ language plpgsql security definer set search_path = ops, public as $$
 declare c text;
 begin
   begin
-    if tg_table_name = 'fees' and tg_op = 'INSERT' then
+    if tg_table_name = 'fees' then
+      -- a new fee, or a screenshot added/replaced on one still waiting
+      if new.verified or (tg_op = 'UPDATE' and new.proof_url is not distinct from old.proof_url) then return null; end if;
       select business_name into c from public.contractors where id = new.contractor_id;
       perform ops.ask('💵 Fee to verify: ' || ops.who(new.farmer_id) || ' got ' || ops.money(new.fee_amount)
         || coalesce(' from ' || c, '') || coalesce(' (job ' || ops.money(new.job_amount) || ')', '')
@@ -301,7 +304,7 @@ begin
   return null;
 end $$;
 drop trigger if exists telegram_alert on public.fees;
-create trigger telegram_alert after insert on public.fees for each row execute function ops.on_proof_event();
+create trigger telegram_alert after insert or update of proof_url on public.fees for each row execute function ops.on_proof_event();
 drop trigger if exists telegram_alert on public.testimonials;
 create trigger telegram_alert after update of status on public.testimonials for each row execute function ops.on_proof_event();
 

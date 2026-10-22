@@ -52,6 +52,9 @@ dialog::backdrop{background:rgba(0,0,0,.4)}
 .auth{max-width:380px;margin:8vh auto}
 .agree{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.45;color:var(--ink);margin:14px 0 4px}
 .agree input{width:auto;margin:3px 0 0;flex:none}
+.stars{display:flex;gap:6px}.star{margin:0}.star input{position:absolute;opacity:0;width:1px}.star span{display:inline-block;min-width:44px;padding:8px 0;text-align:center;border:2px solid var(--line,#ddd);border-radius:10px;font-weight:800;cursor:pointer}
+.star input:checked+span{background:#FFF1CC;border-color:#E0A100;color:#7A5200}.star input:focus-visible+span{outline:2px solid var(--accent)}
+.proofitem{margin-bottom:10px}#prooffilters>span{flex:0 1 auto}#prooffilters label{margin-top:0}
 .banner{max-width:1400px;margin:16px auto 0;padding:0 20px}
 #subnav{max-width:1400px;margin:0 auto;padding:16px 20px 0}
 .subtabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:4px;background:var(--soft2);border:2px solid var(--line);border-radius:16px;width:max-content;max-width:100%;box-sizing:border-box}
@@ -556,6 +559,7 @@ const NAV_ICONS = {
   welcome: ico("#D14F8A", '<path d="M4 5h16v11H9l-5 4z"/>'),
   teachers: ico("#2E9BD6", '<rect x="3" y="4" width="18" height="12" rx="1"/><path d="M8 20l4-4 4 4"/><path d="M7 9h6"/><path d="M7 12h4"/>'),
   growth: ico("#3A8A1C", '<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>'),
+  proof: ico("#E0A100", '<path d="M12 3l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.3 6.8 19.1l1-5.8L3.5 9.2l5.9-.8z"/><path d="M9.5 12l1.8 1.8 3.4-3.6"/>'),
   settings: ico("#5F6B63", '<circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6a7 7 0 0 0 0 2.4l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z"/>'),
 };
 const REF = new URLSearchParams(location.search).get("ref") || ""; // referral links: leadfarminghq.com/?ref=friend@email
@@ -793,7 +797,7 @@ function boot() {
   tabs.push(["crm","CRM"]);
   if (lvl() >= 2 && me?.role !== "admin") tabs.push(["money","Money"]);
   if (reviewer()) tabs.push(["approvals","Approvals"]);
-  if (me?.role === "admin") tabs.push(["growth","Growth"],["teachers","Teachers"],["admin","Farmers"],["payouts","Payouts"],["welcome","Welcome"]);
+  if (me?.role === "admin") tabs.push(["growth","Growth"],["proof","Proof"],["teachers","Teachers"],["admin","Farmers"],["payouts","Payouts"],["welcome","Welcome"]);
   tabs.push(["settings","Settings"]);
   }
   if (view === "crm") view = crmLast;
@@ -805,7 +809,7 @@ function boot() {
   $("#nav").onclick = (e) => { const b = e.target.closest("button"); if (b?.dataset.v) { view = b.dataset.v; boot(); } };
   crmBar(tab === "crm");
   approvalsBadge();
-  return ({ home, learn, program, pipeline, contractors, leads, upsells, money: moneyView, students, teachers, welcome: welcomeLines, growth, settings: settingsView, approvals, admin, payouts, tradesView: tradesView })[view === "trades" ? "tradesView" : view]();
+  return ({ home, learn, program, pipeline, contractors, leads, upsells, money: moneyView, students, teachers, welcome: welcomeLines, growth, proof: proofView, settings: settingsView, approvals, admin, payouts, tradesView: tradesView })[view === "trades" ? "tradesView" : view]();
 }
 
 // ---------- CRM sub-tabs ----------
@@ -1744,7 +1748,9 @@ async function homeExtras(cs, ctx) {
     <div class="card lvl" id="today"><h2 style="margin:0;font-size:20px">Today</h2>${items.length
       ? `<ul class="todo">${items.map((x, i) => `<li><button class="linkbtn" data-todo="${i}">${esc(x.text)}</button></li>`).join("")}</ul>`
       : `<p class="muted" style="margin:6px 0 0">You're caught up. Nothing needs a follow-up right now.</p>`}</div>
+    <div id="homewins"></div>
     <div id="homediscord"></div>`);
+  winsCard($("#homewins"));
   discordCard($("#homediscord"), false);
   // stats column: streak, money, level, the 90-day ring, this week, quizzes, referrals
   const { data: acts } = await sb.from("activities").select("created_at").eq("farmer_id", me.id);
@@ -2124,14 +2130,302 @@ async function moneyView() {
       : `<p class="muted" style="margin:6px 0 0">Nobody owes you right now.</p>`}<div class="err" id="moneyerr"></div></div>
     ${lvl() >= 3 ? `<div class="card" id="upsellmoney"><b>Upsells</b>
       ${(us || []).length ? `<table style="margin-top:6px"><tbody>${us.map((u) => `<tr><td>${esc(cname(u.contractor_id))}</td><td>${esc(u.product)}</td><td><span class="tag">${esc(u.status)}</span></td><td>${u.amount != null ? money(u.amount) : ""}</td></tr>`).join("")}</tbody></table>`
-      : `<p class="muted" style="margin:6px 0 0">No upsells yet. Log pitches in the Upsells tab.</p>`}</div>` : ""}</div>`;
+      : `<p class="muted" style="margin:6px 0 0">No upsells yet. Log pitches in the Upsells tab.</p>`}</div>` : ""}<div id="moneywins"></div></div>`;
+  myWins($("#moneywins"));
   app.querySelectorAll("[data-feepaid]").forEach((b) => b.onclick = async () => {
     const { error } = await sb.from("leads").update({ fee_paid: true }).eq("id", b.dataset.feepaid);
     if (error) return ($("#moneyerr").textContent = error.message);
     const l = closed.find((x) => x.id === b.dataset.feepaid), con = cs.find((c) => c.id === l?.contractor_id);
     if (con && con.stage >= 3 && con.stage < 5) await sb.from("contractors").update({ stage: 5 }).eq("id", con.id);
     moneyView();
+    if (l) feeForm({ lead: l }, moneyView);  // log it with the payment screenshot so it counts as a verified fee
   });
+}
+
+// ---------- wins: fees members log, and their stories (testimonials) ----------
+// Files go in the private "wins" bucket under the member's own folder. A value that starts with http is a link they pasted.
+const RESULTS_NOTE = "Results not typical. Individual results vary and depend on effort; earnings are not guaranteed.";
+const WIN_LABEL = { terms_agreed: "First contractor agreed to terms", first_lead_sent: "First lead sent", first_lead_closed: "First lead closed",
+  fee_verified: "Fee verified", level_up: "Level up", day_90: "Made it to day 90", manual: "Shared on their own" };
+const winText = (t) => {
+  const d = t.trigger_detail || t.win || {};
+  return ({ terms_agreed: `${d.contractor || "Your first contractor"} agreed to your terms`, first_lead_sent: `You sent your first lead${d.contractor ? " to " + d.contractor : ""}`,
+    first_lead_closed: `Your first lead closed${d.contractor ? " with " + d.contractor : ""}`, fee_verified: `Your ${money(d.fee)} fee is verified`,
+    level_up: `You reached Level ${d.level}`, day_90: "You made it to day 90", manual: "Your story" })[t.trigger_event] || "You had a win";
+};
+async function winUpload(file, kind) {
+  const path = `${me.id}/${kind}/${Date.now()}-${file.name.replace(/[^\w.-]+/g, "_")}`;
+  const { error } = await sb.storage.from("wins").upload(path, file);
+  if (error) throw new Error(`Couldn't upload ${file.name}: ${error.message}`);
+  return path;
+}
+async function winUrl(p, secs = 3600) {
+  if (!p) return "";
+  if (/^https?:\/\//i.test(p)) return p;
+  const { data } = await sb.storage.from("wins").createSignedUrl(p, secs);
+  return data?.signedUrl || "";
+}
+
+// Home card: wins waiting for a story, plus logging a fee
+async function winsCard(slot) {
+  const [{ data: ts }, { data: fs }] = await Promise.all([
+    sb.from("testimonials").select("*").eq("farmer_id", me.id).order("requested_at", { ascending: false }),
+    sb.from("fees").select("*").eq("farmer_id", me.id).order("paid_at", { ascending: false })]);
+  const open = (ts || []).filter((t) => t.status === "requested" && !t.dismissed_at);
+  const back = (fs || []).filter((f) => !f.verified && f.review_note);
+  slot.innerHTML = `<div class="card lvl" id="wins"><div class="row" style="justify-content:space-between">
+      <h2 style="margin:0;font-size:20px">${open.length ? "🎉 Share your win" : "Your wins"}</h2>
+      <span class="row" style="gap:6px"><button class="btn ghost sm" id="logfee">Log a fee</button><button class="btn ghost sm" id="newstory">Share a story</button></span></div>
+    ${open.map((t) => `<div class="row" style="margin-top:10px;justify-content:space-between"><span style="flex:1 1 220px"><b>${esc(winText(t))}!</b><br>
+      <small class="muted">Got 2 minutes? Tell other farmers how you got here.</small></span>
+      <span class="row" style="gap:6px"><button class="btn sm" data-story="${t.id}">Tell your story</button><button class="btn ghost sm" data-later="${t.id}">Not now</button></span></div>`).join("")}
+    ${back.map((f) => `<div class="row" style="margin-top:10px;justify-content:space-between"><span style="flex:1 1 220px"><b>Your ${money(f.fee_amount)} fee needs a fix</b><br>
+      <small class="muted">${esc(f.review_note)}</small></span><button class="btn sm" data-fixfee="${f.id}">Fix it</button></div>`).join("")}
+    ${!open.length && !back.length ? `<p class="muted" style="margin:6px 0 0">Got paid a referral fee? Log it with a screenshot of the payment so it counts.</p>` : ""}</div>`;
+  $("#logfee").onclick = () => feeForm();
+  $("#newstory").onclick = () => storyForm({ trigger_event: "manual" });
+  slot.querySelectorAll("[data-story]").forEach((b) => b.onclick = () => storyForm(open.find((t) => t.id === b.dataset.story)));
+  slot.querySelectorAll("[data-later]").forEach((b) => b.onclick = async () => { await sb.rpc("dismiss_testimonial", { p_id: b.dataset.later }); winsCard(slot); });
+  slot.querySelectorAll("[data-fixfee]").forEach((b) => b.onclick = () => feeForm(back.find((f) => f.id === b.dataset.fixfee)));
+}
+
+// Log a fee (or fix one Alex sent back). fee: an existing row, or { lead } to start from a closed lead.
+async function feeForm(fee = {}, done) {
+  const cs = (await myContractors()).filter((c) => c.farmer_id === me.id);
+  const l = fee.lead || {};
+  const v = { contractor_id: fee.contractor_id || l.contractor_id || "", job_amount: fee.job_amount ?? l.job_value ?? "", fee_pct: fee.fee_pct ?? l.fee_pct ?? "",
+    fee_amount: fee.fee_amount ?? l.fee_amount ?? "", paid_at: fee.paid_at || new Date().toLocaleDateString("en-CA"), note: fee.note || "" };
+  dlg.innerHTML = `<form id="ff"><h3 style="margin-top:0">${fee.id ? "Fix your fee" : "Log a fee you got paid"}</h3>
+    ${fee.review_note ? `<p class="err" style="margin-top:0">Alex's note: ${esc(fee.review_note)}</p>` : ""}
+    <label>Contractor who paid you</label><select name="contractor_id"><option value="">Pick one</option>${cs.map((c) => `<option value="${c.id}"${c.id === v.contractor_id ? " selected" : ""}>${esc(c.business_name)}</option>`).join("")}</select>
+    <div class="row" style="gap:10px"><span style="flex:1"><label>Job amount ($)</label><input name="job_amount" type="number" min="0" step="0.01" value="${esc(v.job_amount)}"></span>
+      <span style="flex:1"><label>Your fee %</label><input name="fee_pct" type="number" min="0" max="100" step="0.01" value="${esc(v.fee_pct)}"></span></div>
+    <label>Fee you got paid ($)</label><input name="fee_amount" type="number" min="0.01" step="0.01" required value="${esc(v.fee_amount)}">
+    <label>Day you got paid</label><input name="paid_at" type="date" required value="${esc(v.paid_at)}">
+    <label>Screenshot of the payment${fee.proof_url ? " (you already sent one; add another to replace it)" : ""}</label>
+    <input name="shot" type="file" accept="image/*,.pdf"${fee.proof_url ? "" : " required"}>
+    <small class="muted">Venmo, Zelle, Cash App, a check photo or a bank line all work. Alex checks it before it counts.</small>
+    <label>Anything to add? (optional)</label><input name="note" value="${esc(v.note)}">
+    <div class="err" id="fferr"></div>
+    <div class="row" style="margin-top:12px;justify-content:flex-end"><button type="button" class="btn ghost" id="cx">Cancel</button><button class="btn" id="ffsend">Send to Alex</button></div></form>`;
+  dlg.showModal();
+  const F = $("#ff");
+  const calc = () => { const j = +F.job_amount.value, p = +F.fee_pct.value; if (j && p) F.fee_amount.value = (Math.round(j * p) / 100).toFixed(2); };
+  F.job_amount.oninput = F.fee_pct.oninput = calc;
+  $("#cx").onclick = () => dlg.close();
+  F.onsubmit = async (e) => {
+    e.preventDefault();
+    $("#ffsend").disabled = true;
+    const fail = (m) => { $("#ffsend").disabled = false; $("#fferr").textContent = m; };
+    try {
+      const row = { contractor_id: F.contractor_id.value || null, job_amount: F.job_amount.value || null, fee_pct: F.fee_pct.value || null,
+        fee_amount: F.fee_amount.value, paid_at: F.paid_at.value, note: F.note.value.trim() || null };
+      if (F.shot.files[0]) row.proof_url = await winUpload(F.shot.files[0], "fees");
+      if (!fee.id && l.id) row.lead_id = l.id;
+      const { error } = fee.id ? await sb.from("fees").update({ ...row, review_note: null }).eq("id", fee.id) : await sb.from("fees").insert({ ...row, farmer_id: me.id });
+      if (error) return fail(error.message);
+      dlg.close();
+      done ? done() : boot();
+    } catch (err) { fail(err.message); }
+  };
+}
+
+// The short story form: quote, rating, before/after, optional video or screenshot, ad consent
+function storyForm(t) {
+  const stars = [1, 2, 3, 4, 5].map((n) => `<label class="star"><input type="radio" name="rating" value="${n}" required${t.rating === n ? " checked" : ""}><span>${n}</span></label>`).join("");
+  dlg.innerHTML = `<form id="sf"><h3 style="margin-top:0">${t.id ? esc(winText(t)) + "!" : "Share your story"}</h3>
+    <p class="muted" style="margin-top:0;font-size:14px">A few honest sentences help the next farmer more than anything. Just say what happened.</p>
+    <label>In your own words, what happened?</label><textarea name="quote" rows="3" required placeholder="I signed my first roofer in week two and got paid $450 on the first job.">${esc(t.quote || "")}</textarea>
+    <label>How would you rate Lead Farming so far?</label><div class="stars" role="radiogroup" aria-label="Rating 1 to 5">${stars}</div>
+    <div class="row" style="gap:10px"><span style="flex:1 1 200px"><label>Before you started</label><textarea name="before" rows="2" placeholder="Working 50 hours, no side income">${esc(t.before_text || "")}</textarea></span>
+      <span style="flex:1 1 200px"><label>Now</label><textarea name="after" rows="2" placeholder="3 contractors paying me referral fees">${esc(t.after_text || "")}</textarea></span></div>
+    <label>Video (optional): upload one or paste a link</label><input name="video" type="file" accept="video/*"><input name="video_link" placeholder="https://… (YouTube, Loom, Google Drive)" style="margin-top:6px" value="${esc(/^https?:/.test(t.video_url || "") ? t.video_url : "")}">
+    <label>Screenshot (optional)</label><input name="shot" type="file" accept="image/*">
+    <label class="agree" style="margin-top:14px"><input type="checkbox" name="consent"${t.ad_consent ? " checked" : ""}>
+      <span>Lead Farming HQ may use my story, first name, last initial and any video or screenshot in ads and on its website. I can take this back any time.</span></label>
+    <div class="err" id="sferr"></div>
+    <div class="row" style="margin-top:12px;justify-content:flex-end"><button type="button" class="btn ghost" id="cx">Cancel</button><button class="btn" id="sfsend">Send</button></div></form>`;
+  dlg.showModal();
+  const F = $("#sf");
+  $("#cx").onclick = () => dlg.close();
+  F.onsubmit = async (e) => {
+    e.preventDefault();
+    $("#sfsend").disabled = true;
+    const fail = (m) => { $("#sfsend").disabled = false; $("#sferr").textContent = m; };
+    try {
+      const video = F.video.files[0] ? await winUpload(F.video.files[0], "stories") : F.video_link.value.trim() || (t.video_url && !/^https?:/.test(t.video_url) ? t.video_url : null);
+      const shot = F.shot.files[0] ? await winUpload(F.shot.files[0], "stories") : t.screenshot_url || null;
+      const { error } = await sb.rpc("submit_testimonial", { p_id: t.id || null, p_quote: F.quote.value, p_rating: +F.rating.value,
+        p_before: F.before.value, p_after: F.after.value, p_video_url: video, p_screenshot_url: shot, p_consent: F.consent.checked });
+      if (error) return fail(error.message);
+      dlg.innerHTML = `<h3 style="margin-top:0">Thank you! 🌱</h3><p>Alex will read it soon.</p><div class="row" style="justify-content:flex-end"><button class="btn" id="cx">Close</button></div>`;
+      $("#cx").onclick = () => { dlg.close(); boot(); };
+    } catch (err) { fail(err.message); }
+  };
+}
+
+// Money tab: the fees they logged and where each one stands, plus their stories and ad consent
+async function myWins(slot) {
+  let [{ data: fs }, { data: ts }] = await Promise.all([
+    sb.from("fees").select("*").eq("farmer_id", me.id).order("paid_at", { ascending: false }),
+    sb.from("testimonials").select("*").eq("farmer_id", me.id).order("submitted_at", { ascending: false })]);
+  ts = (ts || []).filter((t) => t.status !== "requested");
+  const st = (f) => f.verified ? `<span class="tag">Verified</span>` : f.review_note ? `<span class="tag" style="background:#FDE7DC;color:#8A3B12">Needs a fix</span>` : `<span class="tag" style="background:#FFF1CC;color:#7A5200">Waiting on Alex</span>`;
+  slot.innerHTML = `<div class="card" style="margin-top:12px" id="myfees"><div class="row" style="justify-content:space-between"><b>Fees you logged</b><button class="btn sm" id="logfee2">Log a fee</button></div>
+    ${(fs || []).length ? `<table style="margin-top:6px"><tbody>${fs.map((f) => `<tr><td>${new Date(f.paid_at + "T12:00:00").toLocaleDateString()}</td><td><b>${money(f.fee_amount)}</b>${f.job_amount ? `<br><small class="muted">job ${money(f.job_amount)}</small>` : ""}</td>
+      <td>${st(f)}${f.review_note && !f.verified ? `<br><small class="muted">${esc(f.review_note)}</small>` : ""}</td>
+      <td style="text-align:right">${f.verified ? "" : `<button class="btn ghost sm" data-editfee="${f.id}">Edit</button>`}</td></tr>`).join("")}</tbody></table>`
+      : `<p class="muted" style="margin:6px 0 0">When a contractor pays you, log it here with a screenshot. Alex verifies it.</p>`}</div>
+    ${(ts || []).length ? `<div class="card" style="margin-top:12px" id="mystories"><b>Your stories</b><table style="margin-top:6px"><tbody>${ts.map((t) => `<tr><td>"${esc(t.quote)}"<br><small class="muted">${esc(WIN_LABEL[t.trigger_event] || "")} · ${{ submitted: "Sent", approved: "Picked by Alex", rejected: "Not used" }[t.status] || t.status}</small></td>
+      <td style="white-space:nowrap"><label class="agree" style="margin:0"><input type="checkbox" data-consent="${t.id}"${t.ad_consent ? " checked" : ""}><span>OK to use in ads</span></label></td></tr>`).join("")}</tbody></table></div>` : ""}`;
+  $("#logfee2").onclick = () => feeForm({}, () => myWins(slot));
+  slot.querySelectorAll("[data-editfee]").forEach((b) => b.onclick = () => feeForm(fs.find((f) => f.id === b.dataset.editfee), () => myWins(slot)));
+  slot.querySelectorAll("[data-consent]").forEach((b) => b.onchange = async () => {
+    const { error } = await sb.rpc("set_testimonial_consent", { p_id: b.dataset.consent, p_consent: b.checked });
+    if (error) { alert(error.message); b.checked = !b.checked; }
+  });
+}
+
+// ---------- admin: Proof (every win and story, stats, approve for ads, export) ----------
+const PROOF_TYPES = [["all", "Everything"], ["testimonial", "Testimonials"], ["fee", "Fees"], ["stage", "Contractor milestones"], ["level_up", "Level-ups"], ["day_90", "Day 90"]];
+let proofF = { type: "all", from: "", to: "", member: "", trade: "" };
+async function proofView() {
+  const [{ data: items, error }, { data: S, error: e2 }] = await Promise.all([sb.rpc("proof_feed"), sb.rpc("proof_stats")]);
+  if (error || e2) return (app.innerHTML = `<p class="err">Couldn't load Proof: ${esc((error || e2).message)}</p>`);
+  const all = items || [];
+  // a member's trades: the trades of the contractors in their wins (level-ups and day 90 have no trade of their own)
+  const memberTrades = {};
+  for (const i of all) if (i.trade) (memberTrades[i.farmer_id] ||= new Set()).add(i.trade);
+  const members = [...new Map(all.map((i) => [i.farmer_id, i.farmer])).entries()].sort((a, b) => String(a[1]).localeCompare(String(b[1])));
+  const tradeNames = [...new Set(all.map((i) => i.trade).filter(Boolean))].sort();
+  const f = proofF;
+  const shown = all.filter((i) => (f.type === "all" || i.type === f.type)
+    && (!f.from || i.at.slice(0, 10) >= f.from) && (!f.to || i.at.slice(0, 10) <= f.to)
+    && (!f.member || i.farmer_id === f.member)
+    && (!f.trade || (i.trade ? i.trade === f.trade : memberTrades[i.farmer_id]?.has(f.trade))));
+  const days = (v, n) => v == null ? "—" : `${Math.round(v)} day${Math.round(v) === 1 ? "" : "s"}`;
+  const of = (n) => `${n} of ${S.members} paying member${S.members === 1 ? "" : "s"}`;
+  const big = S.biggest_fee;
+  const opt = (v, l, cur) => `<option value="${esc(v)}"${v === cur ? " selected" : ""}>${esc(l)}</option>`;
+  const when = (i) => new Date(i.at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  const who = (i) => `<b>${esc(i.farmer)}</b>${i.comp ? ` <span class="tag">comp</span>` : ""}${i.trade ? ` <span class="tag">${esc(i.trade)}</span>` : ""}`;
+  const row = (i) => {
+    if (i.type === "testimonial") {
+      const stTag = { requested: "Asked, no reply yet", submitted: "Waiting on you", approved: "Approved for ads", rejected: "Rejected" }[i.status];
+      return `<div class="card proofitem" data-type="testimonial"><div class="row" style="justify-content:space-between"><span>⭐ ${who(i)} · ${esc(WIN_LABEL[i.trigger_event] || "")}</span><small class="muted">${when(i)}</small></div>
+        ${i.quote ? `<p style="margin:8px 0;font-size:17px">"${esc(i.quote)}"</p>` : `<p class="muted" style="margin:8px 0">${esc(winText(i))}. Asked for their story.</p>`}
+        ${i.before || i.after ? `<p class="muted" style="margin:0 0 6px;font-size:14px">${i.before ? `<b>Before:</b> ${esc(i.before)} ` : ""}${i.after ? `<b>Now:</b> ${esc(i.after)}` : ""}</p>` : ""}
+        <div class="row" style="gap:8px;flex-wrap:wrap">${i.rating ? `<span class="tag">${"★".repeat(i.rating)}${"☆".repeat(5 - i.rating)}</span>` : ""}
+          <span class="tag" style="${i.status === "approved" ? "" : "background:#FFF1CC;color:#7A5200"}">${esc(stTag)}</span>
+          ${i.status !== "requested" ? `<span class="tag" style="${i.ad_consent ? "" : "background:#FDE7DC;color:#8A3B12"}">${i.ad_consent ? "OK for ads" : "No ad consent"}</span>` : ""}
+          ${i.video_url ? `<button class="linkbtn" data-media="${esc(i.video_url)}">Video</button>` : ""}${i.screenshot_url ? `<button class="linkbtn" data-media="${esc(i.screenshot_url)}">Screenshot</button>` : ""}
+          <span style="flex:1"></span>
+          ${i.status === "submitted" || i.status === "rejected" ? `<button class="btn sm" data-approve="${i.ref}"${i.ad_consent ? "" : ` disabled title="They didn't agree to ads"`}>Approve for ads</button>` : ""}
+          ${i.status === "submitted" || i.status === "approved" ? `<button class="btn ghost sm" data-reject="${i.ref}">${i.status === "approved" ? "Pull from ads" : "Reject"}</button>` : ""}</div></div>`;
+    }
+    if (i.type === "fee") return `<div class="card proofitem" data-type="fee"><div class="row" style="justify-content:space-between"><span>💵 ${who(i)} got <b>${money(i.fee)}</b>${i.contractor ? " from " + esc(i.contractor) : ""}${i.job ? ` <small class="muted">(job ${money(i.job)}${i.pct ? ", " + Number(i.pct) + "%" : ""})</small>` : ""}</span><small class="muted">${when(i)}</small></div>
+      ${i.note ? `<p class="muted" style="margin:6px 0 0;font-size:14px">${esc(i.note)}</p>` : ""}
+      <div class="row" style="gap:8px;margin-top:8px">${i.verified ? `<span class="tag">Verified</span>` : i.review_note ? `<span class="tag" style="background:#FDE7DC;color:#8A3B12">Sent back: ${esc(i.review_note)}</span>` : `<span class="tag" style="background:#FFF1CC;color:#7A5200">Waiting on you</span>`}
+        ${i.proof_url ? `<button class="linkbtn" data-media="${esc(i.proof_url)}">Payment screenshot</button>` : `<small class="muted">No screenshot yet</small>`}
+        <span style="flex:1"></span>${i.verified ? "" : `<button class="btn sm" data-verify="${i.ref}"${i.proof_url ? "" : " disabled"}>Verify</button> <button class="btn ghost sm" data-sendback="${i.ref}">Send back</button>`}</div></div>`;
+    const text = i.type === "stage" ? `🤝 ${i.contractor ? esc(i.contractor) + " reached " : "Reached "}<b>${esc(i.stage_name)}</b>` : i.type === "level_up" ? `⬆️ Reached <b>Level ${esc(i.level)}</b>` : `🏁 Made it to <b>day 90</b>`;
+    return `<div class="card proofitem" data-type="${i.type}"><div class="row" style="justify-content:space-between"><span>${who(i)} · ${text}</span><small class="muted">${when(i)}</small></div></div>`;
+  };
+  app.innerHTML = `<div style="max-width:1000px" id="proof"><h2 style="margin:0 0 4px">Proof</h2>
+    <p class="muted" style="margin:0 0 12px">Every member win and story in one place. Only stories that are approved <b>and</b> have the member's ad consent can be exported.</p>
+    <div class="stats" id="proofstats">
+      <div class="card stat"><div class="v">${money(S.verified_fees_total)}</div><div class="k">Verified fees</div><small class="muted">${S.verified_fees_count} fee${S.verified_fees_count === 1 ? "" : "s"}${S.fees_waiting ? ` · ${S.fees_waiting} waiting` : ""}</small></div>
+      <div class="card stat"><div class="v">${big ? money(big.fee_amount) : "—"}</div><div class="k">Biggest single fee</div><small class="muted">${big ? esc(big.farmer) + (big.contractor ? " · " + esc(big.contractor) : "") : "None verified yet"}</small></div>
+      <div class="card stat"><div class="v">${days(S.days_to_signed)}</div><div class="k">Median to first signed contractor</div><small class="muted">${of(S.n_signed)}</small></div>
+      <div class="card stat"><div class="v">${days(S.days_to_lead)}</div><div class="k">Median to first lead</div><small class="muted">${of(S.n_lead)}</small></div>
+      <div class="card stat"><div class="v">${days(S.days_to_fee)}</div><div class="k">Median to first verified fee</div><small class="muted">${of(S.n_fee)}</small></div>
+    </div>
+    <div class="card row" style="gap:10px;align-items:flex-end;margin-bottom:12px" id="prooffilters">
+      <span><label>Type</label><select id="pf-type">${PROOF_TYPES.map(([k, l]) => opt(k, l, f.type)).join("")}</select></span>
+      <span><label>From</label><input type="date" id="pf-from" value="${esc(f.from)}"></span>
+      <span><label>To</label><input type="date" id="pf-to" value="${esc(f.to)}"></span>
+      <span><label>Member</label><select id="pf-member">${opt("", "Everyone", f.member)}${members.map(([id, n]) => opt(id, n, f.member)).join("")}</select></span>
+      <span><label>Trade</label><select id="pf-trade">${opt("", "All trades", f.trade)}${tradeNames.map((t) => opt(t, t, f.trade)).join("")}</select></span>
+      <span style="flex:1"></span>
+      <span class="row" style="gap:6px"><button class="btn ghost sm" id="pcsv">Export CSV</button><button class="btn ghost sm" id="pimg">Image cards</button></span>
+    </div>
+    <p class="muted" style="margin:0 0 8px;font-size:14px">${S.testimonials_waiting} stor${S.testimonials_waiting === 1 ? "y" : "ies"} waiting on you · ${S.approved_for_ads} approved for ads · showing ${shown.length} of ${all.length}</p>
+    <div class="err" id="prooferr"></div>
+    <div id="prooflist">${shown.map(row).join("") || `<p class="muted card">Nothing matches these filters yet. New wins show up here as they happen.</p>`}</div></div>`;
+  const set = (k) => (e) => { proofF = { ...proofF, [k]: e.target.value }; proofView(); };
+  $("#pf-type").onchange = set("type"); $("#pf-from").onchange = set("from"); $("#pf-to").onchange = set("to");
+  $("#pf-member").onchange = set("member"); $("#pf-trade").onchange = set("trade");
+  const act = (fn, args) => async () => { const { error } = await sb.rpc(fn, args); if (error) return ($("#prooferr").textContent = error.message); proofView(); };
+  const note = (q) => { const n = prompt(q); return n === null ? null : n; };
+  app.querySelectorAll("[data-approve]").forEach((b) => b.onclick = act("review_testimonial", { p_id: b.dataset.approve, p_approve: true }));
+  app.querySelectorAll("[data-reject]").forEach((b) => b.onclick = act("review_testimonial", { p_id: b.dataset.reject, p_approve: false }));
+  app.querySelectorAll("[data-verify]").forEach((b) => b.onclick = act("verify_fee", { p_id: b.dataset.verify, p_approve: true }));
+  app.querySelectorAll("[data-sendback]").forEach((b) => b.onclick = () => { const n = note("What should they fix? They'll see this."); if (n !== null) act("verify_fee", { p_id: b.dataset.sendback, p_approve: false, p_note: n })(); });
+  app.querySelectorAll("[data-media]").forEach((b) => b.onclick = async () => { const u = await winUrl(b.dataset.media); if (u) window.open(u, "_blank", "noopener"); });
+  $("#pcsv").onclick = proofCsv;
+  $("#pimg").onclick = proofCards;
+}
+
+async function proofExportRows() {
+  const { data, error } = await sb.rpc("proof_export");
+  if (error) { $("#prooferr").textContent = error.message; return null; }
+  if (!data?.length) { $("#prooferr").textContent = "Nothing to export yet. Approve a story that has ad consent first."; return null; }
+  return data;
+}
+const saveBlob = (name, blob) => { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); };
+
+async function proofCsv() {
+  const rows = await proofExportRows();
+  if (!rows) return;
+  // media links are signed for 7 days so they can be pulled into an ad tool
+  const links = await Promise.all(rows.map((r) => Promise.all([winUrl(r.video_url, 604800), winUrl(r.screenshot_url, 604800)])));
+  const cols = ["member", "trade", "win", "quote", "rating", "before", "after", "verified_fee", "video", "screenshot", "consent_at", "approved_at", "disclaimer"];
+  const cell = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const lines = [cell(RESULTS_NOTE), cols.join(","), ...rows.map((r, i) => cols.map((c) => cell(
+    c === "win" ? WIN_LABEL[r.win] || r.win : c === "video" ? links[i][0] : c === "screenshot" ? links[i][1] : r[c])).join(","))];
+  saveBlob(`lead-farming-proof-${new Date().toLocaleDateString("en-CA")}.csv`, new Blob([lines.join("\r\n")], { type: "text/csv" }));
+}
+
+// One square quote card per approved story, with the results note on the image itself
+function proofCard(r) {
+  const c = document.createElement("canvas"); c.width = c.height = 1080;
+  const g = c.getContext("2d");
+  g.fillStyle = "#F4FAEE"; g.fillRect(0, 0, 1080, 1080);
+  g.fillStyle = "#3A8A1C"; g.fillRect(0, 0, 1080, 18);
+  const wrap = (text, x, y, max, lh) => {
+    const words = String(text).split(/\s+/); let line = "";
+    for (const w of words) { const t = line ? line + " " + w : w; if (g.measureText(t).width > max && line) { g.fillText(line, x, y); y += lh; line = w; } else line = t; }
+    if (line) g.fillText(line, x, y); return y + lh;
+  };
+  g.fillStyle = "#E0A100"; g.font = "bold 54px Georgia, serif";
+  g.fillText("★".repeat(r.rating || 5), 90, 150);
+  g.fillStyle = "#16301A"; g.font = `bold ${r.quote.length > 160 ? 44 : 56}px Georgia, serif`;
+  let y = wrap(`“${r.quote}”`, 90, 260, 900, r.quote.length > 160 ? 60 : 74);
+  g.font = "32px system-ui, sans-serif"; g.fillStyle = "#3D5541";
+  if (r.before) y = wrap("Before: " + r.before, 90, y + 20, 900, 44);
+  if (r.after) y = wrap("Now: " + r.after, 90, y + 4, 900, 44);
+  g.font = "bold 38px system-ui, sans-serif"; g.fillStyle = "#16301A";
+  g.fillText(`${r.member}${r.trade ? " · " + r.trade : ""}`, 90, 900);
+  g.font = "26px system-ui, sans-serif"; g.fillStyle = "#3A8A1C";
+  g.fillText("Lead Farming HQ member", 90, 942);
+  g.font = "22px system-ui, sans-serif"; g.fillStyle = "#5F6B63";
+  wrap(RESULTS_NOTE, 90, 1010, 900, 28);
+  return c;
+}
+async function proofCards() {
+  const rows = await proofExportRows();
+  if (!rows) return;
+  const cards = rows.map((r) => ({ r, c: proofCard(r) }));
+  const name = (r, i) => `proof-${String(r.member).replace(/\W+/g, "-").toLowerCase()}-${i + 1}.png`;
+  dlg.innerHTML = `<h3 style="margin-top:0">Image cards (${cards.length})</h3><p class="muted" style="margin-top:0;font-size:14px">Each card carries the "results not typical" note.</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;max-height:60vh;overflow:auto" id="cards">${cards.map(({ c, r }, i) => `<div><img src="${c.toDataURL("image/png")}" alt="Quote card for ${esc(r.member)}" style="width:100%;border-radius:8px;border:1px solid var(--line, #ddd)">
+      <button class="btn ghost sm" data-png="${i}" style="margin-top:4px">Download</button></div>`).join("")}</div>
+    <div class="row" style="margin-top:12px;justify-content:flex-end"><button class="btn ghost" id="cx">Close</button><button class="btn" id="allpng">Download all</button></div>`;
+  dlg.showModal();
+  const save = (i) => new Promise((ok) => cards[i].c.toBlob((b) => { saveBlob(name(cards[i].r, i), b); ok(); }));
+  dlg.querySelectorAll("[data-png]").forEach((b) => b.onclick = () => save(+b.dataset.png));
+  $("#allpng").onclick = async () => { for (let i = 0; i < cards.length; i++) { await save(i); await new Promise((r) => setTimeout(r, 300)); } };
+  $("#cx").onclick = () => dlg.close();
 }
 
 // ---------- admin: one farmer's page ----------
