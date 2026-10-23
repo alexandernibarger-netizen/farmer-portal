@@ -1289,7 +1289,8 @@ const studentCard = (x, B, own) => `<div class="card stud" data-stud="${x.id}">
     <div class="row" style="margin-top:10px"><button class="btn sm" data-open="${x.id}">See everything</button>${own ? `<button class="btn ghost sm" data-drop="${x.id}">Let go</button>` : ""}</div></div>`;
 
 async function students() {
-  const [{ data: B, error }, { data: pool, error: e2 }, { data: W }, cc, dp] = await Promise.all([sb.rpc("teacher_board"), sb.rpc("teacher_pick_list"), sb.rpc("my_waiting"), teacherClassPanel(), dailyPanel()]);
+  const [{ data: B, error }, { data: pool, error: e2 }, { data: W }, cc, dp, { data: notes }] = await Promise.all([sb.rpc("teacher_board"), sb.rpc("teacher_pick_list"), sb.rpc("my_waiting"), teacherClassPanel(), dailyPanel(),
+    sb.from("notifications").select("*").eq("farmer_id", me.id).order("created_at", { ascending: false })]);
   if (error || e2 || !B) return (app.innerHTML = `<p class="err">Couldn't load your students${error || e2 ? ": " + esc((error || e2).message) : ""}</p>`);
   const T = B.teachers.find((t) => t.id === me.id) || { students: [], goal: 0 };
   const S = T.students, total = sumOf(S, "pipeline_2wk");
@@ -1298,6 +1299,8 @@ async function students() {
   app.innerHTML = `<div class="dash" id="studentspage" style="max-width:1000px">
     <div class="row" style="justify-content:space-between"><h2 style="font-size:22px;margin:4px 0 0">My students</h2><button class="btn ghost sm" id="guide">How this works</button></div>
     <p class="muted" style="margin:2px 0 0">${S.length} picked · goal is ${money(B.student_goal)} each every 2 weeks</p>
+    ${(notes || []).filter((n) => !n.read_at).map((n) => `<div class="card lvl alert" style="margin-top:12px;border-color:var(--warn)"><div class="row"><span style="flex:1">${esc(n.body)}</span>
+      <button class="btn ghost sm" data-seen="${n.id}">Got it</button></div></div>`).join("")}
     ${waitN ? `<div class="card needs" id="studwait" style="margin-top:12px"><div class="row"><span><b>${waitN}</b> thing${waitN === 1 ? "" : "s"} from your students ${waitN === 1 ? "is" : "are"} waiting on you</span><button class="btn sm" data-towait="1">Open Approvals</button></div></div>` : ""}
     <div class="card" id="tgoal" style="margin-top:12px"><div class="row" style="justify-content:space-between"><b>${money(total)} of ${money(T.goal)} through your students' pipelines</b>
       <span class="muted" style="font-size:14px">last ${B.days} days</span></div>${goalBar(total, T.goal)}
@@ -1315,6 +1318,11 @@ async function students() {
         || `<tr><td colspan="6" class="muted">No other paid farmers yet.</td></tr>`}</tbody></table></div></div>`;
   cc.wire();
   dp.wire();
+  // teachers don't have Home, so their alerts show here
+  app.querySelectorAll("[data-seen]").forEach((b) => b.onclick = async () => {
+    await sb.from("notifications").update({ read_at: new Date().toISOString() }).eq("id", b.dataset.seen);
+    b.closest(".alert").remove();
+  });
   $("#guide").onclick = () => teacherGuide(false);
   if (!me.teacher_guide_seen && !dlg.open) teacherGuide(true);
   app.querySelectorAll("[data-towait]").forEach((b) => b.onclick = () => { view = "approvals"; boot(); });
