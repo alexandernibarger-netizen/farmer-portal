@@ -4,6 +4,7 @@
 window.TEACHER_LESSONS = window.TEACHER_LESSONS || {};
 window.TEACHER_LESSONS["call-confidence"] = {
   title: "Cold Calling & Confidence",
+  by: "Vincent Beck",
   sub: "Starting conversations, handling rejection, and building contractor relationships.",
   // [title, slides, the one line to remember]
   parts: [

@@ -10,6 +10,7 @@
 <script src="../track.js"></script>
 <script src="../curriculum/diagrams.js"></script>
 <script src="../curriculum/call-class.js"></script>
+<script src="../curriculum/daily-program.js"></script>
 <style>
 :root{--leaf:#3E7B3A;--leaf2:#72AA5C;--soil:#7E5A3B;--soil2:#B48A5E;--trunk:#6A4A2E;--onsoil:#FFF5E4;--sky:#DDEBF1;--sky2:#4F8AB0;--meadow:#DCEBC8;--gold:#F0B93A;--gold-d:#A9760F;--bloom:#D3648A;--apple:#C9473B;--bad:#B83E33;--good:#2C7F45;--skin:#E5B68C;--paper:#FFFFFF;--rock:#9AA095;--bg:#FFFFFF;--card:#fff;--ink:#2B3A2E;--muted:#5F6B63;--line:#E6EBE1;--accent:#3A8A1C;--accent-ink:#fff;--warn:#B4530A;--soft:#EAF6E1;--accent-d:#2A6812;--soft2:#F3F6EF;--brand:#5BB82E;--sun:#F5B700;--sun-d:#C99600;--sky3:#2E9BD6;--sky3-d:#1C7AAE;--skysoft:#E0F0FA;--flame:#FF9F1C;--lock:#E6EBE1;--lock-d:#CDD5C7}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--leaf:#5FA552;--leaf2:#3F7A36;--soil:#4E3824;--soil2:#7A5B3B;--trunk:#8C6A47;--onsoil:#F3E7D3;--sky:#1C2D35;--sky2:#6EA8CC;--meadow:#1F2E1B;--gold:#F2C24E;--gold-d:#E6AE3A;--bloom:#E07FA0;--apple:#E06A5C;--bad:#E46B5E;--good:#5DC27B;--skin:#D2A07A;--paper:#263027;--rock:#5E655A;--bg:#121512;--card:#1b201c;--ink:#e7ebe7;--muted:#9aa49d;--line:#2c332d;--accent:#6CC24A;--accent-ink:#0d130f;--warn:#e19a62;--soft:#1f2a22;--accent-d:#3E8E22;--soft2:#1A1F1B;--brand:#5BB82E;--sun:#F2C24E;--sun-d:#B38A1E;--sky3:#4AAEE3;--sky3-d:#1C7AAE;--skysoft:#16303D;--flame:#FFAE45;--lock:#2C332D;--lock-d:#232924}}
@@ -127,9 +128,18 @@ dialog::backdrop{background:rgba(0,0,0,.4)}
 .cc-partner{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--skysoft);border-radius:14px;padding:10px 14px}
 .cc-dark{background:var(--ink);color:var(--bg);border-radius:18px;padding:18px 22px}.cc-dark b{display:block;font-size:24px;line-height:1.25}
 .cc-metric{border:2px solid var(--line);border-radius:14px;padding:10px 12px;display:flex;align-items:center;gap:12px}.cc-metric .v{font-size:28px;font-weight:900;min-width:36px}
+.cc-grid5{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+#ccplayer .ccrail button.lock{background:var(--soft2);border-style:dashed;cursor:not-allowed}
+.dp-stat{background:var(--soft2);border-radius:14px;padding:8px 14px;text-align:center;min-width:100px}.dp-stat b{display:block;font-size:26px;line-height:1.1}.dp-stat span{font-size:11px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.dp-cols{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;margin-top:8px}.dp-cols>*{min-width:0}.dp-tick{align-items:flex-start;line-height:1.35}.dp-tick .bx{margin-top:1px}
+.dp-sub{padding-left:40px;gap:6px}.dp-sub .chipbtn{font-size:13px;padding:4px 10px}
+.dp-behind{background:color-mix(in srgb,var(--sun) 18%,var(--card));border:2px solid var(--sun);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:10px;margin-left:40px}
+.dp-under,td.dp-under b{color:#B3261E}.dp-ok{color:var(--accent-d);font-weight:900;text-align:center}.dp-miss{color:#B3261E;background:#FDECEA;font-weight:900;text-align:center}.dp-now{background:color-mix(in srgb,var(--sun) 22%,var(--card));text-align:center}
+.dp-grid td:not(:first-child),.dp-grid th:not(:first-child){text-align:center}
+@media (max-width:640px){.dp-sub,.dp-behind{padding-left:0;margin-left:0}}
 .cc-practice{flex:1 1 220px;align-self:flex-start;border:2px dashed #9FD57A;border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:10px}
 .ccteach .notes{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;font-size:15px}.ccteach .notes>div{flex:1 1 240px;border-radius:14px;padding:10px 12px}
-@media (max-width:899px){.ccmain{padding:10px 12px 12px}.ccrail{width:56px}.ccrail button{width:36px;height:36px;font-size:13px}.ccrail .n{font-size:22px}
+@media (max-width:899px){.cc-grid5{grid-template-columns:repeat(2,minmax(0,1fr))}.ccmain{padding:10px 12px 12px}.ccrail{width:56px}.ccrail button{width:36px;height:36px;font-size:13px}.ccrail .n{font-size:22px}
   .cc-grid3{grid-template-columns:1fr}.cc-qa{grid-template-columns:1fr;gap:2px}.cchead h2{font-size:21px}.cchead p{font-size:15px}}
 @media (max-width:640px){.cc-grid2{grid-template-columns:1fr}.ccbody{font-size:14px}.cctop>b,.cctop>.muted{display:none}}
 .welcome{border-color:var(--accent);background:linear-gradient(180deg,var(--soft),var(--card) 70%)}
@@ -1279,7 +1289,7 @@ const studentCard = (x, B, own) => `<div class="card stud" data-stud="${x.id}">
     <div class="row" style="margin-top:10px"><button class="btn sm" data-open="${x.id}">See everything</button>${own ? `<button class="btn ghost sm" data-drop="${x.id}">Let go</button>` : ""}</div></div>`;
 
 async function students() {
-  const [{ data: B, error }, { data: pool, error: e2 }, { data: W }, cc] = await Promise.all([sb.rpc("teacher_board"), sb.rpc("teacher_pick_list"), sb.rpc("my_waiting"), teacherClassPanel()]);
+  const [{ data: B, error }, { data: pool, error: e2 }, { data: W }, cc, dp] = await Promise.all([sb.rpc("teacher_board"), sb.rpc("teacher_pick_list"), sb.rpc("my_waiting"), teacherClassPanel(), dailyPanel()]);
   if (error || e2 || !B) return (app.innerHTML = `<p class="err">Couldn't load your students${error || e2 ? ": " + esc((error || e2).message) : ""}</p>`);
   const T = B.teachers.find((t) => t.id === me.id) || { students: [], goal: 0 };
   const S = T.students, total = sumOf(S, "pipeline_2wk");
@@ -1292,6 +1302,7 @@ async function students() {
     <div class="card" id="tgoal" style="margin-top:12px"><div class="row" style="justify-content:space-between"><b>${money(total)} of ${money(T.goal)} through your students' pipelines</b>
       <span class="muted" style="font-size:14px">last ${B.days} days</span></div>${goalBar(total, T.goal)}
       <p style="margin:8px 0 0;font-size:14px" class="muted">Counts the job value of every lead your students logged in the last ${B.days} days that isn't marked lost. Your goal grows by ${money(B.student_goal)} with each student you pick.</p></div>
+    ${dp.html}
     ${cc.html}
     <div class="studgrid">${S.map((x) => studentCard(x, B, true)).join("") || `<div class="card stud empty"><b>No students yet</b><p class="muted" style="margin:6px 0 0;font-size:14px">Pick a farmer below.</p></div>`}</div>
     <h3>Pick your students</h3>
@@ -1303,6 +1314,7 @@ async function students() {
           : `<button class="btn sm" data-pick="${p.id}">Pick</button>`}</td></tr>`).join("")
         || `<tr><td colspan="6" class="muted">No other paid farmers yet.</td></tr>`}</tbody></table></div></div>`;
   cc.wire();
+  dp.wire();
   $("#guide").onclick = () => teacherGuide(false);
   if (!me.teacher_guide_seen && !dlg.open) teacherGuide(true);
   app.querySelectorAll("[data-towait]").forEach((b) => b.onclick = () => { view = "approvals"; boot(); });
@@ -1322,6 +1334,136 @@ async function students() {
   });
 }
 
+// ---------- Daily Program (Julian's lesson): the teacher's promises checklist, the one sheet, and Alex's day-by-day view ----------
+const dpTick = (k, t, sub, on, dis) => `<button class="cc-tick dp-tick${on ? " on" : ""}" data-prom="${k}" aria-pressed="${on}"${dis ? " disabled" : ""}><span class="bx">${ccTick}</span>
+  <span style="flex:1;min-width:0">${esc(t)}<br><small class="muted" style="font-weight:700">${esc(sub)}</small></span></button>`;
+// The first daily target a student is under, in funnel order (where they're leaking)
+const dpLeak = (L, n) => n ? L.numbers.find(([k, , g]) => g && Number(n[k] || 0) < g) || null : null;
+
+function dpSheet(D, L) {
+  const tag = (t, c) => `<span class="tag${c ? " " + c : ""}">${esc(t)}</span>`;
+  const d8 = D.day != null && D.day >= L.days;
+  return `<div class="card" id="dpsheet" style="margin-top:12px"><div class="row" style="justify-content:space-between"><b style="font-size:18px">All your students, one sheet</b>
+      <span class="muted" style="font-size:14px">${D.day != null ? `Day ${Math.min(D.day, L.days)} of ${L.days}` : "Not started"} · goal ${money(L.goal)} each by day ${L.days}</span></div>
+    <div class="tablewrap"><table><thead><tr><th>Student</th><th>Why</th>${L.numbers.map(([, t, g]) => `<th>${esc(t)}${g ? ` / ${g}` : ""}</th>`).join("")}<th>In CRM</th><th>Toward ${money(L.goal)}</th><th>Tonight</th></tr></thead><tbody>
+    ${D.students.map((s) => { const n = s.numbers, leak = dpLeak(L, n);
+      return `<tr><td><b>${esc(s.name)}</b></td><td>${s.why ? "✓" : `<span class="muted">Not yet</span>`}</td>
+        ${L.numbers.map(([k, , g]) => `<td${n && g && Number(n[k] || 0) < g ? ' class="dp-under"' : ""}><b>${n ? Number(n[k] || 0) : "–"}</b></td>`).join("")}
+        <td>${n ? (n.in_crm ? "✓" : `<span class="dp-under">Not yet</span>`) : "–"}</td>
+        <td style="min-width:130px"><b>${money(s.fees)}</b>${goalBar(s.fees, L.goal)}</td>
+        <td>${!n ? tag("No numbers yet") : leak ? tag("Behind: " + leak[1].toLowerCase(), "warn") : tag("On track", "good")}${d8 && Number(s.fees) < L.goal ? " " + tag("Book a one-on-one", "warn") : ""}</td></tr>`; }).join("")
+      || `<tr><td colspan="${L.numbers.length + 5}" class="muted">Pick students below and they'll show up here.</td></tr>`}</tbody></table></div>
+    <p class="muted" style="margin:8px 0 0;font-size:13px">Red is under the daily target. "Toward ${money(L.goal)}" counts the fees on leads they've closed in the CRM since the kickoff call.</p></div>`;
+}
+
+// Julian's side, on My students
+async function dailyPanel() {
+  const { data: D } = await sb.rpc("daily_board");
+  const L = D && TL(D.lesson);
+  if (!L || !L.promises) return { html: "", wire: () => {} };
+  const P = L.promises, S = D.students, day = D.day, started = day != null, inRun = started && day <= L.days;
+  const today = new Set(D.promises.filter((p) => p.day === D.today).map((p) => p.item));
+  const ever = new Set(D.promises.map((p) => p.item));  // ticked on any day of this run
+  const got = (s) => !!s.numbers || today.has("got:" + s.id);
+  const gotAll = S.length > 0 && S.every(got);
+  const isOn = (k) => k === "collect" ? gotAll || today.has(k) : k === "kickoff" ? inRun : P.program.some(([x]) => x === k) ? ever.has(k) : today.has(k);
+  const groupDay = inRun && day % 2 === 1, d8 = started && day >= L.days;
+  const nightly = P.nightly.map(([k, t, sub]) => dpTick(k, t, sub, isOn(k)));
+  const todays = P.today.map(([k, t, sub]) => k === "groupcall" && !groupDay
+    ? `<div class="cc-box muted" style="font-size:14px"><b>${esc(t)}</b><br>${inRun ? `Not today. Next one is day ${day + 1}.` : "Every other day once the 8 days start."}</div>`
+    : dpTick(k, t, sub, isOn(k)));
+  const program = P.program.map(([k, t, sub]) => k === "kickoff" && started && day > L.days
+    ? dpTick(k, "Start a new 8 days", "Tick this after the next kickoff call. Today becomes day 1.", false)
+    : dpTick(k, t, k === "kickoff" && started ? `Day 1 was ${new Date(D.started_on + "T12:00:00").toLocaleDateString()}` : sub, isOn(k),
+      k === "kickoff" ? started && day > 1 && inRun : !d8));
+  const shown = [...P.nightly, ...P.today.filter(([k]) => k !== "groupcall" || groupDay), ...P.program].map(([k]) => k);
+  const doneN = shown.filter(isOn).length;
+  // nights where all of the nightly promises were ticked, before tonight
+  let nights = 0;
+  for (let i = 1; started && i < Math.min(day, L.days + 1); i++) {
+    const dd = new Date(new Date(D.started_on + "T12:00:00Z").getTime() + (i - 1) * 864e5).toISOString().slice(0, 10);
+    const set = new Set(D.promises.filter((p) => p.day === dd).map((p) => p.item));
+    if (P.nightly.every(([k]) => set.has(k))) nights++;
+  }
+  const chip = (s, on, attr, dis) => `<button class="chipbtn${on ? " on" : ""}" ${attr}="${s.id}" aria-pressed="${on}"${dis ? " disabled" : ""}>${on ? "✓ " : ""}${esc(s.name)}</button>`;
+  const behind = S.filter((s) => dpLeak(L, s.numbers)), missing = S.filter((s) => !s.numbers);
+  const html = `<div class="card" id="promises" style="margin-top:12px;border-color:#9FD57A">
+    <div class="row" style="justify-content:space-between;align-items:flex-start">
+      <div style="flex:1 1 380px;min-width:0"><div class="cc-lbl cc-green">My promises · only you and Alex see this</div>
+        <div style="font-size:19px;font-weight:900;line-height:1.3">“${esc(L.promise)}”</div>
+        <p class="muted" style="margin:6px 0 0;font-size:14px;font-weight:800">${esc(L.standard)}</p></div>
+      <div class="row"><div class="dp-stat"><b>${doneN} / ${shown.length}</b><span>Done today</span></div>
+        <div class="dp-stat"><b>${started ? `${nights} / ${Math.max(0, Math.min(day, L.days + 1) - 1)}` : "–"}</b><span>Nights complete</span></div></div></div>
+    <p style="margin:10px 0 0;font-weight:800">${!started ? "Not started yet. Tick the kickoff call after you run it, and that day becomes day 1."
+      : inRun ? `Day ${day} of ${L.days}${groupDay ? " · group call day" : ""}` : `The ${L.days} days are over. Start a new 8 days when you run the next kickoff.`}</p>
+    <div class="dp-cols">
+      <div class="cc-stack" style="flex:3 1 420px"><div class="cc-lbl" style="margin:6px 0 0">Every night · resets at midnight Texas time</div>
+        ${nightly[0]}
+        <div class="row dp-sub"><span class="muted" style="font-size:13px;font-weight:800">Numbers in:</span>${S.map((s) => chip(s, got(s), "data-got", !!s.numbers)).join("") || `<span class="muted" style="font-size:13px">No students yet</span>`}</div>
+        ${nightly.slice(1).join("")}
+        ${behind.length || (missing.length && S.length) ? `<div class="dp-behind"><div class="cc-lbl" style="margin:0;color:#5A4300">Falling behind tonight · step in fast</div>
+          ${behind.map((s) => { const [k, t, g] = dpLeak(L, s.numbers);
+            return `<div><b>${esc(s.name)}</b> · leaking at <b>${esc(t.toLowerCase())}</b> (${Number(s.numbers[k] || 0)} of ${g})
+              ${s.action ? `<br><small class="muted">Last action you sent: ${esc(s.action.body)}</small>` : ""}
+              <div class="row" style="margin-top:6px"><input id="act-${s.id}" style="flex:1 1 240px" aria-label="One clear action for ${esc(s.name)}" placeholder="One clear action for ${esc(s.name)}">
+                <button class="btn sm" data-act="${s.id}">Send to ${esc(s.name.split(" ")[0])}</button></div></div>`; }).join("")}
+          ${missing.length ? `<div class="muted" style="font-size:14px">No numbers yet from ${missing.map((s) => esc(s.name)).join(", ")}.</div>` : ""}
+          <div class="err" id="acterr"></div></div>` : ""}</div>
+      <div class="cc-stack" style="flex:2 1 300px"><div class="cc-lbl" style="margin:6px 0 0">Today</div>${todays.join("")}
+        <div class="row dp-sub"><span class="muted" style="font-size:13px;font-weight:800">Live calls and role play with:</span>${S.map((s) => chip(s, ever.has("teach:" + s.id), "data-teach", ever.has("teach:" + s.id) && !today.has("teach:" + s.id))).join("")}</div>
+        <div class="cc-lbl" style="margin:10px 0 0">The ${L.days} days</div>${program.join("")}</div></div>
+    <div class="err" id="promerr"></div></div>
+    ${dpSheet(D, L)}`;
+  const set = async (b, item, on) => {
+    b.disabled = true;
+    const { error } = await sb.rpc("promise_set", { p_item: item, p_on: on });
+    if (error) { b.disabled = false; return ($("#promerr").textContent = error.message); }
+    students();
+  };
+  const wire = () => {
+    app.querySelectorAll("[data-prom]").forEach((b) => b.onclick = () => {
+      const k = b.dataset.prom;
+      if (k === "collect" && gotAll) return ($("#promerr").textContent = "Everyone's numbers are in, so this one ticks itself.");
+      set(b, k, k === "kickoff" ? !inRun : !isOn(k));
+    });
+    app.querySelectorAll("[data-got]").forEach((b) => b.onclick = () => set(b, "got:" + b.dataset.got, !today.has("got:" + b.dataset.got)));
+    app.querySelectorAll("[data-teach]").forEach((b) => b.onclick = () => set(b, "teach:" + b.dataset.teach, !ever.has("teach:" + b.dataset.teach)));
+    app.querySelectorAll("[data-act]").forEach((b) => b.onclick = async () => {
+      const v = $("#act-" + b.dataset.act).value.trim();
+      if (!v) return ($("#acterr").textContent = "Write the action first.");
+      b.disabled = true;
+      const { error } = await sb.rpc("class_action_send", { p_farmer: b.dataset.act, p_body: v });
+      if (error) { b.disabled = false; return ($("#acterr").textContent = error.message); }
+      b.textContent = "Sent ✓";
+    });
+    // everyone's numbers are in: tick "collect" for tonight so it counts on Alex's grid too
+    if (gotAll && !today.has("collect")) sb.rpc("promise_set", { p_item: "collect", p_on: true });
+  };
+  return { html, wire };
+}
+
+// Alex's view of a teacher's promises (Teachers tab): one row per promise, one column per day
+function dailyGrid(D, L) {
+  const P = L.promises, started = D.day != null;
+  const dates = [...Array(L.days)].map((_, i) => started ? new Date(new Date(D.started_on + "T12:00:00Z").getTime() + i * 864e5).toISOString().slice(0, 10) : null);
+  const has = (dd, k) => D.promises.some((p) => p.day === dd && p.item === k);
+  const rows = [...P.program.slice(0, 1).map(([k, t]) => [k, t, [1]]), ...P.nightly.map(([k, t]) => [k, t, null]),
+    ...P.today.map(([k, t]) => [k, t, k === "groupcall" ? [1, 3, 5, 7] : null]), ...P.program.slice(1).map(([k, t]) => [k, t, [L.days]])];
+  const cell = (k, i, only) => {
+    const n = i + 1;
+    if (only && !only.includes(n)) return `<td></td>`;
+    if (!started || n > D.day) return `<td class="muted">·</td>`;
+    if (k === "kickoff") return `<td class="dp-ok">✓</td>`;
+    return has(dates[i], k) ? `<td class="dp-ok">✓</td>` : n === D.day ? `<td class="muted dp-now">○</td>` : `<td class="dp-miss">✗</td>`;
+  };
+  return `<div class="card" id="dpgrid" style="margin-top:12px"><div class="row" style="justify-content:space-between"><b style="font-size:18px">${esc(D.teacher)}'s promises</b>
+      <span class="muted" style="font-size:14px">${started ? `${esc(L.title)} · day ${Math.min(D.day, L.days)} of ${L.days}` : "Kickoff call not ticked yet"}</span></div>
+    <div class="tablewrap"><table class="dp-grid"><thead><tr><th>Promise</th>${dates.map((_, i) => `<th>Day ${i + 1}</th>`).join("")}</tr></thead><tbody>
+      ${rows.map(([k, t, only]) => `<tr><td>${esc(t.split(":")[0])}</td>${dates.map((_, i) => cell(k, i, only)).join("")}</tr>`).join("")}</tbody></table></div>
+    <p class="muted" style="margin:8px 0 0;font-size:13px">✓ done · ✗ missed · ○ today, not ticked yet · · not here yet · blank: not that kind of day</p></div>
+    ${dpSheet(D, L)}`;
+}
+
 // ---------- Alex: Teachers (pick Julian or Vincent, see their students as a dashboard) ----------
 let teacherSel = null;
 async function teachers() {
@@ -1333,6 +1475,8 @@ async function teachers() {
       <div class="row" style="justify-content:space-between;flex-wrap:nowrap"><b style="font-size:17px">${esc(t.full_name)}</b><span class="tag">${t.students.length} student${t.students.length === 1 ? "" : "s"}</span></div>
       <div style="margin-top:8px"><b>${money(v)}</b> <span class="muted">of ${money(t.goal)}</span>${goalBar(v, t.goal)}</div></button>`; };
   let dash = "";
+  const { data: D } = T ? await sb.rpc("daily_board", { p_teacher: T.id }) : { data: null };
+  const DL = D && TL(D.lesson);
   if (T) {
     const S = T.students, total = n("pipeline_2wk", S);
     const stat = (v, k, sub = "") => `<div class="card stat"><div class="v">${v}</div><div class="k">${k}</div>${sub ? `<small>${sub}</small>` : ""}</div>`;
@@ -1352,6 +1496,7 @@ async function teachers() {
       <div class="card" style="margin-top:12px"><div class="row" style="justify-content:space-between"><b>${money(total)} of ${money(T.goal)} through ${esc(T.full_name)}'s group</b>
         <span class="muted" style="font-size:14px">last ${B.days} days</span></div>${goalBar(total, T.goal)}
         <p class="muted" style="margin:6px 0 0;font-size:13px">${money(B.student_goal)} per student every 2 weeks. Counts the job value of leads logged in the last ${B.days} days that aren't marked lost.</p></div>
+      ${DL && DL.promises ? dailyGrid(D, DL) : ""}
       <div class="studgrid">${S.map((x) => studentCard(x, B, false)).join("")}<div class="card stud empty"><b>Room for more</b><p class="muted" style="margin:6px 0 0;font-size:14px">${esc(T.full_name)} can pick more students, or you can hand one over on the Farmers tab.</p></div></div></div>`;
   }
   app.innerHTML = `<div class="dash" id="teacherspage" style="max-width:1000px">
@@ -2642,6 +2787,7 @@ async function learn() {
 // ---------- Teacher lessons: a teacher's own class that only their students see (Learn > Teacher lesson) ----------
 const TL = (k) => (window.TEACHER_LESSONS || {})[k];
 const ccTick = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>`;
+const ccLock = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>`;
 const ccDone = (d) => new Set((d && d.done) || []);
 const ccFirst = (L, part) => L.screens.findIndex((x) => x[0] === part);
 
@@ -2650,16 +2796,16 @@ async function teacherLessonSide() {
   const head = `<aside class="tlside" id="tlside"><h3>Teacher lesson</h3>`;
   const none = (t) => ({ html: `${head}<div class="card muted" style="font-size:14px">${t}</div></aside>`, wire: () => {} });
   if (me?.role === "admin") {
-    const L = TL("call-confidence");
-    return { html: `${head}<button class="card tlcard" id="opencc"><span class="tag">Vincent Beck's students</span><b>${esc(L.title)}</b><span class="muted">Preview what his students see</span></button></aside>`,
-      wire: () => { $("#opencc").onclick = () => classView({ lesson: "call-confidence", teacher: "Vincent Beck", data: {} }, true); } };
+    const Ls = Object.entries(window.TEACHER_LESSONS || {});
+    return { html: `${head}${Ls.map(([k, L]) => `<button class="card tlcard" data-tl="${k}" style="margin-bottom:10px"><span class="tag">${esc(L.by)}'s students</span><b>${esc(L.title)}</b><span class="muted">Preview what their students see</span></button>`).join("")}</aside>`,
+      wire: () => app.querySelectorAll("[data-tl]").forEach((b) => b.onclick = () => classView({ lesson: b.dataset.tl, teacher: TL(b.dataset.tl).by, data: {} }, true)) };
   }
   if (teacher()) {
     const { data: C } = await sb.rpc("teacher_class");
     const L = C && TL(C.lesson);
     if (!L) return none("You don't have a teacher lesson yet. Ask Alex if you want one for your students.");
     return { html: `${head}<div class="card tlcard" style="cursor:default"><span class="tag">Your students see this on Learn</span><b>${esc(L.title)}</b>
-      <span class="muted">${C.live ? `<span class="livepill">LIVE</span> slide ${C.slide} of 17` : "Run it live from My students."}</span>
+      <span class="muted">${C.live ? `<span class="livepill">LIVE</span> ${L.unit || "slide"} ${C.slide} of ${L.slideName.length}` : "Run it live from My students."}</span>
       <div class="row" style="margin-top:10px"><button class="btn sm" id="runcc">Run class</button><button class="btn ghost sm" id="opencc">Preview</button></div></div></aside>`,
       wire: () => { $("#runcc").onclick = () => { view = "students"; boot(); }; $("#opencc").onclick = () => classView({ lesson: C.lesson, teacher: me.full_name, data: {} }, true); } };
   }
@@ -2668,16 +2814,63 @@ async function teacherLessonSide() {
   if (!L) return none("When your teacher has a lesson just for their students, it shows up here.");
   const n = ccDone(C.data).size;
   return { html: `${head}<button class="card tlcard" id="opencc"><span class="tag">Only for ${esc(C.teacher)}'s students</span>${C.live ? ` <span class="livepill">LIVE NOW</span>` : ""}
-      <b>${esc(L.title)}</b><span class="muted">with ${esc(C.teacher)}</span>
+      <b>${esc(L.title)}</b><span class="muted">with ${esc(C.teacher)}${C.day && L.days ? ` · day ${Math.min(C.day, L.days)} of ${L.days}` : ""}</span>
+      ${C.action ? `<span class="cc-note" style="display:block;margin-top:8px;font-size:14px">${esc(C.teacher)}: ${esc(C.action.body)}</span>` : ""}
       <div class="bar"><i style="width:${Math.round((n / L.parts.length) * 100)}%"></i></div><small class="muted">${n} of ${L.parts.length} parts done</small></button></aside>`,
     wire: () => { $("#opencc").onclick = () => classView(C, false); } };
 }
 
-const ccLive = (C, L) => C.live ? `<span class="livepill">LIVE · slide ${C.slide}</span> <button class="btn sm" id="ccjump">Jump to it</button>` : "";
+const ccLive = (C, L) => C.live ? `<span class="livepill">LIVE · ${L.unit || "slide"} ${C.slide}</span> <button class="btn sm" id="ccjump">Jump to it</button>` : "";
+
+// Today on Texas time, as YYYY-MM-DD (the Daily Program's counters and numbers reset at midnight there)
+const ccToday = (t) => (t ? new Date(t) : new Date()).toLocaleDateString("en-CA", { timeZone: "America/Chicago" });
+const ccWhyIn = (L, d) => !L.whyGate || !!(d.why && d.why.at);
 
 // The interactive screens (the rest are plain HTML in the lesson file)
 function ccScreen(key, C, L, d, preview) {
-  const partner = C.partner ? esc(C.partner) : "your partner";
+  const partner = C.partner ? esc(C.partner) : "your partner", tf = esc(String(C.teacher || "your teacher").split(" ")[0]);
+  const count = (k, t, sub, goal) => `<div class="cc-metric"><span class="v">${(d.c || {})[k] || 0}${goal ? `<small class="muted" style="font-size:15px"> / ${goal}</small>` : ""}</span>
+    <span style="flex:1;min-width:0"><b>${esc(t)}</b>${sub ? `<br><small class="muted">${esc(sub)}</small>` : ""}</span><button class="btn ghost sm" data-count="${k}" aria-label="Add one to ${esc(t)}">+1</button></div>`;
+  if (key === "why1") { const w = d.why || {}; return `<label for="ccwhy" style="margin:0">Why are you doing this?</label><textarea id="ccwhy" rows="3">${esc(w.why)}</textarea>
+    <label for="ccmatters" style="margin:0">Why is it important to you?</label><textarea id="ccmatters" rows="3">${esc(w.matters)}</textarea>
+    <div class="cc-note">${tf} reads every one. Steps 1 to 7 open as soon as your why is in.</div>
+    <div class="err" id="ccerr"></div><div class="row"><button class="btn" id="ccwhysend">${w.at ? "Update my why" : `Send my why to ${tf}`}</button>
+      <span class="muted" style="font-size:14px">${w.at ? "Sent ✓ Steps 1 to 7 are open." : "Steps 1 to 7 are locked until you send it."}</span></div>`; }
+  if (key === "conf") { const on = d.practiced === ccToday(); return `<div class="cc-split"><div class="cc-stack cc-main"><div class="cc-lbl">Before every dial, say it out loud once</div>
+      ${L.script.map((t) => `<div class="cc-script">${esc(t)}</div>`).join("")}
+      <button class="cc-tick${on ? " on" : ""}" data-practiced aria-pressed="${on}"><span class="bx">${ccTick}</span>I practiced out loud before today's first dial</button></div>
+    <div class="cc-stack" style="flex:1 1 220px;align-self:flex-start"><div class="cc-reset" style="line-height:1.5"><div class="cc-lbl cc-blue">Nerves are normal</div>Your first calls will feel shaky. That fades with reps. Every dial makes the next one easier.</div>
+      <div class="cc-box"><div class="cc-lbl cc-green">Teaching by doing</div>${tf} will make live calls with you and role-play objections until they feel easy.</div></div></div>`; }
+  if (key === "list") { const T = C._trades, pick = d.trades || [], X = C._list || { total: 0, today: 0 };
+    return `<div class="cc-split"><div class="cc-stack cc-main"><div class="cc-lbl">Your 3 trades</div>
+      <div class="row">${(T || []).map((n) => `<button class="chipbtn${pick.includes(n) ? " on" : ""}" data-trade="${esc(n)}" aria-pressed="${pick.includes(n)}">${esc(n)}</button>`).join("")
+        || `<span class="muted">${T ? "No trades yet. Add your own on CRM > Trades." : "Loading your trades…"}</span>`}</div>
+      <small class="muted"><b>${pick.length} of 3 picked.</b> ${pick.length < 3 ? `Pick ${3 - pick.length} more.` : "Tap one to swap it."}</small>
+      <div class="cc-script">Pick trades with lots of local contractors and steady demand. Your trades come from your CRM, and you can add your own.</div>
+      <div class="cc-note">Add new contractors every day. A list that stops growing runs dry.</div></div>
+    <div class="cc-practice"><b style="font-size:17px">Contractors on your list</b><span style="font-size:34px;font-weight:900">${X.total} / 30</span>
+      <div class="bar"><i style="width:${Math.min(100, Math.round((X.total / 30) * 100))}%"></i></div>
+      <span class="muted" style="font-size:14px">${X.today} added today · counted from your CRM</span><button class="btn" id="cctocrm">Add contractors in the CRM</button></div></div>`; }
+  if (key === "contact2") { const v = (d.c || {}).conv || 0; return `<div>Tap +1 as you go. Log each call in your CRM too.</div>
+    <div class="cc-grid2">${count("conv", "Real conversations", "Answered and pitched", 20)}${count("conf", "Contractors confirmed", "Agreed to 20% in writing", 1)}</div>
+    <div class="bar" style="height:14px"><i style="width:${Math.min(100, Math.round((v / 20) * 100))}%"></i></div>
+    <div class="cc-script">Stuck under 20? Usually it's not enough dials. Block an hour, put your phone on speaker, and go down your list without stopping.</div>`; }
+  if (key === "home") return `<div class="cc-split"><div class="cc-stack cc-main"><div class="cc-lbl">On Nextdoor and Facebook, look for</div>
+      <div class="cc-script">Neighbors asking for a recommendation or a quote in one of your 3 trades.</div>
+      <div class="cc-script">Neighbors complaining about something broken that your contractors fix.</div>
+      <div class="cc-lbl" style="margin-top:6px">Reply like a neighbor, never a pitch</div>
+      <div class="cc-box cc-big"><b>“I recently had a very similar problem and the guy I had fix it did a very good job. I’d love to connect you.”</b></div>
+      <div class="cc-box cc-bad"><b class="cc-red">Don’t pitch.</b> Pitching gets you banned from both sites.</div></div>
+    <div class="cc-stack" style="flex:1 1 240px;align-self:flex-start">${count("hconv", "Homeowner conversations", "", 10)}${count("leads", "Leads", "", 5)}
+      <small class="muted">A lead is a homeowner who said yes, connect me, and gave you a way to reach them. Add it in the CRM.</small></div></div>`;
+  if (key === "night") { const N = C.numbers || {}, c = d.c || {}, crm = N.in_crm || d.incrm === ccToday();
+    return `<div class="cc-grid5">${L.numbers.map(([k, t, , h]) => `<div style="display:flex;flex-direction:column;gap:4px"><label for="ccn-${k}" style="margin:0;font-size:13px">${esc(t)}</label>
+        <input id="ccn-${k}" type="number" min="0" inputmode="numeric" value="${Number(N[k] ?? c[k] ?? 0)}"><small class="muted">${esc(h)}</small></div>`).join("")}</div>
+      <small class="muted">Filled in from what you tapped today${N.updated_at ? " and what you sent earlier" : ""}. Fix anything that's off.</small>
+      <label for="ccstuck" style="margin:0">Anything you're stuck on?</label><textarea id="ccstuck" rows="2">${esc(N.stuck)}</textarea>
+      <button class="cc-tick${crm ? " on" : ""}" data-incrm aria-pressed="${crm}"><span class="bx">${ccTick}</span>Everything from today is logged in my CRM</button>
+      <div class="err" id="ccerr"></div><div class="row"><button class="btn" id="ccnight">${N.updated_at ? "Update tonight's numbers" : `Send tonight's numbers to ${tf}`}</button>
+        ${N.updated_at ? `<span class="muted" style="font-size:14px">Sent ✓</span>` : ""}</div>`; }
   if (key === "talk") return `<div>Short, polite, conversational. Say them your way. A word-for-word script makes you sound like a salesman.</div>
     <div class="cc-grid2">${L.talking.map((t) => `<div class="cc-script">${esc(t)}</div>`).join("")}</div>
     <button class="cc-tick${d.read ? " on" : ""}" data-read aria-pressed="${!!d.read}"><span class="bx">${ccTick}</span>I said these out loud 5 times</button>`;
@@ -2733,7 +2926,10 @@ addEventListener("resize", () => { clearTimeout(ccResize); ccResize = setTimeout
 function classView(C, preview, pos, sub) {
   const L = TL(C.lesson), SC = L.screens;
   const d = (C.data = Object.assign({ done: [], chal: [], m: {}, practice: 0, read: false, round: 0, pos: 0 }, C.data));
+  if (L.numbers && d.cday !== ccToday()) Object.assign(d, { cday: ccToday(), c: {} });  // the daily counters start over at midnight Texas time
+  const open = preview || ccWhyIn(L, d), locked = (i) => !open && i > 0;
   if (pos == null) pos = Math.max(0, Math.min(SC.length - 1, d.pos || 0));
+  if (locked(SC[pos][0])) pos = 0;
   d.pos = pos;
   const part = SC[pos][0], key = SC[pos][1], P = L.parts[part];
   const inPart = SC.map((x, i) => i).filter((i) => SC[i][0] === part), k = inPart.indexOf(pos), last = k === inPart.length - 1;
@@ -2744,7 +2940,8 @@ function classView(C, preview, pos, sub) {
   const redraw = () => { save(); classView(C, preview, pos); };
   app.innerHTML = `<div class="ccp" id="ccplayer">
     <nav class="ccrail" aria-label="Parts"><span class="k">Part</span><span class="n">${part + 1}</span><span class="of">of ${L.parts.length}</span>
-      ${L.parts.map((x, i) => `<button type="button" data-part="${i}" class="${i === part ? "cur" : done.has(i) ? "done" : ""}${i === livePart ? " live" : ""}" aria-label="Part ${i + 1}: ${esc(x[0])}${done.has(i) ? ", done" : ""}"${i === part ? ' aria-current="step"' : ""}>${done.has(i) && i !== part ? ccTick : i + 1}</button>`).join("")}</nav>
+      ${L.parts.map((x, i) => locked(i) ? `<button type="button" class="lock" disabled aria-label="Part ${i + 1}: ${esc(x[0])}, locked until your why is in">${ccLock}</button>`
+        : `<button type="button" data-part="${i}" class="${i === part ? "cur" : done.has(i) ? "done" : ""}${i === livePart ? " live" : ""}" aria-label="Part ${i + 1}: ${esc(x[0])}${done.has(i) ? ", done" : ""}"${i === part ? ' aria-current="step"' : ""}>${done.has(i) && i !== part ? ccTick : i + 1}</button>`).join("")}</nav>
     <div class="ccmain">
       <div class="cctop"><button class="btn ghost sm" id="ccback">← ${view === "students" ? "My students" : "Learn"}</button><b>${esc(L.title)}</b><span class="muted" style="font-size:13px">with ${esc(C.teacher)}${preview ? " · preview, nothing saves" : ""}</span>
         <span id="cclive" style="margin-left:auto">${ccLive(C, L)}</span></div>
@@ -2756,20 +2953,23 @@ function classView(C, preview, pos, sub) {
   // No scrolling: the player fills the window, and a screen too tall for it (small phones) is split into pages
   const pg = ccFit(), nextLabel = $("#ccnext").textContent, dots = app.querySelector(".ccfoot .dots").innerHTML;
   let page = sub === "last" ? pg.count - 1 : 0;
+  const nextLocked = !open;  // their why isn't in yet: they stay on the first screen
   const showPage = () => {
     pg.show(page);
     $("#ccnext").textContent = page < pg.count - 1 ? "More" : nextLabel;
+    $("#ccnext").disabled = page >= pg.count - 1 && nextLocked;
     app.querySelector(".ccfoot .dots").innerHTML = dots + (pg.count > 1 ? ` <span>Page ${page + 1} of ${pg.count}</span>` : "");
     $("#ccprev").disabled = !pos && !page;
   };
   showPage();
-  const wireJump = () => { if ($("#ccjump")) $("#ccjump").onclick = () => go(ccFirst(L, L.slidePart[C.slide - 1])); };
+  const wireJump = () => { if ($("#ccjump")) $("#ccjump").onclick = () => { const p = L.slidePart[C.slide - 1]; if (p != null && !locked(p)) go(ccFirst(L, p)); }; };
   wireJump();
   app.querySelectorAll("[data-part]").forEach((b) => b.onclick = () => go(ccFirst(L, +b.dataset.part)));
   $("#ccback").onclick = () => { clearInterval(ccTimer); view === "students" ? students() : learn(); };
   $("#ccprev").onclick = () => { if (page) { page--; return showPage(); } if (pos) { d.pos = pos - 1; save(); classView(C, preview, pos - 1, "last"); } };
   $("#ccnext").onclick = () => {
     if (page < pg.count - 1) { page++; return showPage(); }
+    if (nextLocked) return;
     if (last && !done.has(part)) d.done = [...done, part];
     if (pos === SC.length - 1) { save(); clearInterval(ccTimer); return view === "students" ? students() : learn(); }
     go(pos + 1);
@@ -2778,6 +2978,47 @@ function classView(C, preview, pos, sub) {
   app.querySelectorAll("[data-round]").forEach((b) => b.onclick = () => { d.round = +b.dataset.round; redraw(); });
   app.querySelectorAll("[data-chal]").forEach((b) => b.onclick = () => { const a = (d.chal = [...(d.chal || [])]); a[+b.dataset.chal] = !a[+b.dataset.chal]; redraw(); });
   app.querySelectorAll("[data-metric]").forEach((b) => b.onclick = () => { d.m = { ...d.m, [b.dataset.metric]: (d.m[b.dataset.metric] || 0) + 1 }; redraw(); });
+  // The Daily Program's screens
+  if ($("#ccwhysend")) $("#ccwhysend").onclick = async (e) => {
+    const why = $("#ccwhy").value.trim().slice(0, 1500), matters = $("#ccmatters").value.trim().slice(0, 1500);
+    if (!why || !matters) return ($("#ccerr").textContent = "Answer both questions first.");
+    const first = !(d.why && d.why.at);
+    d.why = { why, matters, at: new Date().toISOString() };
+    if (!preview) {
+      e.currentTarget.disabled = true;
+      const { error } = await sb.rpc("class_feedback_send", { p_kind: "discussion", p_round: 0, p_well: why, p_improve: matters, p_to: null });
+      if (error) { d.why = null; e.currentTarget.disabled = false; return ($("#ccerr").textContent = error.message); }
+    }
+    if (first && !done.has(part)) d.done = [...done, part];
+    redraw();
+  };
+  if (app.querySelector("[data-practiced]")) app.querySelector("[data-practiced]").onclick = () => { d.practiced = d.practiced === ccToday() ? null : ccToday(); redraw(); };
+  app.querySelectorAll("[data-trade]").forEach((b) => b.onclick = () => {
+    const t = b.dataset.trade, a = d.trades || [];
+    if (a.includes(t)) d.trades = a.filter((x) => x !== t); else if (a.length < 3) d.trades = [...a, t]; else return;
+    redraw();
+  });
+  app.querySelectorAll("[data-count]").forEach((b) => b.onclick = () => { d.c = { ...d.c, [b.dataset.count]: ((d.c || {})[b.dataset.count] || 0) + 1 }; redraw(); });
+  if ($("#cctocrm")) $("#cctocrm").onclick = () => { clearInterval(ccTimer); view = "contractors"; boot(); };
+  if (app.querySelector("[data-incrm]")) app.querySelector("[data-incrm]").onclick = (e) => { const b = e.currentTarget, on = !b.classList.contains("on"); b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); d.incrm = on ? ccToday() : null; };
+  if ($("#ccnight")) $("#ccnight").onclick = async (e) => {
+    const v = (k) => Math.max(0, parseInt($("#ccn-" + k).value, 10) || 0);
+    const args = { p_conv: v("conv"), p_conf: v("conf"), p_leads: v("leads"), p_sent: v("sent"), p_est: v("est"),
+      p_in_crm: app.querySelector("[data-incrm]").classList.contains("on"), p_stuck: $("#ccstuck").value };
+    if (preview) return ($("#ccerr").textContent = "Preview only: nothing is sent.");
+    e.currentTarget.disabled = true;
+    const { error } = await sb.rpc("class_numbers_send", args);
+    if (error) { e.currentTarget.disabled = false; return ($("#ccerr").textContent = error.message); }
+    C.numbers = { conv: args.p_conv, conf: args.p_conf, leads: args.p_leads, sent: args.p_sent, est: args.p_est, in_crm: args.p_in_crm, stuck: args.p_stuck, updated_at: new Date().toISOString() };
+    if (!done.has(part)) d.done = [...done, part];
+    redraw();
+  };
+  if (key === "list" && !C._trades) Promise.all([sb.from("trades").select("name").order("name"), sb.from("contractors").select("created_at").eq("farmer_id", me.id)]).then(([t, c]) => {
+    const rows = c.data || [];
+    C._trades = (t.data || []).map((x) => x.name);
+    C._list = { total: rows.length, today: rows.filter((x) => ccToday(x.created_at) === ccToday()).length };
+    if ($("#ccplayer") && ccRedraw) ccRedraw();
+  });
   if ($("#ccaddcall")) $("#ccaddcall").onclick = () => { d.practice = Math.min(5, (d.practice || 0) + 1); d.m = { ...d.m, calls: (d.m.calls || 0) + 1 }; redraw(); };
   const send = async (btn, args) => {
     if (preview) return ($("#ccerr").textContent = "Preview only: nothing is sent.");
@@ -2809,31 +3050,34 @@ async function teacherClassPanel() {
   const { data: C } = await sb.rpc("teacher_class");
   const L = C && TL(C.lesson);
   if (!L) return { html: "", wire: () => {} };
-  const pi = L.slidePart[C.slide - 1], N = L.notes[pi], T = L.parts.length;
+  const nS = L.slideName.length, slide = Math.min(C.slide, nS), unit = L.unit || "slide", Unit = unit[0].toUpperCase() + unit.slice(1);
+  const pi = L.slidePart[slide - 1], N = L.notes[pi], T = L.parts.length;
   const names = Object.fromEntries(C.students.map((s) => [s.id, s.name]));
   const pairs = (C.pairs || []).map((p) => p.map((id) => (id === me.id ? "you" : esc(names[id] || "someone who left"))).join(" with "));
-  const fb = (C.feedback || []).map((f) => `<div class="qa">${f.kind === "discussion"
+  const fb = (C.feedback || []).map((f) => `<div class="qa">${f.kind === "discussion" && f.round === 0
+    ? `<b>${esc(f.from_name)}</b> wrote their why<br><b>Why:</b> ${esc(f.well)}<br><b>Why it matters:</b> ${esc(f.improve)}`
+    : f.kind === "discussion"
     ? `<b>${esc(f.from_name)}</b> answered the discussion<br>${esc(f.well)}`
     : `<b>${esc(f.from_name)}</b> on ${f.to_name ? esc(f.to_name) + "'s" : "their partner's"} call · Round ${f.round || "?"}<br><b>Did well:</b> ${esc(f.well)}<br><b>Improve:</b> ${esc(f.improve)}`}
     <br><small class="muted">${new Date(f.created_at).toLocaleString()}</small></div>`).join("");
   const html = `<div class="card ccteach" id="ccteach" style="margin-top:12px">
     <div class="row" style="justify-content:space-between"><b style="font-size:18px">Teacher lesson: ${esc(L.title)}</b>${C.live ? `<span class="livepill">LIVE</span>` : `<span class="tag">Not live</span>`}</div>
-    <p style="margin:6px 0 0"><b>Slide ${C.slide} of 17</b> · ${esc(L.slideName[C.slide - 1])} · students see Part ${pi + 1}: ${esc(L.parts[pi][0])}</p>
+    <p style="margin:6px 0 0"><b>${Unit} ${slide} of ${nS}</b> · ${esc(L.slideName[slide - 1])} · ${unit === "part" ? "students see it with a LIVE badge" : `students see Part ${pi + 1}: ${esc(L.parts[pi][0])}`}</p>
     <div class="row" style="margin-top:10px"><button class="btn sm" data-cc="live">${C.live ? "End class" : "Start class"}</button>
-      <button class="btn ghost sm" data-cc="prev"${C.slide <= 1 ? " disabled" : ""}>Prev slide</button><button class="btn ghost sm" data-cc="next"${C.slide >= 17 ? " disabled" : ""}>Next slide</button>
+      <button class="btn ghost sm" data-cc="prev"${slide <= 1 ? " disabled" : ""}>Prev ${unit}</button><button class="btn ghost sm" data-cc="next"${slide >= nS ? " disabled" : ""}>Next ${unit}</button>
       <button class="btn ghost sm" id="ccpreview">See what they see</button></div>
     <div class="notes"><div style="background:var(--soft)"><div class="cc-lbl">${esc(N[0])} · the point</div><b>${esc(N[1])}</b></div>
       <div style="background:color-mix(in srgb,var(--sun) 18%,var(--card))"><div class="cc-lbl">Do with the class</div>${esc(N[2])}</div>
       <div style="background:var(--skysoft)"><div class="cc-lbl">Students are seeing</div>${esc(N[3])}</div></div>
-    <h3 style="font-size:15px;margin:16px 0 6px">Role play pairs</h3>
-    <div class="row"><span style="font-size:14px">${pairs.length ? pairs.join(" · ") : "Not paired yet."}</span><button class="btn ghost sm" data-cc="pairs">${pairs.length ? "Shuffle again" : "Pair them up"}</button></div>
-    <h3 style="font-size:15px;margin:16px 0 6px">How your students are doing</h3>
+    ${L.rounds ? `<h3 style="font-size:15px;margin:16px 0 6px">Role play pairs</h3>
+    <div class="row"><span style="font-size:14px">${pairs.length ? pairs.join(" · ") : "Not paired yet."}</span><button class="btn ghost sm" data-cc="pairs">${pairs.length ? "Shuffle again" : "Pair them up"}</button></div>` : ""}
+    ${L.numbers ? "" : `<h3 style="font-size:15px;margin:16px 0 6px">How your students are doing</h3>
     <div class="tablewrap"><table><thead><tr><th>Student</th><th>Parts</th><th>Challenge</th><th>Practice calls</th><th>Calls made</th><th>Agreements</th><th>Last opened</th></tr></thead><tbody>
       ${C.students.map((s) => { const d = s.data || {}; return `<tr><td><b>${esc(s.name)}</b></td><td>${ccDone(d).size} / ${T}</td><td>${(d.chal || []).filter(Boolean).length} / 5</td>
         <td>${d.practice || 0} / 5</td><td>${(d.m || {}).calls || 0}</td><td>${(d.m || {}).agreed || 0}</td><td class="muted">${s.updated_at ? esc(daysAgo(s.updated_at).replace("last active ", "")) : "not opened yet"}</td></tr>`; }).join("")
-        || `<tr><td colspan="7" class="muted">Pick students below and they'll show up here.</td></tr>`}</tbody></table></div>
-    <h3 style="font-size:15px;margin:16px 0 0">Latest feedback</h3>${fb || `<p class="muted" style="margin:6px 0 0;font-size:14px">Nothing yet. Role-play feedback and discussion answers land here.</p>`}
-    <details style="margin-top:14px"><summary style="cursor:pointer;font-weight:800">Pacing (slide 17, only you see this)</summary>
+        || `<tr><td colspan="7" class="muted">Pick students below and they'll show up here.</td></tr>`}</tbody></table></div>`}
+    <h3 style="font-size:15px;margin:16px 0 0">${L.rounds ? "Latest feedback" : "Latest from your students"}</h3>${fb || `<p class="muted" style="margin:6px 0 0;font-size:14px">Nothing yet. ${L.rounds ? "Role-play feedback and discussion answers land here." : "Their whys land here."}</p>`}
+    <details style="margin-top:14px"><summary style="cursor:pointer;font-weight:800">${esc(L.pacingTitle || "Pacing (slide 17")}${L.pacingTitle ? " (only you see this)" : ", only you see this)"}</summary>
       <div class="tablewrap"><table><tbody>${L.pacing.map((r) => `<tr><td><b>${esc(r[0])}</b></td><td>${esc(r[1])}</td><td class="muted">${esc(r[2])}</td></tr>`).join("")}</tbody></table></div>
       <p class="muted" style="margin:8px 0 0;font-size:14px">${esc(L.tip)}</p></details>
     <div class="err" id="ccerr2"></div></div>`;
@@ -2842,11 +3086,11 @@ async function teacherClassPanel() {
       b.disabled = true;
       const a = b.dataset.cc;
       const { error } = a === "pairs" ? await sb.rpc("class_shuffle_pairs")
-        : await sb.rpc("class_control", { p_live: a === "live" ? !C.live : C.live, p_slide: C.slide + (a === "next" ? 1 : a === "prev" ? -1 : 0) });
+        : await sb.rpc("class_control", { p_live: a === "live" ? !C.live : C.live, p_slide: Math.max(1, Math.min(nS, slide + (a === "next" ? 1 : a === "prev" ? -1 : 0))) });
       if (error) { b.disabled = false; return ($("#ccerr2").textContent = error.message); }
       students();
     });
-    $("#ccpreview").onclick = () => classView({ lesson: C.lesson, teacher: me.full_name, data: {}, live: C.live, slide: C.slide }, true, ccFirst(L, pi));
+    $("#ccpreview").onclick = () => classView({ lesson: C.lesson, teacher: me.full_name, data: {}, live: C.live, slide }, true, ccFirst(L, pi));
   };
   return { html, wire };
 }
