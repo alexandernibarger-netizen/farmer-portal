@@ -1,0 +1,59 @@
+# Website changes Alex asks for on a Jarvis phone call.
+# Jarvis opens an issue labeled "jarvis"; Claude builds it on a jarvis/ branch and opens a pull request for Alex to review.
+# Nothing here pushes to main. Needs the ANTHROPIC_API_KEY repository secret.
+name: Jarvis website change
+
+on:
+  issues:
+    types: [labeled]
+
+concurrency:
+  group: jarvis-${{ github.event.issue.number }}
+
+jobs:
+  build:
+    # Only Alex's own requests (Jarvis files them with Alex's token)
+    if: github.event.label.name == 'jarvis' && github.event.sender.login == 'alexandernibarger-netizen'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: anthropics/claude-code-action@v1
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_args: >-
+            --max-turns 60
+            --allowedTools "Read,Edit,Write,Glob,Grep,Bash(git:*),Bash(gh pr create:*),Bash(gh issue comment:*),Bash(node:*)"
+          prompt: |
+            You are building a change for leadfarminghq.com that Alex asked for by voice on a Jarvis phone call.
+
+            Request #${{ github.event.issue.number }}: ${{ github.event.issue.title }}
+            Read the full request with the issue body below (it was transcribed from speech, so read it for intent):
+            ---
+            ${{ github.event.issue.body }}
+            ---
+
+            About the repo: a static site on GitHub Pages with no build step. index.html is the landing page, app/index.html is the
+            member portal, config.js holds public settings, supabase/ holds the database migrations and edge functions. Read README.md first.
+            Match the surrounding code's style, and keep the change as small as the request allows.
+
+            Rules:
+            1. Work on a new branch named jarvis/issue-${{ github.event.issue.number }}. Never push to main.
+            2. If the change needs a database change, write it as a new file in supabase/migrations/ and say in the pull request that
+               it still has to be applied. Do not try to reach the database.
+            3. Nothing related to crypto.
+            4. Commit, push the branch, then open a pull request with:
+               gh pr create --base main --head jarvis/issue-${{ github.event.issue.number }} --reviewer alexandernibarger-netizen
+               --title "<short title>" --body "<plain-English summary of what changed and how to check it>\n\nCloses #${{ github.event.issue.number }}"
+            5. If the request is too unclear to build, do not guess: comment on the issue with one short question instead, using gh issue comment.

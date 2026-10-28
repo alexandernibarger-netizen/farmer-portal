@@ -7,4 +7,5 @@ Members-only CRM for the Lead Farming Mentoring Program. Farmers track contracto
 - `config.js`: Supabase project URL and publishable key (safe to be public; row-level security protects the data), Stripe link, Cal.com link (`CAL_LINK`)
 - `track.js`: first-visit ad tags (utm, fbclid, ?ref), Meta pixel (`META_PIXEL_ID` in config.js) and the cookie notice
 - `supabase/functions/booking-webhook`: Cal.com webhook that records booked calls (Telegram alert from the database)
+- `supabase/functions/jarvis`: Jarvis, the phone assistant Alex calls (Vapi). Caller check + PIN, portal lookups, voice approvals, and website changes as pull requests built by `.github/workflows/jarvis.yml`. Run `select ops.jarvis_setup();` to create or update the Vapi assistant and number.
 - `supabase/schema.sql`: database schema reference
