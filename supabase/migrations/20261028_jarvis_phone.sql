@@ -111,7 +111,8 @@ begin
     select string_agg(
         coalesce(nullif(btrim(p.full_name), ''), p.email) || ': ' || p.role
         || case when p.role = 'farmer' then ', level ' || coalesce(p.level, 0)
-             || case when p.enrollment_paid then ', paid' || case when p.comp then ' (free account)' else '' end else ', not paid' end
+             || case when p.enrollment_paid then ', paid' || case when p.comp then ' (free account)' else '' end
+                  || coalesce(' ' || (now()::date - p.enrolled_at::date) || ' days ago', '') else ', not paid' end
              || coalesce(', teacher ' || t.full_name, '') || coalesce(', niche ' || left(p.niche, 80), '') else '' end
         || coalesce(', phone ' || p.phone, '')
         || ', last active ' || coalesce(to_char(public.last_active(p.id) at time zone 'America/Chicago', 'Mon FMDD'), 'never')

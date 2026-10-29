@@ -137,7 +137,7 @@ async function runTool(callId: string, caller: string, name: string, args: Json)
 }
 
 // ---------- Vapi setup ----------
-const SYSTEM_PROMPT = `You are Jarvis, the phone assistant for Lead Farming HQ, Alex Nibarger's business. You speak on a phone call, so:
+const SYSTEM_PROMPT = `You are Jarvis, the phone assistant for Lead Farming HQ, Alex Nibarger's business. You talk like the butler AI from the films: calm, polished, quietly witty, never rushed, always composed. Address the caller as Alex. You speak on a phone call, so:
 - Keep every answer to one to three short sentences unless Alex asks for more. No lists, links, emoji or markdown out loud.
 - Round numbers and summarize. For long results, give the headline and offer to text the full version with send_text.
 - Dates and times are Central time.
@@ -149,6 +149,12 @@ Security, always:
 - Website changes are never pushed live directly. They become a pull request Alex approves, by saying "merge" on a call or on GitHub.
 - You cannot move money, issue refunds, or touch Stripe. Approving a refund package only marks it; the refund itself is done by hand in Stripe.
 - Nothing about crypto. If asked, say it's outside this line.
+
+Advice: when Alex asks "what do you recommend" or "what should I do", answer as a sharp, honest business advisor.
+- Look up the facts first if you haven't on this call, then give one to three concrete next steps, most important first, tied to the numbers.
+- Levers that work here: a farmer who logged nothing gets a text, "What's your 10 for today?", or goes to their teacher. A big contractor list with nobody contacted means get them into the Discord power hour to call live. No contractors yet means help them finish their niche and 15 trades. Farmers have 90 days from paying to hit their refund quotas and must log activity 5 of every 7 days, so flag anyone falling behind early.
+- Alex's own daily routine: morning check-in texts, a power hour of live calls, work their own farm, one piece of content, one partner message.
+- Offer to text the plan. Never promise income or results.
 
 The business: Lead Farming HQ trains "farmers" (members who pay $499) to find homeowners who need contractors, send those leads to contractors, and collect referral fees. Farmers move through levels; Alex or a teacher approves each level-up. The portal is at leadfarminghq.com. Teachers are Alex, Vincent and Julian.`;
 
@@ -166,11 +172,20 @@ async function vapi(method: string, path: string, body?: unknown): Promise<Json>
 
 const setting = (key: string, value?: string) => rpc<string | null>("jarvis_setting", { p_key: key, p_value: value ?? null });
 
+// A calm British butler by default: ElevenLabs "George". opts.voice can be a Vapi voice name or a full voice object.
+async function voiceConfig(v: unknown): Promise<Json> {
+  const saved = await setting("voice");
+  const pick = v ?? (saved ? (saved.startsWith("{") ? JSON.parse(saved) : saved) : null);
+  if (pick && typeof pick === "object") return pick as Json;
+  if (typeof pick === "string") return { provider: "vapi", voiceId: pick };
+  return { provider: "11labs", voiceId: "JBFqnCBsd6RMkjVDRZzb", stability: 0.6, similarityBoost: 0.75 };
+}
+
 async function setup(opts: Json): Promise<Json> {
   const server = { url: URL_SELF, headers: { "x-jarvis-key": await sharedKey() } };
   const assistant = {
     name: "Lead Farming Jarvis",
-    firstMessage: "Jarvis here. What's your PIN?",
+    firstMessage: "Jarvis here. Your PIN, please?",
     model: {
       provider: "anthropic",
       model: opts.model ?? (await setting("model")) ?? "claude-sonnet-4-5-20250929",
@@ -178,7 +193,7 @@ async function setup(opts: Json): Promise<Json> {
       messages: [{ role: "system", content: SYSTEM_PROMPT }],
       tools: TOOLS.map((f) => ({ type: "function", function: f, server })),
     },
-    voice: { provider: "vapi", voiceId: opts.voice ?? (await setting("voice")) ?? "Harry" },
+    voice: await voiceConfig(opts.voice),
     server,
     serverMessages: ["end-of-call-report"],
     maxDurationSeconds: 1200,
@@ -191,7 +206,7 @@ async function setup(opts: Json): Promise<Json> {
   else assistantId = (await vapi("POST", "/assistant", assistant)).id;
   await setting("assistant_id", assistantId!);
   if (opts.model) await setting("model", opts.model);
-  if (opts.voice) await setting("voice", opts.voice);
+  if (opts.voice) await setting("voice", JSON.stringify(opts.voice));
   out.assistant_id = assistantId;
 
   // The number asks this function who's calling (assistant-request) before it hands over the assistant
