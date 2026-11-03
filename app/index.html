@@ -521,7 +521,7 @@ img,svg,video,iframe{max-width:100%}
 
 <script type="module">
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-const C = { PRICE: 499, ...window.CRM_CONFIG };  // PRICE fallback covers a cached older config.js
+const C = { PRICE: 1000, ...window.CRM_CONFIG };  // PRICE fallback covers a cached older config.js
 // invite links (admin-sent) land the same way as reset links: signed in, but with no password yet
 const inviting = /type=invite/.test(location.hash + location.search);
 let recovering = inviting || /type=recovery/.test(location.hash + location.search);
@@ -617,9 +617,9 @@ function authView(mode = "in") {
 }
 const HEARD = ["Facebook or Instagram ad", "A friend or family member", "Talked with Alex", "TikTok", "YouTube", "Google search", "Other"];
 // The enrollment agreement lives at /terms/; bump TERMS_VERSION whenever that page's version date changes.
-const TERMS_VERSION = "2026-10-14";
+const TERMS_VERSION = "2026-11-03";
 // Older versions a farmer can stay on without being asked again (their refund rule follows the version they accepted).
-const TERMS_KEPT = ["2026-10-08.2"];
+const TERMS_KEPT = ["2026-10-08.2", "2026-10-14"];
 const termsOk = (v) => v === TERMS_VERSION || TERMS_KEPT.includes(v);
 const agreeBox = (checked = false) => `<label class="agree"><input type="checkbox" name="agree" required${checked ? " checked" : ""}>
   <span>I'm 18 or older and I agree to the <a href="/terms/" target="_blank" rel="noopener">Terms of Enrollment</a>, including the <a href="/terms/#refunds" target="_blank" rel="noopener">refund rules</a>, and the <a href="/privacy/" target="_blank" rel="noopener">Privacy Policy</a>.</span></label>`;
@@ -2091,7 +2091,7 @@ function tourSteps(kind) {
     { view: "learn", page: "Learn", sel: "#askcard", title: "Ask a teacher", when: "After you ace the quiz",
       body: "Once you ace a level's quiz, you can send questions about it to your teacher. Their answers show up right here." },
     { view: "program", page: "90 days", sel: '#nav [data-v="program"]', title: "90 days: your goals and deadlines", when: "Day 0 to day 97",
-      body: `This page tracks every goal of the 90-day program. Hit them all and, if your fees haven't paid back your ${money(C.PRICE)} yet, you can get the difference back.` },
+      body: `This page tracks every goal of the 90-day program. Hit them all and, if your fees haven't paid back your ${money(me?.enrollment_fee ?? C.PRICE)} yet, you can get the difference back.` },
     { view: "program", page: "90 days", sel: "#nichecard", title: "Your first task: step 0", when: "Step 0 · due day 3",
       body: "List 15 different business models in your niche, one per line, and press <b>Send my 15</b>. Alex or a verifier checks that they don't overlap." },
     { view: "program", page: "90 days", sel: "#comcard", title: "Log your neighbor comments", when: "Step 4 · from day 7",

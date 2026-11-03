@@ -1,4 +1,4 @@
-// Stripe webhook: when a farmer finishes the $499 Payment Link checkout, mark their enrollment paid.
+// Stripe webhook: when a farmer finishes the $1,000 Payment Link checkout, mark their enrollment paid.
 // The portal opens the Payment Link with ?client_reference_id=<farmer's user id>.
 // Requires the STRIPE_WEBHOOK_SECRET function secret (whsec_...).
 // Optional TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID secrets: every paid checkout also pings Alex on Telegram.
@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
   if (session.payment_status !== "paid") return new Response("not paid", { status: 200 });
   const amount = `$${((session.amount_total ?? 0) / 100).toFixed(2)}`;
   const payer = [session.customer_details?.name, email].filter(Boolean).join(" · ") || "unknown payer";
-  // Only the enrollment counts: $499, or $500 from the old link (amount_total is in cents)
+  // Only the enrollment counts: $1,000 now, or $499/$500 from an older link (amount_total is in cents)
   if ((session.amount_total ?? 0) < 49900) {
     await telegram(`💰 Stripe payment: ${amount}\n${payer}\n(not an enrollment, nothing unlocked)`);
     return new Response("not an enrollment payment", { status: 200 });
