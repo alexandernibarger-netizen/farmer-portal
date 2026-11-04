@@ -7,7 +7,7 @@ window.CRM_CONFIG = {
   // Enrollment price in dollars; keep it in step with the Stripe Payment Link and the Terms.
   PRICE: 1000,
   // Stripe Payment Link for the enrollment (https://buy.stripe.com/...). Leave empty to hide the Pay button.
-  PAYMENT_LINK: "https://buy.stripe.com/3cIaEX99WcV9dS3abn5gc01",
+  PAYMENT_LINK: "https://buy.stripe.com/aFaeVd4TGbR58xJ83f5gc02",
   // Alex's Cal.com event for intro calls, as "username/event" (from https://cal.com/username/event).
   // Leave empty and the landing page form still reaches Alex on Telegram; it just shows no calendar.
   CAL_LINK: "zimbux/intro-call",
