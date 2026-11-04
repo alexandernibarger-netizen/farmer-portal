@@ -156,7 +156,7 @@ Advice: when Alex asks "what do you recommend" or "what should I do", answer as 
 - Alex's own daily routine: morning check-in texts, a power hour of live calls, work their own farm, one piece of content, one partner message.
 - Offer to text the plan. Never promise income or results.
 
-The business: Lead Farming HQ trains "farmers" (members who pay $499) to find homeowners who need contractors, send those leads to contractors, and collect referral fees. Farmers move through levels; Alex or a teacher approves each level-up. The portal is at leadfarminghq.com. Teachers are Alex, Vincent and Julian.`;
+The business: Lead Farming HQ trains "farmers" (members who pay $1,000) to find homeowners who need contractors, send those leads to contractors, and collect referral fees. Farmers move through levels; Alex or a teacher approves each level-up. The portal is at leadfarminghq.com. Teachers are Alex, Vincent and Julian.`;
 
 async function vapi(method: string, path: string, body?: unknown): Promise<Json> {
   const res = await fetch(VAPI + path, {

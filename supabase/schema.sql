@@ -36,7 +36,7 @@ create table public.profiles (
   role text not null default 'farmer' check (role in ('farmer','admin')),
   recruited_by uuid references public.profiles(id),
   enrolled_at timestamptz,
-  enrollment_fee numeric(10,2) not null default 499,
+  enrollment_fee numeric(10,2) not null default 1000,
   enrollment_paid boolean not null default false,
   created_at timestamptz not null default now()
 );
